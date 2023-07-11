@@ -5,4 +5,4 @@ channels:
   - defaults
 dependencies:
   - emu=3.4.4
-  - minmap>=2.22
+  - minimap>=2.22
