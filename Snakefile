@@ -30,7 +30,7 @@ rule concatenate_fastqs:
     log:
         "logs/concat_fastq/barcode{barcode_number}_log.txt"
     conda:
-        "nanopore_corona_pipeline"
+        "nanopore_qc_env"
     resources:
         mem_mb = 200
     shell:
@@ -100,7 +100,7 @@ rule run_emu:
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
         basename = "barcode{barcode_number}"
     conda:
-        "emu_env" # minmap >= 2.22
+        "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
     shell:
         """
