@@ -15,7 +15,7 @@ wildcard_constraints:
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
 
 BARCODES = glob_wildcards(f"{FASTQ_DIR}/{{barcode_dir}}/"
-                          f"{{flowcell_id}}_pass_barcode{{barcode_number}}_{{read_id}}.{{extension}}").barcode_number
+                          f"{{flowcell_id}}_pass_barcode{{barcode_number}}_{{run_id}}_{{run_id_2}}_{{read_number}}.{{extension}}").barcode_number
 print(BARCODES)
 
 
