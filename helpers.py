@@ -24,9 +24,20 @@ def get_fastq_pass_dir(rundir: pathlib.Path) -> pathlib.Path:
         FileNotFoundError:  if the fastq_pass directory is not in the expected location
         ValueError:         if there are multiple fastq_pass directories
     """
-    if rundir.name == "fastq_pass":
-        fastq_pass_dir = rundir
+    # we may need to give the fastq_pass directory directly
+    # or a group of dirs in the fastq_pass dir
+    if "fastq_pass" in rundir.parts:
+        # check if the rundir contains barcodes
+        if any((child_dir.name.startswith("barcode") for child_dir in rundir.iterdir())):
+            fastq_pass_dir = rundir
+        else:
+            raise FileNotFoundError("fastq_pass or a subdirectory has been given "
+                                    "but no barcode directories were found. "
+                                    "Please give the path to the base directory "
+                                    "or a directory containing barcode directories ('barcodeXX').")
     else:
+        logger.info(f"No barcode directories found in {rundir}.\n"
+                    f"Searching for barcodes in {rundir}/rawdata/*/fastq_pass...")
         check_fastq_pass = list(rundir.glob("rawdata/*/fastq_pass"))
         if not check_fastq_pass:
             raise FileNotFoundError(f"fastq_pass folder(s) not found in expected location:\n"
