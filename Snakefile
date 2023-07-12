@@ -9,11 +9,13 @@ workdir: config["outdir"]
 
 RUNDIR = pathlib.Path(config["rundir"])
 FASTQ_DIR = helpers.get_fastq_pass_dir(RUNDIR)
-
+print(FASTQ_DIR)
 wildcard_constraints:
     barcode_number=r"\d{2}"
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
-BARCODES = glob_wildcards(f"{FASTQ_DIR}/barcode{{barcode_number}}/*").barcode_number
+
+BARCODES = glob_wildcards(f"{FASTQ_DIR}/barcode{{barcode_number}}/"
+                          f"{{flowcell_id}}_pass_barcode{{barcode_number}}_{{read_id}}.{{extension}}").barcode_number
 print(BARCODES)
 
 
