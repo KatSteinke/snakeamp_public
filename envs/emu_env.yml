@@ -1,4 +1,4 @@
-name: nanopore_qc_env
+name: emu_env
 channels:
   - bioconda
   - conda-forge
