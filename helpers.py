@@ -11,6 +11,7 @@ console_log = logging.StreamHandler()
 console_log.setLevel(logging.INFO)
 logger.addHandler(console_log)
 
+
 def get_fastq_pass_dir(rundir: pathlib.Path) -> pathlib.Path:
     """Find the fastq_pass directory for the given run directory.
 
@@ -25,7 +26,7 @@ def get_fastq_pass_dir(rundir: pathlib.Path) -> pathlib.Path:
         ValueError:         if there are multiple fastq_pass directories
     """
     # we may need to give the fastq_pass directory directly
-    # or a group of dirs in the fastq_pass dir
+    # or a group of dirs in the fastq_pass dir - TODO: do we need to keep this once we move to barcodes?
     if "fastq_pass" in rundir.parts:
         # check if the rundir contains barcodes
         if any((child_dir.name.startswith("barcode") for child_dir in rundir.iterdir())):

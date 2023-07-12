@@ -1,5 +1,6 @@
 import pathlib
 
+import helpers
 import snake_helpers
 
 workdir: config["outdir"]
@@ -7,9 +8,10 @@ workdir: config["outdir"]
 # set relevant dirs
 
 RUNDIR = config["rundir"]
+FASTQ_DIR = helpers.get_fastq_pass_dir(RUNDIR)
 
-# TODO: we can absolutely solve this better - runsheets or such
-BARCODES = glob_wildcards(f"{RUNDIR}/rawdata/*/fastq_pass/barcode{{barcode_number}}").barcode_number
+# TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
+BARCODES = glob_wildcards(f"{FASTQ_DIR}/barcode{{barcode_number}}").barcode_number
 
 rule all:
     input:
@@ -17,7 +19,7 @@ rule all:
 
 rule concatenate_fastqs:
     params:
-        barcode_dir = f"{RUNDIR}/rawdata/*/fastq_pass/barcode{{barcode_number}}",
+        barcode_dir = f"{FASTQ_DIR}/barcode{{barcode_number}}",
         file_format = lambda wildcards: "fastq.gz" if snake_helpers.is_gzipped(RUNDIR,
                                                                                wildcards.barcode_number)
                                                     else "fastq",
