@@ -8,7 +8,8 @@ import snake_helpers
 
 
 class TestIsGzipped(unittest.TestCase):
-    rundir = pathlib.Path(__file__).parent / "data" / "snake_helpers" / "test_dir"
+    rundir = pathlib.Path(__file__).parent / "data" / "snake_helpers" / "test_dir" / "rawdata" \
+             / "subdir" / "fastq_pass"
 
     def test_get_fastq(self):
         barcode = "01"
@@ -23,3 +24,10 @@ class TestIsGzipped(unittest.TestCase):
         error_msg = "Extensions ['.fastq', '.gz'] not supported."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             snake_helpers.is_gzipped(self.rundir, barcode)
+
+    def test_fail_no_barcode_dirs(self):
+        barcode = "01"
+        base_dir = pathlib.Path(__file__).parent / "data" / "snake_helpers" / "test_dir"
+        error_msg = f"Barcode directory barcode{barcode} not found in {base_dir}."
+        with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
+            snake_helpers.is_gzipped(base_dir, barcode)

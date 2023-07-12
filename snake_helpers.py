@@ -7,21 +7,26 @@ import pathlib
 import helpers
 
 
-def is_gzipped(rundir: pathlib.Path, barcode_number: str) -> bool:
+def is_gzipped(fastq_dir: pathlib.Path, barcode_number: str) -> bool:
     """Determine whether all files in the barcode directory are gzipped.
 
     Arguments:
-        rundir:         the directory containing sequencing data for the run
+        fastq_dir:      the directory containing barcodeXX subdirectories for the run
         barcode_number: the barcode number for which fastq file format should be identified
                         (as one of either .fastq or .fastq.gz)
 
     Returns:
         True if fastq files are gzipped, False otherwise
     Raises:
-        ValueError: if the extension is unsupported or there are multiple formats in the directory
+        FileNotFoundError:  if the supplied fastq directory does not contain the required barcode
+                            directory
+        ValueError:         if the extension is unsupported or there are multiple formats in the
+                            directory
     """
-    fastq_pass = helpers.get_fastq_pass_dir(rundir)
-    barcode_dir = fastq_pass / f"barcode{barcode_number}"
+    barcode_dir = fastq_dir / f"barcode{barcode_number}"
+    if not barcode_dir.exists():
+        raise FileNotFoundError(f"Barcode directory barcode{barcode_number} "
+                                f"not found in {fastq_dir}.")
     extensions = [read_file.suffix for read_file in barcode_dir.iterdir() if read_file.is_file()]
     if all(extension == ".gz" for extension in extensions):
         return True

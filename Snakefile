@@ -23,11 +23,11 @@ rule all:
 rule concatenate_fastqs:
     params:
         barcode_dir = f"{FASTQ_DIR}/barcode{{barcode_number}}",
-        file_format = lambda wildcards: "fastq.gz" if snake_helpers.is_gzipped(RUNDIR,
+        file_format = lambda wildcards: "fastq.gz" if snake_helpers.is_gzipped(FASTQ_DIR,
                                                                                wildcards.barcode_number)
                                                     else "fastq",
-        concatenate = lambda wildcards: "zcat" if snake_helpers.is_gzipped(RUNDIR,
-                                                                               wildcards.barcode_number)
+        concatenate = lambda wildcards: "zcat" if snake_helpers.is_gzipped(FASTQ_DIR,
+                                                                           wildcards.barcode_number)
                                                else "cat"
     output:
         concat_fasta = temp("barcode{barcode_number}/reads/barcode{barcode_number}.reads.fastq")
