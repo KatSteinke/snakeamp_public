@@ -7,7 +7,7 @@ workdir: config["outdir"]
 
 # set relevant dirs
 
-RUNDIR = config["rundir"]
+RUNDIR = pathlib.Path(config["rundir"])
 FASTQ_DIR = helpers.get_fastq_pass_dir(RUNDIR)
 
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
