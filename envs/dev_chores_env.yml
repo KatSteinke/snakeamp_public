@@ -1,0 +1,17 @@
+name: 16s_pipeline_dev_env
+channels:
+  - conda-forge
+  - anaconda
+  - bioconda
+  - defaults
+dependencies:
+  - biopython
+  - coverage
+  - numpy>=1.22.2
+  - openpyxl
+  - pandas
+  - pyflakes
+  - pylint
+  - pytest
+  - python>=3.9.*
+  - pyyaml
