@@ -7,6 +7,7 @@ import math
 import pathlib
 import re
 
+from argparse import ArgumentParser
 from functools import reduce
 from typing import List
 
@@ -126,3 +127,15 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path) -> pd.DataFrame:
     all_merged = merge_emu(all_reports)
     return all_merged
 
+
+if __name__ == "__main__":
+    arg_parser = ArgumentParser(description = "Combine all Emu reports in a given directory")
+    arg_parser.add_argument("indir", help="Directory containing all Emu reports to summarize")
+    arg_parser.add_argument("--outfile",
+                            help="File to write Emu results to (default: emu_summarized.xlsx)",
+                            default = "emu_summarized.xlsx")
+    args = arg_parser.parse_args()
+    input_dir = pathlib.Path(args.indir)
+    outfile = pathlib.Path(args.outfile)
+    merged_emu = merge_all_in_emu_dir(input_dir)
+    merged_emu.to_excel(outfile)
