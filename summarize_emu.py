@@ -6,6 +6,9 @@ import math
 import pathlib
 import re
 
+from functools import reduce
+from typing import List
+
 import pandas as pd
 
 
@@ -49,11 +52,28 @@ def report_species_per_barcode(emu_counts: pathlib.Path) -> pd.DataFrame:
     emu_read_counts = emu_read_counts.reindex(columns = cols_for_report, fill_value = "")
     # "unassigned" is only noted on the taxid level - fill it in on the species level
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
+    # reindex so the species stays outside the multiindexed columns
+    emu_read_counts = emu_read_counts.set_index("species", drop=True)
     # note down barcode
     barcode_header = [sample_name] * len(emu_read_counts.columns)
     emu_read_counts.columns = pd.MultiIndex.from_arrays([barcode_header,
                                                          emu_read_counts.columns])
     return emu_read_counts
 
-# combine all on species
 
+# combine all on species
+def merge_emu(emu_reports: List[pd.DataFrame]) -> pd.DataFrame:
+    """Merge Emu reports for all samples. https://stackoverflow.com/a/44338256/15704972
+
+    Arguments:
+        emu_reports:   Filtered reports for all samples
+
+    Returns:
+        Reports for all samples merged on species ID
+    """
+    combined_report = reduce(lambda left_df, right_df: pd.merge(left_df, right_df,
+                                                                how = "outer",
+                                                                left_index = True,
+                                                                right_index = True),
+                             emu_reports)
+    return combined_report
