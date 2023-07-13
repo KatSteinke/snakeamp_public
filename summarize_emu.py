@@ -2,6 +2,7 @@
 
 __author__ = "Kat Steinke"
 
+import logging
 import math
 import pathlib
 import re
@@ -9,10 +10,15 @@ import re
 from functools import reduce
 from typing import List
 
+import numpy as np
 import pandas as pd
 
+logger = logging.getLogger("summarize_emu")
+logger.setLevel(logging.INFO)
+console_log = logging.StreamHandler()
+console_log.setLevel(logging.WARNING)
+logger.addHandler(console_log)
 
-# for each Emu report in the directory
 
 def report_species_per_barcode(emu_counts: pathlib.Path) -> pd.DataFrame:
     """Extract estimated species counts from Emu output (with estimated counts, --keep_counts)
@@ -77,3 +83,46 @@ def merge_emu(emu_reports: List[pd.DataFrame]) -> pd.DataFrame:
                                                                 right_index = True),
                              emu_reports)
     return combined_report
+
+
+def merge_all_in_emu_dir(emu_dir: pathlib.Path) -> pd.DataFrame:
+    """Merge all Emu reports in the supplied directory.
+
+    Arguments:
+        emu_dir:    the directory containing all Emu reports (name format: SAMPLE_rel-abundance.tsv)
+
+    Returns:
+        All Emu reports in the directory whose names match the name format combined.
+
+    Raises:
+        FileNotFoundError:  if the directory does not contain any Emu reports
+    """
+    emu_reports = list(emu_dir.glob("*_rel-abundance.tsv"))
+    if not emu_reports:
+        raise FileNotFoundError(f"No Emu reports found in {emu_dir}.")
+    all_reports = []
+    for emu_report in emu_reports:
+        try:
+            emu_data = report_species_per_barcode(emu_report)
+        except ValueError as value_err:
+            logger.error(f"Error in {emu_report}:\n"
+                         f"{value_err}\n"
+                         "Empty results will be added to the merged summary.")
+            # we know the file matches the pattern
+            find_sample_name = re.search(r'(?P<sample_name>\w+)_rel-abundance\.tsv',
+                                         emu_report.name)
+            sample_name_groups = find_sample_name.groupdict()
+            sample_name = sample_name_groups.get("sample_name")
+            emu_data = pd.DataFrame(index = pd.Index(data=["unassigned"], name="species"),
+                                    columns = pd.MultiIndex.from_arrays([[sample_name,
+                                                                          sample_name,
+                                                                          sample_name],
+                                                                         ["abundance_from_all",
+                                                                          "estimated counts",
+                                                                          "medtages"]]),
+                                    data = [[np.nan, np.nan, ""]])
+        all_reports.append(emu_data)
+
+    all_merged = merge_emu(all_reports)
+    return all_merged
+

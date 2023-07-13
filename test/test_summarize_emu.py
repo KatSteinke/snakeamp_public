@@ -180,3 +180,83 @@ class TestMergeEmu(unittest.TestCase):
         print(expected_merged)
         print(test_merged)
         pd.testing.assert_frame_equal(expected_merged, test_merged)
+
+
+class TestMergeEmuDir(unittest.TestCase):
+    def test_success_merge(self):
+        """Test if multiple files are merged successfully."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "success_merge_dir"
+        expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan],
+                           [0.75, 15.0, "", 0.8, 16.0, ""],
+                           [np.nan, np.nan, np.nan, 0.2, 4.0, ""],
+                           [0.05, 1.0, "", 0.00, 0.0, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "Placeholderia testfacei",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["barcode01", "barcode01", "barcode01",
+                                                       "barcode02", "barcode02", "barcode02"],
+                                                      ["abundance_from_all", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all", "estimated counts",
+                                                       "medtages"]])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path)
+        print(expected_merged)
+        print(test_merged)
+        pd.testing.assert_frame_equal(expected_merged, test_merged)
+
+    def test_handle_single_sample(self):
+        """Test if a single file is parsed and returned properly."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "single_sample"
+        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
+                                                "estimated counts": [15.0, 4.0, 1.0],
+                                                "medtages": ["", "", ""]},
+                                        index = pd.Index(data = ["Placeholderia fakeorum",
+                                                                 "Placeholderia bielefeldensis",
+                                                                 "unassigned"], name = "species"))
+        barcode_header = ["barcode01"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+                                                              expected_results.columns])
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path)
+        pd.testing.assert_frame_equal(expected_results, test_merged)
+
+    def test_handle_broken_file(self):
+        """Ensure that an invalid file is handled properly (log error and return fake empty df)"""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "one_broken"
+        expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan],
+                           [0.75, 15.0, "",np.nan, np.nan, np.nan],
+                           [0.05, 1.0, "", np.nan, np.nan, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["barcode01", "barcode01", "barcode01",
+                                                       "barcode03", "barcode03", "barcode03"],
+                                                      ["abundance_from_all", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all", "estimated counts",
+                                                       "medtages"]])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        with self.assertLogs("summarize_emu") as logged:
+            log_msg = f"ERROR:summarize_emu:Error in {sample_path / 'barcode03_rel-abundance.tsv'}:\n" \
+                      "Relative abundance does not sum to 1. " \
+                      "This suggests the result file is broken (missing/extra lines).\n" \
+                      "Empty results will be added to the merged summary."
+            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path)
+        print("\n".join(logged.output))
+        assert log_msg in logged.output
+        pd.testing.assert_frame_equal(expected_merged, test_merged)
+
+    def test_fail_no_files(self):
+        """Ensure the function fails if no files matching the format are found."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "blank_dir"
+        error_msg = f"No Emu reports found in {sample_path}."
+        with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
+            summarize_emu.merge_all_in_emu_dir(sample_path)
+
