@@ -76,13 +76,14 @@ def merge_emu(emu_reports: List[pd.DataFrame]) -> pd.DataFrame:
         emu_reports:   Filtered reports for all samples
 
     Returns:
-        Reports for all samples merged on species ID
+        Reports for all samples merged on species ID, sorted by sample name
     """
     combined_report = reduce(lambda left_df, right_df: pd.merge(left_df, right_df,
                                                                 how = "outer",
                                                                 left_index = True,
                                                                 right_index = True),
                              emu_reports)
+    combined_report = combined_report.sort_index(level=0, axis = "columns")
     return combined_report
 
 
@@ -102,7 +103,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path) -> pd.DataFrame:
     if not emu_reports:
         raise FileNotFoundError(f"No Emu reports found in {emu_dir}.")
     all_reports = []
-    for emu_report in emu_reports:
+    for emu_report in sorted(emu_reports, key = lambda report: report.name):
         try:
             emu_data = report_species_per_barcode(emu_report)
         except ValueError as value_err:
