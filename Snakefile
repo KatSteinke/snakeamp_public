@@ -98,7 +98,6 @@ rule fastq_to_fasta:
         seqtk seq -a "{input.compressed_fastq}" > "{output.fasta_reads}"
         """
 
-# TODO: logging?
 rule run_emu:
     input:
         fasta_reads = "barcode{barcode_number}/reads/barcode{barcode_number}.filtered.fasta"
@@ -111,11 +110,13 @@ rule run_emu:
     conda:
         "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
+    log:
+        "logs/emu/barcode{barcode_number}.log"
     shell:
         """
         emu abundance "{input.fasta_reads}" --db "{params.emu_db}" --keep-counts \
          --output-dir "{params.outdir}" --output-basename {params.basename} \
-         --threads {threads}
+         --threads {threads} &> "{log}"
         """
 
 rule combine_emu:
@@ -129,7 +130,15 @@ rule combine_emu:
         tax_rank = "tax_id"
     conda:
         "emu_env"  # minmap >= 2.22
+    log:
+        "logs/emu/combine_all.log"
     shell:
         """
-        emu combine-outputs "{params.emu_dir}" {params.tax_rank}
+        emu combine-outputs "{params.emu_dir}" {params.tax_rank} &> "{log}"
         """
+
+onsuccess:
+    shell('mkdir -p logs; cat "{log}" >> "logs/snakemake.log"')
+
+onerror:
+    shell('mkdir -p logs; cat "{log}" >> "logs/snakemake.log"')
