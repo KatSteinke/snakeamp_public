@@ -22,7 +22,7 @@ print(BARCODES)
 
 rule all:
     input:
-        all_results = "emu/emu-combined-tax_id.tsv"
+        all_results = "emu-combined.xlsx"  # TODO: experiment name!
 
 rule concatenate_fastqs:
     params:
@@ -124,17 +124,16 @@ rule combine_emu:
         all_relative_abundance = expand("emu/barcode{barcode_number}_rel-abundance.tsv",
                                         barcode_number = BARCODES)
     output:
-        counts_combined = "emu/emu-combined-tax_id.tsv"
+        counts_combined = "emu-combined.xlsx"
     params:
         emu_dir = "emu",
-        tax_rank = "tax_id"
-    conda:
-        "emu_env"  # minmap >= 2.22
+        basedir = workflow.current_basedir
     log:
         "logs/emu/combine_all.log"
     shell:
         """
-        emu combine-outputs "{params.emu_dir}" {params.tax_rank} &> "{log}"
+        python3 {params.basedir}/summarize_emu.py "{params.emu_dir}" \
+         --outfile "{output.counts_combined}" &> "{log}"
         """
 
 onsuccess:
