@@ -112,7 +112,7 @@ def validate_runsheet_format(run_sheet: pathlib.Path,
         # check that positive and negative controls are included
         # for positive controls: see if there are any sample numbers matching the controls
     # check controls if given
-    if workflow_config["sample_number_settings"]["positive_control"]:
+    if active_config["sample_number_settings"]["positive_control"]:
         positive_control_pattern = "|".join(active_config["sample_number_settings"][
                                                 "positive_control"].keys())
         positive_controls_in_sheet = sheet_data["KMA nr"].str.fullmatch(positive_control_pattern,
@@ -122,7 +122,7 @@ def validate_runsheet_format(run_sheet: pathlib.Path,
             fail_record += f"No positive controls given in runsheet."
     else:
         positive_control_pattern = ''
-    if workflow_config["sample_number_settings"]["negative_control"]:
+    if active_config["sample_number_settings"]["negative_control"]:
         negative_control_pattern = active_config["sample_number_settings"]["negative_control"]
         # for negative controls: see if there is anything matching negative control pattern
         negative_controls_in_sheet = sheet_data["KMA nr"].str.fullmatch(negative_control_pattern,
@@ -155,7 +155,7 @@ def validate_runsheet_format(run_sheet: pathlib.Path,
                        f'followed by eight numbers (six if leaving out year). '
         if active_config['sample_number_settings']['negative_control']:
             fail_record += "Negative controls must be given in the format " \
-                            f"{active_config['sample_number_settings']['negative_control']}. "
+                            f"{negative_control_pattern}. "
         fail_record += "Please correct sample IDs in runsheet."
 
 
