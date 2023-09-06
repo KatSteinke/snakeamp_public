@@ -168,7 +168,10 @@ class TestValidateRunsheet(unittest.TestCase):
                                                        "length_without_date": 8,
                                                        "splice_after": 2},
                                                   "negative_control": '',
-                                                  "positive_control": {}}}
+                                                  "positive_control": {}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             snake_wrapper.validate_runsheet_format(id_fail_sheet, active_config = test_config)
 
@@ -226,7 +229,10 @@ class TestValidateRunsheet(unittest.TestCase):
                                                        "length_without_date": 8,
                                                        "splice_after": 2},
                                                   "negative_control": '',
-                                                  "positive_control": {"PosK": "Placeholderia"}}}
+                                                  "positive_control": {"PosK": "Placeholderia"}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             snake_wrapper.validate_runsheet_format(no_positive_sheet, active_config = test_config)
 
@@ -247,6 +253,9 @@ class TestValidateRunsheet(unittest.TestCase):
                                                        "length_without_date": 8,
                                                        "splice_after": 2},
                                                   "negative_control": 'NegK',
-                                                  "positive_control": {}}}
+                                                  "positive_control": {}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             snake_wrapper.validate_runsheet_format(no_negative_sheet, active_config = test_config)
