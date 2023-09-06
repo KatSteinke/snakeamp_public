@@ -152,10 +152,11 @@ def validate_runsheet_format(run_sheet: pathlib.Path,
         # TODO: make sample number length variable?
         fail_record += f"\nSample IDs {fail_ids} are not valid. " \
                        f'Sample IDs must start with {" or ".join(allowed_start)} ' \
-                       f'followed by eight numbers (six if leaving out year).' \
-                       "Negative controls must be given in the format " \
-                       f"{active_config['sample_number_settings']['negative_control']}. " \
-                       "Please correct sample IDs in runsheet."
+                       f'followed by eight numbers (six if leaving out year). '
+        if active_config['sample_number_settings']['negative_control']:
+            fail_record += "Negative controls must be given in the format " \
+                            f"{active_config['sample_number_settings']['negative_control']}. "
+        fail_record += "Please correct sample IDs in runsheet."
 
 
     # check that barcodes have correct format

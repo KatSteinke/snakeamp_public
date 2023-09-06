@@ -175,6 +175,34 @@ class TestValidateRunsheet(unittest.TestCase):
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             snake_wrapper.validate_runsheet_format(id_fail_sheet, active_config = test_config)
 
+    def test_id_fail_negk(self):
+        fail_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-fail-negk.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nSample IDs ['123'] are not valid." \
+                    " Sample IDs must start with 70 or 30 or 10 or 50 followed by eight numbers" \
+                    " (six if leaving out year). " \
+                    "Negative controls must be given in the format NegK. " \
+                    "Please correct sample IDs in runsheet."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": 'NegK',
+                                                  "positive_control": {}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(fail_id_sheet, active_config = test_config)
+
     def test_fail_barcodes(self):
         barcode_fail_sheet = pathlib.Path(__file__).parent /"data" /"utilities_test" / "runsheet-barcode-fail.xlsx"
         error_msg = "The following issue(s) were detected with the runsheet:" \
