@@ -156,7 +156,7 @@ class TestValidateRunsheet(unittest.TestCase):
                     " (six if leaving out year). " \
                     "Please correct sample IDs in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                      '[BDPT]([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "letter",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
