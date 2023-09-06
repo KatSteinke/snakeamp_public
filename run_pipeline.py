@@ -62,6 +62,65 @@ def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.
 
 # get experiment name and infer output dir
 
+# ensure our output dir is clean
+def get_existing_path(path_to_check: pathlib.Path) -> pathlib.Path:
+    """Recursively check if path exists, else go down one level until an existing path is found.
+    Adapted from https://stackoverflow.com/a/39489505
+    Arguments:
+        path_to_check:  Path whose components should be checked
+    Returns:
+        The existing parts of the path
+    """
+    if path_to_check.exists():
+        return path_to_check
+    return get_existing_path(path_to_check.parent)
+
+
+def get_clean_outdir(outdir_path: pathlib.Path) -> pathlib.Path:
+    """Check which parts of a path already exist and sanitize the new ones by removing spaces
+    and special characters if needed.
+    Arguments:
+        outdir_path:    Path to check for spaces and special characters
+    Returns:
+         The sanitized version of the path
+    """
+    illegal_in_windows = r'[<>:"|?*]'
+    # "magic" filenames in Windows, should not be used
+    #device_names = {"CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5",
+    #                "COM6", "COM7", "COM8", "COM9", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4",
+    #                "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"}
+    # find out until which point path exists
+    existing_path = get_existing_path(outdir_path)
+    # for anything up to that, if it contains a "bad" character or a space, fail immediately
+    if " " in str(existing_path):
+        raise BadPathError("The path you are trying to save results to contains a space "
+                           "in an existing folder's name. This can break the pipeline. "
+                           "\nAborting....")
+    if re.search(illegal_in_windows, str(existing_path)):
+        raise BadPathError("The path you are trying to save results to contains a character that "
+                           "can't be used in Windows in an existing folder's name. "
+                           "This can break the pipeline. "
+                           "\nAborting....")
+    if existing_path == outdir_path:
+        return existing_path
+    # get rest of the path: relative to existing path
+    new_path = outdir_path.relative_to(existing_path)
+    # for the new part of the filename:
+    # otherwise remove the "illegal" characters and substitute spaces with underscores
+    # TODO: any way to use pathlib for this?
+    plain_path = str(new_path)
+    plain_path = plain_path.replace(" ", "_")
+    plain_path = re.sub(illegal_in_windows, "", plain_path)
+    cleaned_path = existing_path / plain_path
+    # if the path contains a device name, stop and complain
+    # if device_names.intersection(set(new_path.parts)):
+    if pathlib.PureWindowsPath(cleaned_path).is_reserved():
+        raise BadPathError("The path you are trying to save results to contains a name that is "
+                           "reserved in Windows. Cannot create this path. \n"
+                           "Aborting....")
+    return cleaned_path
+
+
 
 
 
