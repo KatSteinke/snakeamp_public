@@ -4,6 +4,7 @@ __author__ = "Kat Steinke"
 
 import logging
 import pathlib
+import re
 import subprocess
 
 from argparse import ArgumentParser
