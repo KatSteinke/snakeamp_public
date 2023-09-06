@@ -2,12 +2,12 @@
 sample_number_settings:
   # specify the format for sample numbers used in the input runsheet as a regex
   sample_number_format: '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})' # TODO: what is the format for sample numbers - probably numbers?
-    # optional conversion between sample numbers starting with numbers vs letters (allowed values: number, letter)
-    # if your sample numbers don't need conversion, set _in and _out to be the same - TODO: extra logic on switching
-    sample_numbers_in: number
-    sample_numbers_out: letter
-    # mapping between sample number/letter if needed
-    number_to_letter: { "70": "P", "30": "B", "10": "D", "50": "T"}
+  # optional conversion between sample numbers starting with numbers vs letters (allowed values: number, letter)
+  # if your sample numbers don't need conversion, set _in and _out to be the same - TODO: extra logic on switching
+  sample_numbers_in: number
+  sample_numbers_out: letter
+  # mapping between sample number/letter if needed
+  number_to_letter: { "70": "P", "30": "B", "10": "D", "50": "T"}
   date_settings:
     splice_in_date: False  # for now we're assuming the date is there
     length_without_date: 8 # length is based on sample_numbers_in format - TODO: how to handle all this in sample sheet creation
