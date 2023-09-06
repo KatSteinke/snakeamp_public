@@ -10,6 +10,8 @@ import subprocess
 from argparse import ArgumentParser
 from typing import Any, Dict
 
+import pandas as pd
+
 import pipeline_config
 
 # import parameters
