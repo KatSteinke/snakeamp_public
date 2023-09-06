@@ -79,16 +79,17 @@ class TestSanitizePath(unittest.TestCase):
                     / "rawdata"
         existing_path = snake_wrapper.get_clean_outdir(test_path)
         assert existing_path == true_path
+
     def test_space_in_existing(self):
         test_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test dir spaces"
         with pytest.raises(snake_wrapper.BadPathError,
-                           match="The path you are trying to save results to contains"
-                                             " a space in an existing folder's name. "
-                                             "This can break the pipeline. "
-                                             "\nAborting...."):
+                           match = "The path you are trying to save results to contains"
+                                   " a space in an existing folder's name. "
+                                   "This can break the pipeline. "
+                                   "\nAborting...."):
             snake_wrapper.get_clean_outdir(test_path)
 
-    @mock.patch(f'{run_pipeline.__name__}.get_existing_path')
+    @mock.patch(f'{snake_wrapper.__name__}.get_existing_path')
     def test_illegal_char_in_existing(self, mock_get_existing):
         mock_get_existing.return_value = "does_this_fail?"
         error_msg = "The path you are trying to save results to contains a character that " \
@@ -98,25 +99,25 @@ class TestSanitizePath(unittest.TestCase):
         test_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_dir_2" \
                     / "rawdata"
         with pytest.raises(helpers.BadPathError, match = error_msg):
-            run_pipeline.get_clean_outdir(test_path)
+            snake_wrapper.get_clean_outdir(test_path)
 
-        def test_reserved_name(self):
-            plain_reserved = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_dir_2" \
-                             / "rawdata" / "NUL"
-            reserved_after_cleaning = pathlib.Path(__file__).parent / "data" / "utilities_test" \
-                                      / "test_dir_2" / "rawdata" / "N*UL"
-            with pytest.raises(snake_wrapper.BadPathError,
-                               match = "The path you are trying to save results to contains "
-                                       "a name that is reserved in Windows. "
-                                       "Cannot create this path. \n"
-                                       "Aborting...."):
-                snake_wrapper.get_clean_outdir(plain_reserved)
-            with pytest.raises(snake_wrapper.BadPathError,
-                               match = "The path you are trying to save results to contains "
-                                       "a name that is reserved in Windows. "
-                                       "Cannot create this path. \n"
-                                       "Aborting...."):
-                snake_wrapper.get_clean_outdir(reserved_after_cleaning)
+    def test_reserved_name(self):
+        plain_reserved = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_dir_2" \
+                         / "rawdata" / "NUL"
+        reserved_after_cleaning = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                                  / "test_dir_2" / "rawdata" / "N*UL"
+        with pytest.raises(snake_wrapper.BadPathError,
+                           match = "The path you are trying to save results to contains "
+                                   "a name that is reserved in Windows. "
+                                   "Cannot create this path. \n"
+                                   "Aborting...."):
+            snake_wrapper.get_clean_outdir(plain_reserved)
+        with pytest.raises(snake_wrapper.BadPathError,
+                           match = "The path you are trying to save results to contains "
+                                   "a name that is reserved in Windows. "
+                                   "Cannot create this path. \n"
+                                   "Aborting...."):
+            snake_wrapper.get_clean_outdir(reserved_after_cleaning)
 
     def test_strip_illegal_chars(self):
         messy_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_dir*5"
