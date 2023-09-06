@@ -98,7 +98,7 @@ class TestSanitizePath(unittest.TestCase):
                     "\nAborting...."
         test_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_dir_2" \
                     / "rawdata"
-        with pytest.raises(helpers.BadPathError, match = error_msg):
+        with pytest.raises(snake_wrapper.BadPathError, match = error_msg):
             snake_wrapper.get_clean_outdir(test_path)
 
     def test_reserved_name(self):
