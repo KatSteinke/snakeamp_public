@@ -135,3 +135,118 @@ class TestSanitizePath(unittest.TestCase):
         clean_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_dir_5"
         test_path = snake_wrapper.get_clean_outdir(clean_path)
         assert test_path == clean_path
+
+
+class TestValidateRunsheet(unittest.TestCase):
+    def test_fail_ids(self):
+        id_fail_sheet = pathlib.Path(__file__).parent /"data"/ "utilities_test" / "runsheet-id-fail.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nSample IDs ['123'] are not valid." \
+                    " Sample IDs must start with 70 or 30 or 10 or 50 followed by eight numbers" \
+                    " (six if leaving out year). " \
+                    "Please correct sample IDs in runsheet."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(id_fail_sheet)
+
+    def test_fail_ids_letters(self):
+        id_fail_sheet = pathlib.Path(__file__).parent /"data"/ "utilities_test" / "runsheet-letters.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nSample IDs ['1199123456'] are not valid." \
+                    " Sample IDs must start with P or B or D or T followed by eight numbers" \
+                    " (six if leaving out year). " \
+                    "Please correct sample IDs in runsheet."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "letter",
+                                                  "sample_numbers_out": "letter",
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": '',
+                                                  "positive_control": {}}}
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(id_fail_sheet, active_config = test_config)
+
+    def test_fail_barcodes(self):
+        barcode_fail_sheet = pathlib.Path(__file__).parent /"data" /"utilities_test" / "runsheet-barcode-fail.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nBarcodes ['RB3'] are not valid barcodes. " \
+                    "Barcodes must consist of RB + a number between 01 and 96."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(barcode_fail_sheet)
+
+    def test_fail_no_ids(self):
+        no_id_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-id.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nNo sample IDs found."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(no_id_sheet)
+
+    def test_fail_no_barcodes(self):
+        no_barcode_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-barcode.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nNo barcodes found."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(no_barcode_sheet)
+
+    def test_fail_more_barcodes(self):
+        more_barcodes_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-more-barcodes.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nAmount of sample IDs and barcodes don't match. " \
+                    "There are 2 sample IDs but 3 barcodes."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(more_barcodes_sheet)
+
+    def test_fail_duplicated_barcodes(self):
+        duplicated_barcodes_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-barcode-duplication.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nBarcode(s) ['RB02'] are duplicated."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(duplicated_barcodes_sheet)
+
+    def test_fail_no_positive_control(self):
+        no_positive_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-posk.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "No positive controls given in runsheet."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": '',
+                                                  "positive_control": {"PosK": "Placeholderia"}}}
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(no_positive_sheet, active_config = test_config)
+
+    def test_fail_no_negative_control(self):
+        no_negative_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-negk.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "No negative controls given in runsheet."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": 'NegK',
+                                                  "positive_control": {}}}
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.validate_runsheet_format(no_negative_sheet, active_config = test_config)

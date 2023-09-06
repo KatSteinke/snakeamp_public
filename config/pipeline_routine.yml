@@ -12,6 +12,10 @@ sample_number_settings:
     splice_in_date: False  # for now we're assuming the date is there
     length_without_date: 8 # length is based on sample_numbers_in format - TODO: how to handle all this in sample sheet creation
     splice_after: 2 # location (1-based) at which to add year
+  negative_control: '' # TODO: do we have negative controls?
+  # list of positive controls - TODO: do we have them?
+  positive_control: {}
+
 
 barcode_format: "RB[0-9]{2}" # format of barcodes in runsheet
 barcode_prefix: "RB" # barcode prefix as letter (for transferring original fastqs by barcode)

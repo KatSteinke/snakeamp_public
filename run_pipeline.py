@@ -8,6 +8,13 @@ import re
 import subprocess
 
 from argparse import ArgumentParser
+from typing import Any, Dict
+
+import pipeline_config
+
+# import parameters
+default_config_file = pipeline_config.default_config_file
+workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 # start logging
 logger = logging.getLogger("16S_nanopore")
@@ -58,6 +65,115 @@ def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.
                 f"{str([str(fastq_dir) for fastq_dir in check_fastq_pass])}")
     return run_dir
 # read runsheet
+
+
+# check runsheet format
+def validate_runsheet_format(run_sheet: pathlib.Path,
+                             active_config: Dict[str, Any] = workflow_config) -> None:
+    """Identify wrong sample name or barcode formats in runsheet.
+
+    Arguments:
+        run_sheet:      Path to runsheet to check
+        active_config:  the configuration to use
+
+    Raises:
+        ValueError: if sample IDs are malformed or missing
+    """
+    # check if runsheet was formatted correctly, throw error and print everything that's wrong in one go
+    # get only the relevant columns here: KMA nr, barkode; skip the first three lines
+    # (not usable for parsing)
+    sheet_data = pd.read_excel(run_sheet, usecols="A:C", skiprows=3,
+                               dtype={"KMA nr": str, "Barkode NB": str})
+    sheet_issues = False
+    data_missing = False
+    # set up record of issues so they can all be printed at once
+    fail_record = "The following issue(s) were detected with the runsheet:"
+    # check that sample numbers and barcodes have been entered, fail early if so
+    no_sample_ids = sheet_data["KMA nr"].isna().all()
+    if no_sample_ids:
+        fail_record += "\nNo sample IDs found."
+        data_missing = True
+    no_barcodes = sheet_data["Barkode NB"].isna().all()
+    if no_barcodes:
+        fail_record += "\nNo barcodes found."
+        data_missing = True
+    if data_missing:
+        raise ValueError(fail_record)
+    # now we can be sure there are sample IDs and barcodes, we can check them
+    # start by checking if we have the same amount of sample IDs and barcodes
+    amount_sample_ids = sheet_data["KMA nr"].dropna().size
+    amount_barcodes = sheet_data["Barkode NB"].dropna().size
+    if amount_sample_ids != amount_barcodes:
+        sheet_issues = True
+        fail_record += f"\nAmount of sample IDs and barcodes don't match. " \
+                       f"There are {amount_sample_ids} sample IDs but {amount_barcodes} barcodes."
+        # check that positive and negative controls are included
+        # for positive controls: see if there are any sample numbers matching the controls
+    # check controls if given
+    if workflow_config["sample_number_settings"]["positive_control"]:
+        positive_control_pattern = "|".join(active_config["sample_number_settings"][
+                                                "positive_control"].keys())
+        positive_controls_in_sheet = sheet_data["KMA nr"].str.fullmatch(positive_control_pattern,
+                                                                        na = False)
+        if not positive_controls_in_sheet.any():
+            sheet_issues = True
+            fail_record += f"No positive controls given in runsheet."
+    else:
+        positive_control_pattern = ''
+    if workflow_config["sample_number_settings"]["negative_control"]:
+        negative_control_pattern = active_config["sample_number_settings"]["negative_control"]
+        # for negative controls: see if there is anything matching negative control pattern
+        negative_controls_in_sheet = sheet_data["KMA nr"].str.fullmatch(negative_control_pattern,
+                                                                        na = False)
+        if not negative_controls_in_sheet.any():
+            sheet_issues = True
+            fail_record += "No negative controls given in runsheet."
+    else:
+        negative_control_pattern = ''
+
+    id_pattern = '^(' \
+                 + active_config["sample_number_settings"]["sample_number_format"] \
+                 + '|' \
+                 + negative_control_pattern \
+                 + '|(' \
+                 + positive_control_pattern \
+                 + '))$'
+    fail_ids = sheet_data["KMA nr"][~sheet_data["KMA nr"].apply(str).str.match(id_pattern,
+                                                                               na = False)].dropna().tolist()
+    if fail_ids:
+        sheet_issues = True
+        # adapt error message to sample number format - TODO: do we need a second sanity check here
+        if active_config['sample_number_settings']['sample_numbers_in'] == "number":
+            allowed_start = active_config['sample_number_settings']['number_to_letter'].keys()
+        else:
+            allowed_start = active_config['sample_number_settings']['number_to_letter'].values()
+        # TODO: make sample number length variable?
+        fail_record += f"\nSample IDs {fail_ids} are not valid. " \
+                       f'Sample IDs must start with {" or ".join(allowed_start)} ' \
+                       f'followed by eight numbers (six if leaving out year).' \
+                       "Negative controls must be given in the format " \
+                       f"{active_config['sample_number_settings']['negative_control']}. " \
+                       "Please correct sample IDs in runsheet."
+
+
+    # check that barcodes have correct format
+    fail_barcodes = sheet_data["Barkode NB"][~sheet_data["Barkode NB"].apply(str).str.match(active_config["barcode_format"],
+                                                                                            na=False)].dropna().tolist()
+
+    if fail_barcodes:
+        sheet_issues = True
+        # here we append to the record of issues
+        fail_record += f"\nBarcodes {fail_barcodes} are not valid barcodes. " \
+                       f"Barcodes must consist of {active_config['barcode_prefix']} " \
+                       f"+ a number between 01 and 96."
+    # duplicated sample numbers have been checked in the separate runsheet check
+    # duplicated barcodes indicate a serious issue though
+    if any(sheet_data["Barkode NB"].dropna().duplicated()):
+        sheet_issues = True
+        duplicated_barcodes = sheet_data["Barkode NB"][sheet_data["Barkode NB"].duplicated()].dropna().unique()
+        fail_record += f"\nBarcode(s) {duplicated_barcodes} are duplicated."
+    if sheet_issues:
+        raise ValueError(fail_record)
 
 # check runsheet against MADS - TODO: will the year be in the sample number?
 
