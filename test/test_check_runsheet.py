@@ -108,8 +108,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                       '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": '(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
@@ -134,8 +134,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
         error_msg = "No negative controls given in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
                                                       '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
-                                                  "format_in_sheet": '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": '(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
