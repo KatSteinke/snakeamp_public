@@ -167,23 +167,29 @@ class TestCheckSampleNumbers(unittest.TestCase):
 
     def test_fail_barcodes(self):
         barcode_fail_sheet = pathlib.Path(__file__).parent /"data" /"utilities_test" / "runsheet-barcode-fail.xlsx"
+        sheet_data = pd.read_excel(barcode_fail_sheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"KMA nr": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nBarcodes ['RB3'] are not valid barcodes. " \
                     "Barcodes must consist of RB + a number between 01 and 96."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(barcode_fail_sheet, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
 
     def test_fail_no_barcodes(self):
         no_barcode_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-barcode.xlsx"
+        sheet_data = pd.read_excel(no_barcode_sheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"KMA nr": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nNo barcodes found."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(no_barcode_sheet, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
 
     def test_fail_more_barcodes(self):
         more_barcodes_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-more-barcodes.xlsx"
+        sheet_data = pd.read_excel(more_barcodes_sheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"KMA nr": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nAmount of sample IDs and barcodes don't match. " \
                     "There are 2 sample IDs but 3 barcodes."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(more_barcodes_sheet, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
