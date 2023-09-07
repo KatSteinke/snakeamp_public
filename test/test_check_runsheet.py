@@ -45,8 +45,82 @@ class TestCheckSinglePrefix(unittest.TestCase):
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_by_prefix(self.sheet_data, lab_info_data, "30", "B")
 
+class TestFindPrefix(unittest.TestCase):
+    def test_get_match(self):
+        """Ensure a prefix matching the pattern is reported."""
+        test_number = "1199123456"
+        number_format = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        expected_prefix = "70"
+        test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
+                                                 positive_control)
+        assert test_prefix == expected_prefix
+
+    def test_handle_positive_control(self):
+        """Don't try to extract a prefix from a positive control."""
+        test_number = "PosK"
+        number_format = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
+                                                 positive_control)
+        assert pd.isna(test_prefix)
+
+    def test_handle_negative_control(self):
+        """Don't try to extract a prefix from a negative control."""
+        test_number = "NegK"
+        number_format = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
+                                                 positive_control)
+        assert pd.isna(test_prefix)
+
+    def test_handle_no_hit(self):
+        test_number = "11123456"
+        number_format = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
+                                                 positive_control)
+        assert pd.isna(test_prefix)
+
+    def test_warn_no_prefix(self):
+        """Alert the user if the pattern doesn't contain a prefix definition."""
+        test_number = "99123456"
+        number_format = re.compile('(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        log_msg = "WARNING:check_runsheet:No prefix format specified. Prefix cannot be extracted."
+        with self.assertLogs("check_runsheet") as logged:
+            test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
+                                                     positive_control)
+            assert log_msg in logged.output
+        assert pd.isna(test_prefix)
+
 
 class TestCheckRunsheet(unittest.TestCase):
+    test_config = {"sample_number_settings": {"sample_number_format":
+                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                              "sample_numbers_in": "number",
+                                              "sample_numbers_out": "letter",
+                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "number_to_letter": {"70": "P",
+                                                                   "30": "B",
+                                                                   "10": "D",
+                                                                   "50": "T"},
+                                              "date_settings":
+                                                  {"splice_in_date": False,
+                                                   "length_without_date": 8,
+                                                   "splice_after": 2},
+                                              "negative_control": '',
+                                              "positive_control": {}},
+                   "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                   "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                   }
+
     def test_multiple_fails(self):
         fail_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_notinmads_runsheet.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
@@ -58,7 +132,20 @@ class TestCheckRunsheet(unittest.TestCase):
                     "Please check that sample numbers are correct.\n" \
                     "Samples ['11410000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
+        # TODO ADD CONFIG: sample numbers have no years - set config for the entire thing?
         with pytest.raises(ValueError, match=re.escape(error_msg)):
+            check_runsheet.check_against_lis(sheet_data, fake_mads,
+                                             active_config = self.test_config)
+
+    def test_catch_prefix_fail(self):
+        fail_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_notinmads_runsheet.xlsx"
+        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
+        sheet_data = pd.read_excel(fail_runsheet, usecols = "A:B", skiprows = 3,
+                                   dtype = {"KMA nr": str})
+        sheet_data = sheet_data.dropna()
+        error_msg = "The following issues were found with the runsheet:\n" \
+                    "No valid prefixes found in runsheet."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
             check_runsheet.check_against_lis(sheet_data, fake_mads)
 
     def test_success(self):
@@ -69,7 +156,7 @@ class TestCheckRunsheet(unittest.TestCase):
         sheet_data = sheet_data.dropna()
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         with self.assertLogs("check_runsheet") as logged:
-            check_runsheet.check_against_lis(sheet_data, fake_mads)
+            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
             assert success_msg in logged.output
 
 
