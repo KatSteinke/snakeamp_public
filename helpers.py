@@ -5,6 +5,8 @@ __author__ = "Kat Steinke"
 import logging
 import pathlib
 
+from typing import Dict
+
 logger = logging.getLogger("helpers")
 logger.setLevel(logging.INFO)
 console_log = logging.StreamHandler()
