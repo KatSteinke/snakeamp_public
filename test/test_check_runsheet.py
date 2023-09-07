@@ -56,7 +56,7 @@ class TestCheckRunsheet(unittest.TestCase):
         error_msg = "The following issues were encountered:\n" \
                     "Samples ['11400000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct.\n" \
-                    "Samples ['F0410000'] were not found in MADS report. " \
+                    "Samples ['11410000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_runsheet(sheet_data, fake_mads)
