@@ -69,7 +69,7 @@ def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.
 # read runsheet
 
 
-# check runsheet format
+# check runsheet format - TODO: merge with the other runsheet check!
 def validate_runsheet_format(run_sheet: pathlib.Path,
                              active_config: Dict[str, Any] = workflow_config) -> None:
     """Identify wrong sample name or barcode formats in runsheet.
@@ -158,7 +158,6 @@ def validate_runsheet_format(run_sheet: pathlib.Path,
                             f"{negative_control_pattern}. "
         fail_record += "Please correct sample IDs in runsheet."
 
-
     # check that barcodes have correct format
     fail_barcodes = sheet_data["Barkode NB"][~sheet_data["Barkode NB"].apply(str).str.match(active_config["barcode_format"],
                                                                                             na=False)].dropna().tolist()
@@ -178,10 +177,10 @@ def validate_runsheet_format(run_sheet: pathlib.Path,
     if sheet_issues:
         raise ValueError(fail_record)
 
-# check runsheet against MADS - TODO: will the year be in the sample number?
+# check runsheet against LIS - TODO: will the year be in the sample number?
+# complain if a sample isn't in the LIS report and not a recorded control
 
 # get experiment name and infer output dir
-
 # ensure our output dir is clean
 def get_existing_path(path_to_check: pathlib.Path) -> pathlib.Path:
     """Recursively check if path exists, else go down one level until an existing path is found.

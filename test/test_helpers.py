@@ -75,3 +75,33 @@ class TestFindRundir(unittest.TestCase):
                     "or a directory containing barcode directories ('barcodeXX')."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
             helpers.get_fastq_pass_dir(test_path)
+
+
+class TestTranslateSampleNumbers(unittest.TestCase):
+    number_to_letter = {"40": "H", "70": "P"}
+
+    def test_wrong_sample_in(self):
+        with pytest.raises(ValueError,
+                           match="Invalid initial sample format int. Sample format can only be "
+                                 "number or letter"):
+            helpers.get_number_letter_combination(self.number_to_letter, "int", "letter")
+
+    def test_wrong_sample_out(self):
+        with pytest.raises(ValueError,
+                           match="Invalid desired sample format str. Sample format can only be "
+                                 "number or letter"):
+            helpers.get_number_letter_combination(self.number_to_letter, "number", "str")
+
+    def test_correct_results(self):
+        number_to_number = helpers.get_number_letter_combination(self.number_to_letter, "number",
+                                                                 "number")
+        number_to_letter = helpers.get_number_letter_combination(self.number_to_letter, "number",
+                                                                 "letter")
+        letter_to_letter = helpers.get_number_letter_combination(self.number_to_letter, "letter",
+                                                                 "letter")
+        letter_to_number = helpers.get_number_letter_combination(self.number_to_letter, "letter",
+                                                                 "number")
+        self.assertEqual(number_to_number, {"40": "40", "70": "70"})
+        self.assertEqual(number_to_letter, self.number_to_letter)
+        self.assertEqual(letter_to_letter, {"H": "H", "P": "P"})
+        self.assertEqual(letter_to_number, {"H": "40", "P": "70"})
