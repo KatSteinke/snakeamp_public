@@ -317,7 +317,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
                                                                         na = False)
         if not positive_controls_in_sheet.any():
             sheet_issues = True
-            fail_record += f"No positive controls given in runsheet."
+            fail_record += f"\nNo positive controls given in runsheet."
     else:
         positive_control_pattern = ''
     if active_config["sample_number_settings"]["negative_control"]:
@@ -327,7 +327,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
                                                                         na = False)
         if not negative_controls_in_sheet.any():
             sheet_issues = True
-            fail_record += "No negative controls given in runsheet."
+            fail_record += "\nNo negative controls given in runsheet."
     else:
         negative_control_pattern = ''
     id_pattern = '^(' \
