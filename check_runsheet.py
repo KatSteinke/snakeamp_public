@@ -325,24 +325,23 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
             fail_record += f"\nAmount of sample IDs and barcodes don't match. " \
                            f"There are {amount_sample_ids} sample IDs" \
                            f" but {amount_barcodes} barcodes."
-            # check that barcodes have correct format
-            print(sheet_data["Barkode NB"])
-            fail_barcodes = sheet_data["Barkode NB"][
-                ~sheet_data["Barkode NB"].apply(str).str.match(active_config["barcode_format"],
-                                                               na = False)].dropna().tolist()
+        # check that barcodes have correct format
+        fail_barcodes = sheet_data["Barkode NB"][
+            ~sheet_data["Barkode NB"].apply(str).str.match(active_config["barcode_format"],
+                                                           na = False)].dropna().tolist()
 
-            if fail_barcodes:
-                sheet_issues = True
-                # here we append to the record of issues
-                fail_record += f"\nBarcodes {fail_barcodes} are not valid barcodes. " \
-                               f"Barcodes must consist of {active_config['barcode_prefix']} " \
-                               f"+ a number between 01 and 96."
-            # duplicated sample numbers have been checked in the separate runsheet check
-            # duplicated barcodes indicate a serious issue though
-            if any(sheet_data["Barkode NB"].dropna().duplicated()):
-                sheet_issues = True
-                duplicated_barcodes = sheet_data["Barkode NB"][sheet_data["Barkode NB"].duplicated()].dropna().unique()
-                fail_record += f"\nBarcode(s) {duplicated_barcodes} are duplicated."
+        if fail_barcodes:
+            sheet_issues = True
+            # here we append to the record of issues
+            fail_record += f"\nBarcodes {fail_barcodes} are not valid barcodes. " \
+                           f"Barcodes must consist of {active_config['barcode_prefix']} " \
+                           f"+ a number between 01 and 96."
+        # duplicated sample numbers have been checked in the separate runsheet check
+        # duplicated barcodes indicate a serious issue though
+        if any(sheet_data["Barkode NB"].dropna().duplicated()):
+            sheet_issues = True
+            duplicated_barcodes = sheet_data["Barkode NB"][sheet_data["Barkode NB"].duplicated()].dropna().unique()
+            fail_record += f"\nBarcode(s) {duplicated_barcodes} are duplicated."
     # check duplicates early - this only needs to warn, not break
     if any(sheet_data["KMA nr"].dropna().duplicated()):
         duplicated_ids = sheet_data["KMA nr"][sheet_data["KMA nr"].duplicated()].dropna().unique()
