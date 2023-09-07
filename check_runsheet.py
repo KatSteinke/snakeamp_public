@@ -345,6 +345,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         allowed_start = active_config['sample_number_settings']['number_to_letter'].values()
     # TODO: make sample number length variable?
     if fail_ids:
+        sheet_issues = True
         fail_record += f"\nSample IDs {fail_ids} are not valid. " \
                        f'Sample IDs must start with {" or ".join(allowed_start)} ' \
                        f'followed by eight numbers (six if leaving out year). '
@@ -354,6 +355,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         fail_record += "Please correct sample IDs in runsheet."
     if sheet_issues:
         raise ValueError(fail_record)
+
 
 if __name__ == "__main__":
     readline.set_completer_delims('\t\n=')   # allow tab completion of paths
