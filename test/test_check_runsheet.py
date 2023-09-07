@@ -59,7 +59,7 @@ class TestCheckRunsheet(unittest.TestCase):
                     "Samples ['11410000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_runsheet(sheet_data, fake_mads)
+            check_runsheet.check_against_lis(sheet_data, fake_mads)
 
     def test_success(self):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
@@ -69,41 +69,62 @@ class TestCheckRunsheet(unittest.TestCase):
         sheet_data = sheet_data.dropna()
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         with self.assertLogs("check_runsheet") as logged:
-            check_runsheet.check_runsheet(sheet_data, fake_mads)
+            check_runsheet.check_against_lis(sheet_data, fake_mads)
             assert success_msg in logged.output
 
 
 class TestCheckSampleNumbers(unittest.TestCase):
     def test_fail_ids(self):
         id_fail_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-fail.xlsx"
-        error_msg = "Sample IDs ['123'] are not valid. " \
+        error_msg = "The following issue(s) were detected with the runsheet:\n" \
+                    "Sample IDs ['123'] are not valid. " \
                     "Sample IDs must start with 70 or 30 or 10 or 50 followed by eight numbers" \
                     " (six if leaving out year). " \
-                    "Negative controls must be given in the format . " \
                     "Please correct sample IDs in runsheet."
         sheet_data = pd.read_excel(id_fail_sheet, usecols="A:B", skiprows=3,
                                    dtype={"KMA nr": str})
         sheet_data = sheet_data.dropna()
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sample_numbers(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data)
 
     def test_fail_no_ids(self):
         no_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-id.xlsx"
         sheet_data = pd.read_excel(no_id_sheet, usecols = "A:B", skiprows = 3,
                                    dtype = {"KMA nr": str})
         sheet_data = sheet_data.dropna()
-        error_msg = "No sample IDs found."
+        error_msg = "The following issue(s) were detected with the runsheet:\n" \
+                    "No sample IDs found."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_sample_numbers(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data)
 
     def test_fail_no_positive_control(self):
         no_positive_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-posk.xlsx"
         sheet_data = pd.read_excel(no_positive_sheet, usecols="A:B", skiprows=3,
                                    dtype={"KMA nr": str})
         sheet_data = sheet_data.dropna()
-        error_msg = "No positive controls given in runsheet."
+        error_msg = "The following issue(s) were detected with the runsheet:\n" \
+                    "No positive controls given in runsheet."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "format_in_sheet": '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": '(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": '',
+                                                  "positive_control": {"PosK": "Placeholderia"}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sample_numbers(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data, active_config = test_config)
 
     def test_fail_no_negative_control(self):
         no_negative_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-negk.xlsx"
@@ -111,16 +132,58 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                    dtype={"KMA nr": str})
         sheet_data = sheet_data.dropna()
         error_msg = "No negative controls given in runsheet."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "format_in_sheet": '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": '(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": 'NegK',
+                                                  "positive_control": {}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sample_numbers(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data, active_config = test_config)
 
     def test_warn_duplicated_ids(self):
         duplicated_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-duplication.xlsx"
         sheet_data = pd.read_excel(duplicated_id_sheet, usecols="A:B", skiprows=3,
                                    dtype={"KMA nr": str})
         with self.assertLogs("check_runsheet") as logged:
-            check_runsheet.check_sample_numbers(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data)
             duplicated_warning = "WARNING:check_runsheet:Sample number(s) ['1123456789'] are duplicated." \
                                  " If you are sure you want to sequence the same sample twice, " \
                                  "you can ignore this warning."
             assert duplicated_warning in logged.output
+
+    def test_fail_barcodes(self):
+        barcode_fail_sheet = pathlib.Path(__file__).parent /"data" /"utilities_test" / "runsheet-barcode-fail.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nBarcodes ['RB3'] are not valid barcodes. " \
+                    "Barcodes must consist of RB + a number between 01 and 96."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            check_runsheet.check_sheet_format(barcode_fail_sheet, check_barcodes = True)
+
+    def test_fail_no_barcodes(self):
+        no_barcode_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-barcode.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nNo barcodes found."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            check_runsheet.check_sheet_format(no_barcode_sheet, check_barcodes = True)
+
+    def test_fail_more_barcodes(self):
+        more_barcodes_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-more-barcodes.xlsx"
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nAmount of sample IDs and barcodes don't match. " \
+                    "There are 2 sample IDs but 3 barcodes."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            check_runsheet.check_sheet_format(more_barcodes_sheet, check_barcodes = True)
