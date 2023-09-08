@@ -123,6 +123,6 @@ def extract_sample_number_part(number_to_check: str, to_extract: str, pattern_in
             or re.match(positive_control_pattern, number_to_check):
         return pd.NA
     if re.match(pattern_in_sheet, number_to_check):
-        return re.match(pattern_in_sheet, number_to_check).groupdict().get("sample_type",
+        return re.match(pattern_in_sheet, number_to_check).groupdict().get(to_extract,
                                                                            pd.NA)
     return pd.NA
