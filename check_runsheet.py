@@ -32,7 +32,7 @@ workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 # TODO: should this raise exceptions or just output an overview?
 
 logger = logging.getLogger("check_runsheet")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 console_log = logging.StreamHandler()
 console_log.setLevel(logging.INFO)
 plain_messages = logging.Formatter("%(message)s")
@@ -106,7 +106,8 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
     if missing_from_mads:
         raise ValueError(
             f"Samples {missing_from_mads} were not found in MADS report. "
-            f"Please check that sample numbers are correct.")
+            "Please check that sample numbers are correct.")
+    logger.debug(f"All samples with prefix {sheet_prefix} found in LIS.")
 
 
 def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
@@ -170,7 +171,7 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
 
     if errors:
         error_text = "\n".join([str(parsing_error) for parsing_error in errors])
-        raise ValueError(f"The following issues were encountered:\n"
+        raise ValueError("The following issues were encountered:\n"
                          f"{error_text}")
     else:
         logger.info("The runsheet is correct.")
@@ -212,7 +213,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         amount_barcodes = sheet_data["Barkode NB"].dropna().size
         if amount_sample_ids != amount_barcodes:
             sheet_issues = True
-            fail_record += f"\nAmount of sample IDs and barcodes don't match. " \
+            fail_record += "\nAmount of sample IDs and barcodes don't match. " \
                            f"There are {amount_sample_ids} sample IDs" \
                            f" but {amount_barcodes} barcodes."
         # check that barcodes have correct format
@@ -225,7 +226,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
             # here we append to the record of issues
             fail_record += f"\nBarcodes {fail_barcodes} are not valid barcodes. " \
                            f"Barcodes must consist of {active_config['barcode_prefix']} " \
-                           f"+ a number between 01 and 96."
+                           "+ a number between 01 and 96."
         # duplicated sample numbers have been checked in the separate runsheet check
         # duplicated barcodes indicate a serious issue though
         if any(sheet_data["Barkode NB"].dropna().duplicated()):
@@ -236,8 +237,8 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     if any(sheet_data["KMA nr"].dropna().duplicated()):
         duplicated_ids = sheet_data["KMA nr"][sheet_data["KMA nr"].duplicated()].dropna().unique()
         logger.warning(f"Sample number(s) {duplicated_ids} are duplicated. "
-                       f"If you are sure you want to sequence the same sample twice, "
-                       f"you can ignore this warning.")
+                       "If you are sure you want to sequence the same sample twice, "
+                       "you can ignore this warning.")
     # check controls if given
     if active_config["sample_number_settings"]["positive_control"]:
         positive_control_pattern = "|".join(active_config["sample_number_settings"][
@@ -277,7 +278,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         sheet_issues = True
         fail_record += f"\nSample IDs {fail_ids} are not valid. " \
                        f'Sample IDs must start with {" or ".join(allowed_start)} ' \
-                       f'followed by eight numbers (six if leaving out year). '
+                       'followed by eight numbers (six if leaving out year). '
         if active_config['sample_number_settings']['negative_control']:  # TODO: clean structure
             fail_record += "Negative controls must be given in the format " \
                            f"{negative_control_pattern}. "

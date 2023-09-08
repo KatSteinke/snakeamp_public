@@ -67,6 +67,48 @@ class TestCheckSinglePrefix(unittest.TestCase):
             check_runsheet.check_by_prefix(self.sheet_data, lab_info_data, "30", "B",
                                            active_config = self.test_config)
 
+    def test_success(self):
+        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
+                                   dtype = {"KMA nr": str})
+        sheet_data = sheet_data.dropna()
+        success_msg = "DEBUG:check_runsheet:All samples with prefix 30 found in LIS."
+        with self.assertLogs("check_runsheet", level="DEBUG") as logged:
+            check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "30", "B",
+                                           active_config = self.test_config)
+            assert success_msg in logged.output
+
+    def test_success_controls(self):
+        """Ensure comparison against controls is performed"""
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": 'NegK',
+                                                  "positive_control": {"PosK": "Placeholderia"}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
+                                   dtype = {"KMA nr": str})
+        sheet_data = sheet_data.dropna()
+        success_msg = "DEBUG:check_runsheet:All samples with prefix 30 found in LIS."
+        with self.assertLogs("check_runsheet", level = "DEBUG") as logged:
+            check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "30", "B",
+                                           active_config = test_config)
+            assert success_msg in logged.output
+
 
 class TestCheckRunsheet(unittest.TestCase):
     test_config = {"sample_number_settings": {"sample_number_format":
@@ -124,6 +166,36 @@ class TestCheckRunsheet(unittest.TestCase):
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         with self.assertLogs("check_runsheet") as logged:
             check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
+            assert success_msg in logged.output
+
+    def test_success_controls(self):
+        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
+        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
+                                   dtype = {"KMA nr": str})
+        sheet_data = sheet_data.dropna()
+        success_msg = "INFO:check_runsheet:The runsheet is correct."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": 'NegK',
+                                                  "positive_control": {"PosK": "Placeholderia"}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        with self.assertLogs("check_runsheet") as logged:
+            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
             assert success_msg in logged.output
 
 
@@ -246,4 +318,14 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     "\nAmount of sample IDs and barcodes don't match. " \
                     "There are 2 sample IDs but 3 barcodes."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
+
+    def test_fail_duplicated_barcodes(self):
+        duplicated_barcodes_sheet = pathlib.Path(
+            __file__).parent / "data" / "utilities_test" / "runsheet-barcode-duplication.xlsx"
+        sheet_data = pd.read_excel(duplicated_barcodes_sheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"KMA nr": str})
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nBarcode(s) ['RB02'] are duplicated."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
             check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
