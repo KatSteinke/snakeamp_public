@@ -21,6 +21,8 @@ import version
 __version__ = version.__version__
 
 # import parameters
+from helpers import extract_sample_number_part
+
 default_config_file = pipeline_config.default_config_file
 workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
@@ -84,36 +86,6 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
             f"Please check that sample numbers are correct.")
 
 
-def find_prefix(number_to_check: str, pattern_in_sheet: re.Pattern,
-                negative_control_pattern: re.Pattern,
-                positive_control_pattern: re.Pattern) -> Union[str, NAType]:
-    """Find the sample type prefix described by the sample_type match group if the sample number
-    is not a control sample.
-
-    Arguments:
-        number_to_check:            the sample number from which the sample type should be extracted
-        pattern_in_sheet:           a regex describing the sample number's elements.
-                                    Must contain a match group called sample_type describing
-                                    the type prefix format
-        negative_control_pattern:   the format in which negative controls are given
-        positive_control_pattern:   the format in which positive controls are given
-
-    Returns:
-        The prefix if it could be found; pd.NA otherwise.
-    """
-    if "sample_type" not in pattern_in_sheet.groupindex:
-        logger.warning("No prefix format specified. Prefix cannot be extracted.")
-        return pd.NA
-    # TODO: nicer flow?
-    if re.match(negative_control_pattern, number_to_check) \
-            or re.match(positive_control_pattern, number_to_check):
-        return pd.NA
-    if re.match(pattern_in_sheet, number_to_check):
-        return re.match(pattern_in_sheet, number_to_check).groupdict().get("sample_type",
-                                                                           pd.NA)
-    return pd.NA
-
-
 def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
                       active_config: Dict[str, Any] = workflow_config) -> None:
     """Check if sample numbers are found in laboratory information system report.
@@ -155,9 +127,10 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     # extract prefix: numbers or letters
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
     # TODO: groupdict fails if no match - how to get around this? Drop the lambda?
-    all_prefixes = sheet_data["KMA nr"].apply(lambda x: find_prefix(x, sample_format_sheet,
-                                                                    negative_control_pattern,
-                                                                    positive_control_pattern))
+    all_prefixes = sheet_data["KMA nr"].apply(lambda x: extract_sample_number_part(x, "sample_type",
+                                                                                   sample_format_sheet,
+                                                                                   negative_control_pattern,
+                                                                                   positive_control_pattern))
     if all_prefixes.isna().all():
         raise ValueError("The following issues were found with the runsheet:\n"
                          "No valid prefixes found in runsheet.")

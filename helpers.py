@@ -4,8 +4,14 @@ __author__ = "Kat Steinke"
 
 import logging
 import pathlib
+import re
 
-from typing import Dict
+from typing import Dict, Union
+
+import pandas as pd
+from pandas._libs.missing import NAType
+
+from check_runsheet import logger
 
 logger = logging.getLogger("helpers")
 logger.setLevel(logging.INFO)
@@ -89,3 +95,36 @@ def get_fastq_pass_dir(rundir: pathlib.Path) -> pathlib.Path:
     logger.info(f"Data is retrieved from the following folder:\n"
                 f"{fastq_pass_dir}")
     return fastq_pass_dir
+
+
+def extract_sample_number_part(number_to_check: str, to_extract: str, pattern_in_sheet: re.Pattern,
+                               negative_control_pattern: re.Pattern,
+                               positive_control_pattern: re.Pattern) -> Union[str, NAType]:
+    """Find a part of a sample number described by a match group in the sample format
+     used in the runsheet if the sample number is not a control sample.
+
+    Arguments:
+        number_to_check:            the sample number from which a component should be extracted
+        to_extract:                 the name of the match group describing the component of
+                                    the sample number to extract
+        pattern_in_sheet:           a regex describing the sample number's elements.
+                                    Must contain a match group called sample_type describing
+                                    the type prefix format
+        negative_control_pattern:   the format in which negative controls are given
+        positive_control_pattern:   the format in which positive controls are given
+
+    Returns:
+        The component if it could be found; pd.NA otherwise.
+    """
+    if to_extract not in pattern_in_sheet.groupindex:
+        logger.warning(f"Group name {to_extract} not found in sample number pattern."
+                       f" Component cannot be extracted.")
+        return pd.NA
+    # TODO: nicer flow?
+    if re.match(negative_control_pattern, number_to_check) \
+            or re.match(positive_control_pattern, number_to_check):
+        return pd.NA
+    if re.match(pattern_in_sheet, number_to_check):
+        return re.match(pattern_in_sheet, number_to_check).groupdict().get("sample_type",
+                                                                           pd.NA)
+    return pd.NA

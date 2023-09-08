@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 import check_runsheet
+import helpers
 
 
 class TestCheckSinglePrefix(unittest.TestCase):
@@ -44,60 +45,6 @@ class TestCheckSinglePrefix(unittest.TestCase):
                     "Get a new MADS report with the correct start date."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_by_prefix(self.sheet_data, lab_info_data, "30", "B")
-
-class TestFindPrefix(unittest.TestCase):
-    def test_get_match(self):
-        """Ensure a prefix matching the pattern is reported."""
-        test_number = "1199123456"
-        number_format = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
-        positive_control = re.compile('PosK')
-        negative_control = re.compile('NegK')
-        expected_prefix = "70"
-        test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
-                                                 positive_control)
-        assert test_prefix == expected_prefix
-
-    def test_handle_positive_control(self):
-        """Don't try to extract a prefix from a positive control."""
-        test_number = "PosK"
-        number_format = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
-        positive_control = re.compile('PosK')
-        negative_control = re.compile('NegK')
-        test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
-                                                 positive_control)
-        assert pd.isna(test_prefix)
-
-    def test_handle_negative_control(self):
-        """Don't try to extract a prefix from a negative control."""
-        test_number = "NegK"
-        number_format = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
-        positive_control = re.compile('PosK')
-        negative_control = re.compile('NegK')
-        test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
-                                                 positive_control)
-        assert pd.isna(test_prefix)
-
-    def test_handle_no_hit(self):
-        test_number = "11123456"
-        number_format = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
-        positive_control = re.compile('PosK')
-        negative_control = re.compile('NegK')
-        test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
-                                                 positive_control)
-        assert pd.isna(test_prefix)
-
-    def test_warn_no_prefix(self):
-        """Alert the user if the pattern doesn't contain a prefix definition."""
-        test_number = "99123456"
-        number_format = re.compile('(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
-        positive_control = re.compile('PosK')
-        negative_control = re.compile('NegK')
-        log_msg = "WARNING:check_runsheet:No prefix format specified. Prefix cannot be extracted."
-        with self.assertLogs("check_runsheet") as logged:
-            test_prefix = check_runsheet.find_prefix(test_number, number_format, negative_control,
-                                                     positive_control)
-            assert log_msg in logged.output
-        assert pd.isna(test_prefix)
 
 
 class TestCheckRunsheet(unittest.TestCase):

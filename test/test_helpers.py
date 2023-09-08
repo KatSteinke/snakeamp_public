@@ -2,6 +2,7 @@ import pathlib
 import re
 import unittest
 
+import pandas as pd
 import pytest
 
 import helpers
@@ -105,3 +106,70 @@ class TestTranslateSampleNumbers(unittest.TestCase):
         self.assertEqual(number_to_letter, self.number_to_letter)
         self.assertEqual(letter_to_letter, {"H": "H", "P": "P"})
         self.assertEqual(letter_to_number, {"H": "40", "P": "70"})
+
+
+class TestFindPart(unittest.TestCase):
+    def test_get_match(self):
+        """Ensure a component matching the pattern is reported."""
+        test_number = "1199123456"
+        number_format = re.compile(r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        expected_prefix = "70"
+        test_prefix = helpers.extract_sample_number_part(test_number, "sample_type",
+                                                         number_format,
+                                                         negative_control, positive_control)
+        assert test_prefix == expected_prefix
+        expected_year = "99"
+        test_year = helpers.extract_sample_number_part(test_number, "sample_year",
+                                                       number_format,
+                                                       negative_control, positive_control)
+        assert test_year == expected_year
+
+    def test_handle_positive_control(self):
+        """Don't try to extract the component from a positive control."""
+        test_number = "PosK"
+        number_format = re.compile(r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        test_prefix = helpers.extract_sample_number_part(test_number, "sample_type",
+                                                         number_format,
+                                                         negative_control, positive_control)
+        assert pd.isna(test_prefix)
+
+    def test_handle_negative_control(self):
+        """Don't try to extract the component from a negative control."""
+        test_number = "NegK"
+        number_format = re.compile(r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        test_prefix = helpers.extract_sample_number_part(test_number, "sample_type",
+                                                         number_format,
+                                                         negative_control, positive_control)
+        assert pd.isna(test_prefix)
+
+    def test_handle_no_hit(self):
+        """Handle a number not matching the pattern."""
+        test_number = "11123456"
+        number_format = re.compile(r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        test_prefix = helpers.extract_sample_number_part(test_number, "sample_type",
+                                                         number_format,
+                                                         negative_control, positive_control)
+        assert pd.isna(test_prefix)
+
+    def test_warn_no_prefix(self):
+        """Alert the user if the pattern doesn't contain a definition of the component."""
+        test_number = "99123456"
+        number_format = re.compile(r'(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
+        positive_control = re.compile('PosK')
+        negative_control = re.compile('NegK')
+        log_msg = "WARNING:check_runsheet:Group name sample_type not found in sample number pattern." \
+                  " Component cannot be extracted."
+        with self.assertLogs("check_runsheet") as logged:
+            test_prefix = helpers.extract_sample_number_part(test_number, "sample_type",
+                                                             number_format,
+                                                             negative_control, positive_control)
+            assert log_msg in logged.output
+        assert pd.isna(test_prefix)
