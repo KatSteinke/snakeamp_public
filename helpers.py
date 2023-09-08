@@ -11,8 +11,6 @@ from typing import Dict, Union
 import pandas as pd
 from pandas._libs.missing import NAType
 
-from check_runsheet import logger
-
 logger = logging.getLogger("helpers")
 logger.setLevel(logging.INFO)
 console_log = logging.StreamHandler()
