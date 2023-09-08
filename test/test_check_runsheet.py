@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 
 import check_runsheet
-import helpers
 
 
 class TestCheckSinglePrefix(unittest.TestCase):
@@ -18,10 +17,30 @@ class TestCheckSinglePrefix(unittest.TestCase):
 
     lab_info_data = pd.read_csv(fake_mads, encoding="latin1", dtype={"afsendt": str, "cprnr.": str,
                                                                      "modtaget": str})
+    test_config = {"sample_number_settings": {"sample_number_format":
+                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                              "sample_numbers_in": "number",
+                                              "sample_numbers_out": "letter",
+                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "number_to_letter": {"70": "P",
+                                                                   "30": "B",
+                                                                   "10": "D",
+                                                                   "50": "T"},
+                                              "date_settings":
+                                                  {"splice_in_date": False,
+                                                   "length_without_date": 8,
+                                                   "splice_after": 2},
+                                              "negative_control": '',
+                                              "positive_control": {}},
+                   "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                   "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                   }
 
     def test_prefix_not_in_sheet(self):
         with pytest.raises(ValueError, match="No samples with prefix X found in runsheet."):
-            check_runsheet.check_by_prefix(self.sheet_data, self.lab_info_data, "X", "P")
+            check_runsheet.check_by_prefix(self.sheet_data, self.lab_info_data, "X", "P",
+                                           active_config = self.test_config)
 
     def test_sample_not_in_report(self):
         fail_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test"\
@@ -32,7 +51,8 @@ class TestCheckSinglePrefix(unittest.TestCase):
         error_msg = "Samples ['11410000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_by_prefix(fail_data, self.lab_info_data, "30", "B")
+            check_runsheet.check_by_prefix(fail_data, self.lab_info_data, "30", "B",
+                                           active_config = self.test_config)
 
     def test_catch_lis_duplicates(self):
         lis_with_duplicates = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" /\
@@ -44,7 +64,8 @@ class TestCheckSinglePrefix(unittest.TestCase):
                     "This likely means the report covers multiple years. " \
                     "Get a new MADS report with the correct start date."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_by_prefix(self.sheet_data, lab_info_data, "30", "B")
+            check_runsheet.check_by_prefix(self.sheet_data, lab_info_data, "30", "B",
+                                           active_config = self.test_config)
 
 
 class TestCheckRunsheet(unittest.TestCase):
@@ -79,7 +100,6 @@ class TestCheckRunsheet(unittest.TestCase):
                     "Please check that sample numbers are correct.\n" \
                     "Samples ['11410000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
-        # TODO ADD CONFIG: sample numbers have no years - set config for the entire thing?
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_against_lis(sheet_data, fake_mads,
                                              active_config = self.test_config)
