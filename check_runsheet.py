@@ -9,11 +9,9 @@ import readline
 import sys
 import warnings
 
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
 import pandas as pd
-
-from pandas._libs.missing import NAType
 
 import helpers
 import pipeline_config
@@ -193,7 +191,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     """
     sheet_issues = False
     data_missing = False
-    # set up record of issues so they can all be printed at once
+    # set up record of issues so they can all be printed at once - TODO: separate data check function?
     fail_record = "The following issue(s) were detected with the runsheet:"
     no_sample_ids = sheet_data["KMA nr"].isna().all()
     if no_sample_ids:
@@ -280,7 +278,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         fail_record += f"\nSample IDs {fail_ids} are not valid. " \
                        f'Sample IDs must start with {" or ".join(allowed_start)} ' \
                        f'followed by eight numbers (six if leaving out year). '
-        if active_config['sample_number_settings']['negative_control']:
+        if active_config['sample_number_settings']['negative_control']:  # TODO: clean structure
             fail_record += "Negative controls must be given in the format " \
                            f"{negative_control_pattern}. "
         fail_record += "Please correct sample IDs in runsheet."
