@@ -165,9 +165,9 @@ class TestFindPart(unittest.TestCase):
         number_format = re.compile(r'(?P<sample_year>\d{2})(?P<sample_number>\d{6})')
         positive_control = re.compile('PosK')
         negative_control = re.compile('NegK')
-        log_msg = "WARNING:check_runsheet:Group name sample_type not found in sample number pattern." \
+        log_msg = "WARNING:helpers:Group name sample_type not found in sample number pattern." \
                   " Component cannot be extracted."
-        with self.assertLogs("check_runsheet") as logged:
+        with self.assertLogs("helpers") as logged:
             test_prefix = helpers.extract_sample_number_part(test_number, "sample_type",
                                                              number_format,
                                                              negative_control, positive_control)
