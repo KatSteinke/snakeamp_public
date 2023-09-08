@@ -43,7 +43,8 @@ logger.addHandler(console_log)
 
 
 def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_prefix: str,
-                    lab_data_prefix: str) -> None:
+                    lab_data_prefix: str,
+                    active_config: Dict[str, Any] = workflow_config) -> None:
     """Check whether samples of a given sample type (indicated by prefix) are contained in a report
     from the laboratory information system.
 
@@ -54,6 +55,7 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
         sheet_prefix:       Sample number prefix designating desired sample type in sample sheet
         lab_data_prefix:    Sample number prefix corresponding to sheet_prefix in the format used in
                             the LIS report
+        active_config:      configuration to use
 
     Raises:
         ValueError: if samples aren't found in the LIS report
@@ -66,12 +68,34 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
     # prefix is already known
     runsheet_filtered["proevenr_prefix"] = sheet_prefix
     # extract sample number
-    runsheet_filtered["proevenr_kort"] = runsheet_filtered["KMA nr"].str.slice(start=-6)
+    if active_config["sample_number_settings"]["positive_control"]:
+        positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
+                                                "positive_control"].keys()))
+    else:
+        # "unmatchable" regex so nothing gets seen as a positive control when we don't have one
+        positive_control_pattern = re.compile('(?!.*)')
+    if active_config["sample_number_settings"]["negative_control"]:
+        negative_control_pattern = re.compile(active_config["sample_number_settings"][
+                                                  "negative_control"])
+    else:
+        negative_control_pattern = re.compile('(?!.*)')
+    sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
+    runsheet_filtered["proevenr_kort"] = runsheet_filtered["KMA nr"].apply(lambda x:
+                                                                           extract_sample_number_part(x,
+                                                                                                      "sample_number",
+                                                                                                      sample_format_sheet,
+                                                                                                      negative_control_pattern,
+                                                                                                      positive_control_pattern))
     # to find year, check lab information system data and go for date *received*
     # extract relevant samples again
     lab_data_filtered = lab_data[lab_data["prøvenr"].str.startswith(lab_data_prefix)].copy()
     # get bare sample number to match the one from the runsheet
-    lab_data_filtered["proevenr_kort"] = lab_data_filtered["prøvenr"].str.slice(start=-6)
+    lab_data_filtered["proevenr_kort"] = lab_data_filtered["prøvenr"].apply(lambda x:
+                                                                           extract_sample_number_part(x,
+                                                                                                      "sample_number",
+                                                                                                      sample_format_sheet,
+                                                                                                      negative_control_pattern,
+                                                                                                      positive_control_pattern))
     # check if we have duplicates
     if any(lab_data_filtered.duplicated(subset=["proevenr_kort"])):
         raise ValueError("MADS report contains duplicated sample numbers. "
@@ -127,10 +151,11 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     # extract prefix: numbers or letters
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
     # TODO: groupdict fails if no match - how to get around this? Drop the lambda?
-    all_prefixes = sheet_data["KMA nr"].apply(lambda x: extract_sample_number_part(x, "sample_type",
-                                                                                   sample_format_sheet,
-                                                                                   negative_control_pattern,
-                                                                                   positive_control_pattern))
+    all_prefixes = sheet_data["KMA nr"].apply(lambda x:
+                                              extract_sample_number_part(x, "sample_type",
+                                                                         sample_format_sheet,
+                                                                         negative_control_pattern,
+                                                                         positive_control_pattern))
     if all_prefixes.isna().all():
         raise ValueError("The following issues were found with the runsheet:\n"
                          "No valid prefixes found in runsheet.")
