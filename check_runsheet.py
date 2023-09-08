@@ -90,10 +90,11 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
     # extract relevant samples again
     lab_data_filtered = lab_data[lab_data["prøvenr"].str.startswith(lab_data_prefix)].copy()
     # get bare sample number to match the one from the runsheet
+    sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
     lab_data_filtered["proevenr_kort"] = lab_data_filtered["prøvenr"].apply(lambda x:
                                                                            extract_sample_number_part(x,
                                                                                                       "sample_number",
-                                                                                                      sample_format_sheet,
+                                                                                                      sample_format_lis,
                                                                                                       negative_control_pattern,
                                                                                                       positive_control_pattern))
     # check if we have duplicates
@@ -164,7 +165,8 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     errors = []
     for prefix in unique_prefixes:
         try:
-            check_by_prefix(sheet_data, lab_info_data, prefix, prefix_mapping[prefix])
+            check_by_prefix(sheet_data, lab_info_data, prefix, prefix_mapping[prefix],
+                            active_config = active_config)
         except ValueError as value_err:
             errors.append(value_err)
 
