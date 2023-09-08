@@ -135,3 +135,26 @@ class TestSanitizePath(unittest.TestCase):
         clean_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_dir_5"
         test_path = snake_wrapper.get_clean_outdir(clean_path)
         assert test_path == clean_path
+
+
+class TestGetExperimentName(unittest.TestCase):
+    def test_experiment_name_success(self):
+        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                   / "runsheet_clean_name.xlsx"
+        expected_name = "PLACEHOLDER_RUN_NAME"
+        test_name = snake_wrapper.get_run_name(runsheet)
+        assert expected_name == test_name
+
+    def test_complain_blank_name(self):
+        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                   / "runsheet_blank_name.xlsx"
+        error_msg = "No run name given in the runsheet."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            snake_wrapper.get_run_name(runsheet)
+
+    def test_complain_no_name_column(self):
+        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                   / "runsheet_no_name_col.xlsx"
+        error_msg = "No column giving the run name found in the runsheet."
+        with pytest.raises(KeyError, match = re.escape(error_msg)):
+            snake_wrapper.get_run_name(runsheet)
