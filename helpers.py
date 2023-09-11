@@ -11,6 +11,13 @@ from typing import Dict, Union
 import pandas as pd
 from pandas._libs.missing import NAType
 
+import pipeline_config
+
+# import parameters
+default_config_file = pipeline_config.default_config_file
+workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
+
+
 logger = logging.getLogger("helpers")
 logger.setLevel(logging.INFO)
 console_log = logging.StreamHandler()
@@ -126,3 +133,78 @@ def extract_sample_number_part(number_to_check: str, to_extract: str, pattern_in
         return re.match(pattern_in_sheet, number_to_check).groupdict().get(to_extract,
                                                                            pd.NA)
     return pd.NA
+
+
+def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) -> pd.DataFrame:
+    """Add year to sample number from sample year column.
+
+    Arguments:
+        runsheet:       the runsheet for the run, containing sample numbers without years
+                        and a separate column for the year (as YY).
+        active_config:  the configuration to use
+
+    Returns:
+        A copy of the runsheet in which years have been added to sample numbers.
+
+    Raises:
+        KeyError:   if the sample year column is missing
+        ValueError: if the sample year column is blank or contains malformed data
+    """
+    sample_year_colname = "årstal"
+    # sanity check: do we have the column?
+    if sample_year_colname not in runsheet.columns:
+        raise KeyError("No year column found. "
+                       "The pipeline needs a column named 'årstal' to add year to sample number.")
+    # establish what is what
+    if active_config["sample_number_settings"]["positive_control"]:
+        positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
+                                                "positive_control"].keys()))
+    else:
+        # "unmatchable" regex so nothing gets seen as a positive control when we don't have one
+        positive_control_pattern = re.compile('(?!.*)')
+    if active_config["sample_number_settings"]["negative_control"]:
+        negative_control_pattern = re.compile(active_config["sample_number_settings"][
+                                                  "negative_control"])
+    else:
+        negative_control_pattern = re.compile('(?!.*)')
+    positive_controls = runsheet[runsheet["KMA nr"].str.fullmatch(positive_control_pattern)]
+    negative_controls = runsheet[runsheet["KMA nr"].str.fullmatch(negative_control_pattern)]
+    non_controls = runsheet[~(runsheet["KMA nr"].str.fullmatch(positive_control_pattern)
+                            | runsheet["KMA nr"].str.fullmatch(negative_control_pattern))]
+    # check that year number has been given correctly
+    missing_year = non_controls[sample_year_colname].isna()
+    if missing_year.any():
+        samples_without_year = non_controls[non_controls[sample_year_colname].isna()].reset_index(drop = True)
+        missing_year_error = "No year given for one or more samples." \
+                             " Please add a year to these samples." \
+                             " Affected samples:\n" \
+                             f"{samples_without_year.to_string()}"
+        raise ValueError(missing_year_error)
+    good_year = non_controls[sample_year_colname].str.fullmatch(r"\d{2}")
+    if not good_year.all():
+        samples_bad_year = non_controls[~non_controls[sample_year_colname].str.fullmatch(r"\d{2}")].reset_index(drop=True)
+        bad_year_error = "Invalid year values detected. Year must be given as YY only." \
+                         " Affected samples:\n" \
+                         f"{samples_bad_year.to_string()}"
+        raise ValueError(bad_year_error)
+    sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
+    non_controls["prøvenr"] = non_controls["KMA nr"].apply(lambda x:
+                                                   extract_sample_number_part(x,
+                                                                              "sample_type",
+                                                                              sample_format_sheet,
+                                                                              negative_control_pattern,
+                                                                              positive_control_pattern)) \
+                          + non_controls["årstal"] \
+                          + non_controls["KMA nr"].apply(lambda x:
+                                                     extract_sample_number_part(x,
+                                                                                "sample_number",
+                                                                                sample_format_sheet,
+                                                                                negative_control_pattern,
+                                                                                positive_control_pattern))
+    # sample numbers stay unchanged for controls
+    positive_controls["prøvenr"] = positive_controls["KMA nr"]
+    negative_controls["prøvenr"] = negative_controls["KMA nr"]
+    all_samples = pd.concat([non_controls,
+                             positive_controls,
+                             negative_controls]).sort_values(by = "Barkode NB")
+    return all_samples

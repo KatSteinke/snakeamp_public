@@ -173,3 +173,85 @@ class TestFindPart(unittest.TestCase):
                                                              negative_control, positive_control)
             assert log_msg in logged.output
         assert pd.isna(test_prefix)
+
+
+class TestAddYearsInSheet(unittest.TestCase):
+    def test_success_add_year(self):
+        """Ensure year is added to properly formatted sample numbers."""
+        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+                                          "årstal": ["99", "99"],
+                                          "Barkode NB": ["RB01", "RB02"]})
+        expected_df = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+                                           "årstal": ["99", "99"],
+                                           "Barkode NB": ["RB01", "RB02"],
+                                           "prøvenr": ["1199123456", "1199123456"]})
+        test_df = helpers.add_years_in_sheet(test_input)
+        pd.testing.assert_frame_equal(expected_df, test_df)
+
+    def test_complain_no_year_col(self):
+        """Ensure an error is raised if there is no column for the sample year."""
+        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+                                          "Barkode NB": ["RB01", "RB02"]})
+        error_msg = "No year column found. " \
+                    "The pipeline needs a column named 'årstal' to add year to sample number."
+        with pytest.raises(KeyError, match=re.escape(error_msg)):
+            helpers.add_years_in_sheet(test_input)
+
+    def test_complain_wrong_year_format(self):
+        """Ensure an error is raised if the year is given in the wrong format."""
+        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+                                          "årstal": ["99", "2099"],
+                                          "Barkode NB": ["RB01", "RB02"]})
+        bad_years = pd.DataFrame(data={"KMA nr": ["11123456"],
+                                       "årstal": ["2099"],
+                                       "Barkode NB": ["RB02"]})
+        error_msg = "Invalid year values detected. Year must be given as YY only." \
+                    " Affected samples:\n" \
+                    f"{bad_years.to_string()}"
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            helpers.add_years_in_sheet(test_input)
+
+    def test_complain_blank_year_column(self):
+        """Ensure an error is raised if no year is given for a sample."""
+        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+                                          "årstal": ["99", pd.NA],
+                                          "Barkode NB": ["RB01", "RB02"]})
+        bad_years = pd.DataFrame(data = {"KMA nr": ["11123456"],
+                                         "årstal": [pd.NA],
+                                         "Barkode NB": ["RB02"]})
+        error_msg = "No year given for one or more samples. Please add a year to these samples." \
+                    " Affected samples:\n" \
+                    f"{bad_years.to_string()}"
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            helpers.add_years_in_sheet(test_input)
+
+    def test_handle_controls(self):
+        """Ensure positive and negative controls are processed unaltered."""
+        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456", "PosK", "NegK"],
+                                          "årstal": ["99", "99", "", ""],
+                                          "Barkode NB": ["RB01", "RB02", "RB03", "RB04"]})
+        expected_df = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456", "PosK", "NegK"],
+                                           "årstal": ["99", "99", "", ""],
+                                           "Barkode NB": ["RB01", "RB02", "RB03", "RB04"],
+                                           "prøvenr": ["1199123456", "1199123456", "PosK", "NegK"]})
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": True,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": 'NegK',
+                                                  "positive_control": {"PosK": "Placeholderia"}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        test_df = helpers.add_years_in_sheet(test_input, active_config = test_config)
+        pd.testing.assert_frame_equal(expected_df, test_df)
