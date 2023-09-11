@@ -175,6 +175,50 @@ class TestFindPart(unittest.TestCase):
         assert pd.isna(test_prefix)
 
 
+class TestExtractMatchGroup(unittest.TestCase):
+    def test_extract_simple_group(self):
+        """Extract a simple match group."""
+        sample_pattern = re.compile(r"something(?P<testgroup>\d)somethingelse")
+        expected_pattern = re.compile(r"(?P<testgroup>\d)")
+        test_pattern = helpers.parse_out_group_pattern(sample_pattern, "testgroup")
+        assert test_pattern == expected_pattern
+
+    def test_extract_group_internal_parentheses(self):
+        """Extract a group with internal parentheses."""
+        sample_pattern = re.compile(r"something(?P<testgroup>\d(AB|CD))somethingelse")
+        expected_pattern = re.compile(r"(?P<testgroup>\d(AB|CD))")
+        test_pattern = helpers.parse_out_group_pattern(sample_pattern, "testgroup")
+        assert test_pattern == expected_pattern
+
+    def test_extract_one_only(self):
+        """Extract one group from a pattern with multiple groups."""
+        sample_pattern = re.compile(r"something(?P<testgroup>\d)(?P<test2>somethingelse)")
+        expected_pattern = re.compile(r"(?P<testgroup>\d)")
+        test_pattern = helpers.parse_out_group_pattern(sample_pattern, "testgroup")
+        assert test_pattern == expected_pattern
+
+    def test_extract_outer_nested(self):
+        """Extract the outer group of a nested named group."""
+        sample_pattern = re.compile(r"something(?P<testgroup>\d(?P<test2>XYZ))somethingelse")
+        expected_pattern = re.compile(r"(?P<testgroup>\d(?P<test2>XYZ))")
+        test_pattern = helpers.parse_out_group_pattern(sample_pattern, "testgroup")
+        assert test_pattern == expected_pattern
+
+    def test_extract_inner_nested(self):
+        """Extract the inner group of a nested named group."""
+        sample_pattern = re.compile(r"something(?P<testgroup>\d(?P<test2>XYZ))somethingelse")
+        expected_pattern = re.compile(r"(?P<test2>XYZ)")
+        test_pattern = helpers.parse_out_group_pattern(sample_pattern, "test2")
+        assert test_pattern == expected_pattern
+
+    def test_fail_group_not_found(self):
+        """Complain if the pattern does not contain the group."""
+        sample_pattern = re.compile(r"something(?P<testgroup>\d)somethingelse")
+        error_msg = "Group test_group not found in named groups."
+        with pytest.raises(KeyError, match = re.escape(error_msg)):
+            helpers.parse_out_group_pattern(sample_pattern, "test_group")
+
+
 class TestAddYearsInSheet(unittest.TestCase):
     def test_success_add_year(self):
         """Ensure year is added to properly formatted sample numbers."""

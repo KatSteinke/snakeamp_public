@@ -135,6 +135,34 @@ def extract_sample_number_part(number_to_check: str, to_extract: str, pattern_in
     return pd.NA
 
 
+def parse_out_group_pattern(complete_pattern: re.Pattern, group_to_extract: str) -> re.Pattern:
+    """Extract the pattern defining a given match group from a pattern containing
+     multiple match groups.
+
+    Args:
+        complete_pattern:   the pattern from which to extract a match group
+        group_to_extract:   the name of the match group to extract
+
+    Returns:
+        The pattern defining the match group.
+    Raises:
+        KeyError:   if the match group is not defined in the pattern
+    """
+    if group_to_extract not in complete_pattern.groupindex:
+        error_msg = f"Group {group_to_extract} not found in named groups."
+        raise KeyError(error_msg)
+    # regex for extracting: \(\?P\<GROUPNAME\>(?:[^)(]|\((?:[^)(]|\((?:[^)(]|\([^)(]*\))*\))*\))*\)
+    # -> get up to three levels of matched parentheses
+    named_group_in_pattern = re.compile(r"\(\?P<" \
+                                        + group_to_extract \
+                                        + r">(?:[^)(]|\((?:[^)(]|\((?:[^)(]|\([^)(]*\))*\))*\))*\)")
+    named_group_pattern = re.search(named_group_in_pattern, complete_pattern.pattern)
+    if named_group_pattern:
+        return re.compile(named_group_pattern.group(0))
+    error_msg = f"Group {group_to_extract} not found in named groups."  # TODO: can this even happen now?
+    raise KeyError(error_msg)
+
+
 def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) -> pd.DataFrame:
     """Add year to sample number from sample year column.
 
