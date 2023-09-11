@@ -8,7 +8,7 @@ import re
 import subprocess
 
 from argparse import ArgumentParser
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -156,6 +156,36 @@ def get_clean_outdir(outdir_path: pathlib.Path) -> pathlib.Path:
     return cleaned_path
 
 
+# get the command to run the pipeline
+def get_pipeline_command(indir: pathlib.Path, outdir: pathlib.Path, debug: Optional[bool] = None,
+                         configfile: pathlib.Path = default_config_file,
+                         active_config: Dict[str, Any] = workflow_config) -> List[str]:
+    """Generate the command for starting the pipeline.
 
+    Args:
+        indir:          the directory containing input files for the pipeline
+        outdir:         the directory to which results should be output
+        debug:          whether to run the pipeline in test mode (overrides config setting)
+        configfile:     the file containing the configuration for the pipeline
+        active_config:  the configuration to use for the pipeline
+
+    Returns:
+        The nomad command to start the pipeline
+    """
+    if debug is None:
+        run_as_debug = active_config["debug"]
+    else:
+        run_as_debug = debug
+    nomad_job = "16s-snake-emu-staging" if run_as_debug else "16s-snake-emu-prod"
+    nomad_command = ["nomad", "job", "dispatch",
+                     "-meta", f"indir={indir}",
+                     "-meta", f"outdir={outdir}",
+                     nomad_job,
+                     configfile]
+    return nomad_command
+
+
+if __name__ == "__main__":
+    arg_parser = ArgumentParser(description = "Run the Nanopore 16S analysis pipeline")
 
 
