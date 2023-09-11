@@ -122,7 +122,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                    "10": "D",
                                                                    "50": "T"},
                                               "date_settings":
-                                                  {"splice_in_date": False,
+                                                  {"splice_in_date": True,
                                                    "length_without_date": 8,
                                                    "splice_after": 2},
                                               "negative_control": '',
@@ -134,19 +134,33 @@ class TestCheckRunsheet(unittest.TestCase):
     def test_multiple_fails(self):
         fail_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_notinmads_runsheet.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
-        sheet_data = pd.read_excel(fail_runsheet, usecols="A:B", skiprows=3,
-                                   dtype={"KMA nr": str})
+        sheet_data = pd.read_excel(fail_runsheet, usecols="A:C", skiprows=3,
+                                   dtype = {"KMA nr": str, "årstal": str})
         sheet_data = sheet_data.dropna()
-        error_msg = "The following issues were encountered:\n" \
-                    "Samples ['11400000'] were not found in MADS report. " \
-                    "Please check that sample numbers are correct.\n" \
-                    "Samples ['11410000'] were not found in MADS report. " \
+        error_msg = "Samples ['1121410000', '1121400000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_against_lis(sheet_data, fake_mads,
                                              active_config = self.test_config)
 
-    def test_catch_prefix_fail(self):
+    def test_success(self):
+        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
+        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"KMA nr": str, "årstal": str})
+        sheet_data = sheet_data.dropna()
+        success_msg = "INFO:check_runsheet:The runsheet is correct."
+        with self.assertLogs("check_runsheet") as logged:
+            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
+            assert success_msg in logged.output
+
+    def test_success_no_splice_year(self):
+        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet_year.xlsx"
+        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"KMA nr": str, "årstal": str})
+        sheet_data = sheet_data.dropna()
+        success_msg = "INFO:check_runsheet:The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
                                                       '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
@@ -161,37 +175,20 @@ class TestCheckRunsheet(unittest.TestCase):
                                                       {"splice_in_date": False,
                                                        "length_without_date": 8,
                                                        "splice_after": 2},
-                                                  "negative_control": 'NegK',
-                                                  "positive_control": {"PosK": "Placeholderia"}},
+                                                  "negative_control": '',
+                                                  "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
-        fail_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_controls_only.xlsx"
-        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
-        sheet_data = pd.read_excel(fail_runsheet, usecols = "A:B", skiprows = 3,
-                                   dtype = {"KMA nr": str})
-        sheet_data = sheet_data.dropna()
-        error_msg = "The following issues were found with the runsheet:\n" \
-                    "No valid prefixes found in runsheet."
-        with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_against_lis(sheet_data, fake_mads)
-
-    def test_success(self):
-        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
-        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
-        sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
-                                   dtype = {"KMA nr": str})
-        sheet_data = sheet_data.dropna()
-        success_msg = "INFO:check_runsheet:The runsheet is correct."
         with self.assertLogs("check_runsheet") as logged:
-            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
+            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
             assert success_msg in logged.output
 
     def test_success_controls(self):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
-        sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
-                                   dtype = {"KMA nr": str})
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"KMA nr": str, "årstal": str})
         sheet_data = sheet_data.dropna()
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
@@ -205,7 +202,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "50": "T"},
                                                   "date_settings":
-                                                      {"splice_in_date": False,
+                                                      {"splice_in_date": True,
                                                        "length_without_date": 8,
                                                        "splice_after": 2},
                                                   "negative_control": 'NegK',

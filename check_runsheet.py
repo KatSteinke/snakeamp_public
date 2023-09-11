@@ -39,7 +39,7 @@ plain_messages = logging.Formatter("%(message)s")
 console_log.setFormatter(plain_messages)
 logger.addHandler(console_log)
 
-
+# TODO: sample year is now already spliced in or should be
 def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_prefix: str,
                     lab_data_prefix: str,
                     active_config: Dict[str, Any] = workflow_config) -> None:
@@ -150,31 +150,35 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
         negative_control_pattern = re.compile('(?!.*)')
     # extract prefix: numbers or letters
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
-    # TODO: groupdict fails if no match - how to get around this? Drop the lambda?
-    all_prefixes = sheet_data["KMA nr"].apply(lambda x:
-                                              extract_sample_number_part(x, "sample_type",
-                                                                         sample_format_sheet,
-                                                                         negative_control_pattern,
-                                                                         positive_control_pattern))
-    if all_prefixes.isna().all():
-        raise ValueError("The following issues were found with the runsheet:\n"
-                         "No valid prefixes found in runsheet.")
-    unique_prefixes = all_prefixes.dropna().unique()
-    # record errors if they happen here
-    errors = []
-    for prefix in unique_prefixes:
-        try:
-            check_by_prefix(sheet_data, lab_info_data, prefix, prefix_mapping[prefix],
-                            active_config = active_config)
-        except ValueError as value_err:
-            errors.append(value_err)
-
-    if errors:
-        error_text = "\n".join([str(parsing_error) for parsing_error in errors])
-        raise ValueError("The following issues were encountered:\n"
-                         f"{error_text}")
+    # add date if needed
+    if active_config["sample_number_settings"]["date_settings"]["splice_in_date"]:
+        sheet_data = helpers.add_years_in_sheet(sheet_data, active_config=active_config)
     else:
-        logger.info("The runsheet is correct.")
+        sheet_data["prøvenr"] = sheet_data["KMA nr"]
+    # match only sample type and replace as needed
+    # remove all controls
+    non_controls = sheet_data[~(sheet_data["KMA nr"].str.fullmatch(positive_control_pattern)
+                              | sheet_data["KMA nr"].str.fullmatch(negative_control_pattern))]
+    # parse out start pattern
+    start_pattern = re.compile(r"^" + helpers.parse_out_group_pattern(sample_format_sheet,
+                                                                      "sample_type").pattern)
+    non_controls["prøvenr_translate"] = non_controls["prøvenr"].apply(lambda x:
+                                                                      re.sub(start_pattern,
+                                                                             lambda match:
+                                                                             prefix_mapping.get(match.group(),
+                                                                                                match.group()),
+                                                                             x))
+    # left join the rest on the LIS report
+    samples_in_lis = non_controls.merge(lab_info_data, how = "left",
+                                        left_on = "prøvenr_translate", right_on = "prøvenr",
+                                        suffixes = ("_sheet", "_lis"))
+    # check if anything is missing
+    missing_in_mads = samples_in_lis[samples_in_lis["prøvenr_lis"].isna()]["prøvenr_sheet"].tolist()
+    if missing_in_mads:
+        raise ValueError(
+            f"Samples {sorted(missing_in_mads)} were not found in MADS report. "
+            "Please check that sample numbers are correct.")
+    logger.info("The runsheet is correct.")
 
 
 def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
