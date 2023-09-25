@@ -236,3 +236,52 @@ def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) ->
                              positive_controls,
                              negative_controls]).sort_values(by = "Barkode NB")
     return all_samples
+
+def check_experiment_name_problems(experiment_name: str) -> None:
+    """Check whether an experiment name contains any parts that may cause issues
+     when used as filenames.
+
+    Arguments:
+        experiment_name:    the experiment name to check
+
+    Raises:
+        ValueError: if the experiment name contains chars that can break something
+                    (reserved chars, whitespace, slashes)
+    """
+    illegal_in_windows = r'[<>:"|?*]'
+    if re.search(illegal_in_windows, experiment_name):
+        raise ValueError("The run name contains a character that cannot be used in "
+                         "Windows filenames.")
+    # ...or straight up being a reserved filename
+    if pathlib.PureWindowsPath(experiment_name).is_reserved():
+        raise ValueError("The run name contains a character that cannot be used in "
+                         "Windows filenames.")
+    # or it could break something from containing whitespace
+    if re.search(r"\s", experiment_name):
+        raise ValueError("The run name contains spaces or line breaks.")
+    # sometimes people enter multiple initials separated with slashes - this'll create subdirs
+    if "/" in experiment_name:
+        raise ValueError("The run name contains a forward slash (/). "
+                         "This will break the result directory."
+                         " Replace forward slashes with underscores (_).")
+    logger.debug(f"No issues found with experiment name {experiment_name}.")
+
+def extract_nanopore_run_name(runsheet: pathlib.Path) -> str:
+    """Extract the name of a Nanopore sequencing run from its Excel runsheet.
+
+    Arguments:
+         runsheet:  Path to an Excel runsheet containing the Nanopore runsheet
+     Returns:
+         The run's name as specified under "RUNxxxx-INI".
+
+    Raises:
+        ValueError: if the experiment name contains chars that can break something
+                    (reserved chars, whitespace, slashes)
+    """
+    experiment_sheet = pd.read_excel(runsheet, sheet_name = "Runsheet_Nanopore",
+                                   usecols = "A:C", skiprows = 1, nrows=2)
+    experiment_name = experiment_sheet.at[0, "RUNxxxx-INI"]
+    # the experiment name is used as file names for a lot of things, so catch if it breaks something
+    # could break something from containing characters that aren't allowed in Windows
+    check_experiment_name_problems(experiment_name)
+    return experiment_name

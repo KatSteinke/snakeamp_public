@@ -299,3 +299,78 @@ class TestAddYearsInSheet(unittest.TestCase):
                        }
         test_df = helpers.add_years_in_sheet(test_input, active_config = test_config)
         pd.testing.assert_frame_equal(expected_df, test_df)
+
+
+class TestCheckExperimentName(unittest.TestCase):
+    def test_no_issues(self):
+        """Ensure a name without problematic components doesn't raise an exception."""
+        test_name = "samplerun"
+        log_msg = "DEBUG:helpers:No issues found with experiment name samplerun."
+        with self.assertLogs("helpers", level="DEBUG") as logged:
+            helpers.check_experiment_name_problems(test_name)
+            assert log_msg in logged.output
+
+    def test_check_whitespace_breaks(self):
+        """Ensure that the script complains on names containing whitespace"""
+        test_name = "sample run"
+        with pytest.raises(ValueError, match= "The run name contains spaces or line breaks."):
+            helpers.check_experiment_name_problems(test_name)
+
+    def test_check_illegal_in_windows(self):
+        """Ensure that the script complains for names that are illegal in Windows"""
+        test_control_char = "NUL"
+        test_bad_char = "sample:run"
+        with pytest.raises(ValueError,
+                           match = "The run name contains a character that cannot be used "
+                                   "in Windows filenames."):
+            helpers.check_experiment_name_problems(test_control_char)
+        with pytest.raises(ValueError,
+                           match = "The run name contains a character that cannot be used"
+                                   " in Windows filenames."):
+            helpers.check_experiment_name_problems(test_bad_char)
+
+    def test_check_slash_breaks(self):
+        """Ensure the script complains for names containing forward slashes"""
+        test_name = "sample/run"
+        error_msg = "The run name contains a forward slash (/). " \
+                    "This will break the result directory." \
+                    " Replace forward slashes with underscores (_)."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            helpers.check_experiment_name_problems(test_name)
+
+class TestExtractNanoporeRun(unittest.TestCase):
+    def test_get_run_name(self):
+        test_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                     / "test_nanopore_runsheet.xlsx"
+        true_run_name = "ONT_RUN0000_Y20990101_XYZ"
+        test_run_name = helpers.extract_nanopore_run_name(test_sheet)
+        assert test_run_name == true_run_name
+
+    def test_check_whitespace_breaks(self):
+        test_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                     / "nanopore_bad_name.xlsx"
+        with pytest.raises(ValueError, match= "The run name contains spaces or line breaks."):
+            helpers.extract_nanopore_run_name(test_sheet)
+
+    def test_check_illegal_in_windows(self):
+        test_control_char = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                     / "nanopore_controlchar.xlsx"
+        test_bad_char = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                     / "nanopore_badchar.xlsx"
+        with pytest.raises(ValueError,
+                           match = "The run name contains a character that cannot be used "
+                                   "in Windows filenames."):
+            helpers.extract_nanopore_run_name(test_control_char)
+        with pytest.raises(ValueError,
+                           match = "The run name contains a character that cannot be used"
+                                   " in Windows filenames."):
+            helpers.extract_nanopore_run_name(test_bad_char)
+
+    def test_slash_breaks(self):
+        test_with_slash = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                     / "nanopore_slash.xlsx"
+        error_msg = "The run name contains a forward slash (/). " \
+                    "This will break the result directory." \
+                    " Replace forward slashes with underscores (_)."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            helpers.extract_nanopore_run_name(test_with_slash)
