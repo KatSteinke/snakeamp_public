@@ -164,22 +164,26 @@ class TestGetNomadCommand(unittest.TestCase):
     def test_get_routine_command(self):
         indir = pathlib.Path("path/to/indir")
         outdir = pathlib.Path("path/to/outdir")
+        runsheet =  pathlib.Path("path/to/runsheet")
         expected_command = ["nomad", "job", "dispatch",
                             "-meta", "indir=path/to/indir",
                             "-meta", "outdir=path/to/outdir",
+                            "-meta", "runsheet=path/to/runsheet",
                             "16s-snake-emu-prod", snake_wrapper.default_config_file]
-        test_command = snake_wrapper.get_pipeline_command(indir, outdir)
+        test_command = snake_wrapper.get_pipeline_command(indir, outdir,runsheet)
         assert expected_command == test_command
 
     def test_get_test_command(self):
         """Test that the staging version is run if debug is specified (overriding default)."""
         indir = pathlib.Path("path/to/indir")
         outdir = pathlib.Path("path/to/outdir")
+        runsheet = pathlib.Path("path/to/runsheet")
         expected_command = ["nomad", "job", "dispatch",
                             "-meta", "indir=path/to/indir",
                             "-meta", "outdir=path/to/outdir",
+                            "-meta", "runsheet=path/to/runsheet",
                             "16s-snake-emu-staging", snake_wrapper.default_config_file]
-        test_command = snake_wrapper.get_pipeline_command(indir, outdir, debug = True)
+        test_command = snake_wrapper.get_pipeline_command(indir, outdir, runsheet, debug = True)
         assert expected_command == test_command
 
     def test_run_different_config(self):
@@ -187,12 +191,14 @@ class TestGetNomadCommand(unittest.TestCase):
         indir = pathlib.Path("path/to/indir")
         outdir = pathlib.Path("path/to/outdir")
         test_configfile = pathlib.Path("path/to/config")
+        runsheet = pathlib.Path("path/to/runsheet")
         test_config = {"debug": True}
         expected_command = ["nomad", "job", "dispatch",
                             "-meta", "indir=path/to/indir",
                             "-meta", "outdir=path/to/outdir",
+                            "-meta", "runsheet=path/to/runsheet",
                             "16s-snake-emu-staging", test_configfile]
-        test_command = snake_wrapper.get_pipeline_command(indir, outdir,
+        test_command = snake_wrapper.get_pipeline_command(indir, outdir, runsheet,
                                                           configfile = test_configfile,
                                                           active_config = test_config)
         assert expected_command == test_command
@@ -201,13 +207,16 @@ class TestGetNomadCommand(unittest.TestCase):
         """Test that a config specifying debug mode can be overridden by the debug flag."""
         indir = pathlib.Path("path/to/indir")
         outdir = pathlib.Path("path/to/outdir")
+        runsheet = pathlib.Path("path/to/runsheet")
         test_configfile = pathlib.Path("path/to/config")
         test_config = {"debug": True}
         expected_command = ["nomad", "job", "dispatch",
                             "-meta", "indir=path/to/indir",
                             "-meta", "outdir=path/to/outdir",
+                            "-meta", "runsheet=path/to/runsheet",
                             "16s-snake-emu-prod", test_configfile]
-        test_command = snake_wrapper.get_pipeline_command(indir, outdir, debug = False,
+        test_command = snake_wrapper.get_pipeline_command(indir, outdir, runsheet,
                                                           configfile = test_configfile,
-                                                          active_config = test_config)
+                                                          active_config = test_config,
+                                                          debug = False)
         assert expected_command == test_command

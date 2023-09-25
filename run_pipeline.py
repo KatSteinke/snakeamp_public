@@ -157,14 +157,16 @@ def get_clean_outdir(outdir_path: pathlib.Path) -> pathlib.Path:
 
 
 # get the command to run the pipeline
-def get_pipeline_command(indir: pathlib.Path, outdir: pathlib.Path, debug: Optional[bool] = None,
+def get_pipeline_command(indir: pathlib.Path, outdir: pathlib.Path, runsheet: pathlib.Path,
                          configfile: pathlib.Path = default_config_file,
-                         active_config: Dict[str, Any] = workflow_config) -> List[str]:
+                         active_config: Dict[str, Any] = workflow_config,
+                         debug: Optional[bool] = None) -> List[str]:
     """Generate the command for starting the pipeline.
 
-    Args:
+    Arguments:
         indir:          the directory containing input files for the pipeline
         outdir:         the directory to which results should be output
+        runsheet:       the runsheet used for the run
         debug:          whether to run the pipeline in test mode (overrides config setting)
         configfile:     the file containing the configuration for the pipeline
         active_config:  the configuration to use for the pipeline
@@ -180,6 +182,7 @@ def get_pipeline_command(indir: pathlib.Path, outdir: pathlib.Path, debug: Optio
     nomad_command = ["nomad", "job", "dispatch",
                      "-meta", f"indir={indir}",
                      "-meta", f"outdir={outdir}",
+                     "-meta", f"runsheet={runsheet}",
                      nomad_job,
                      configfile]
     return nomad_command
