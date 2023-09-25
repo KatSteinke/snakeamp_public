@@ -5,14 +5,22 @@ __author__ = "Kat Steinke"
 import logging
 import pathlib
 import re
+import readline
+import sys
 import subprocess
 
 from argparse import ArgumentParser
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+import yaml
 
+import check_runsheet
+import helpers
 import pipeline_config
+import version
+
+__version__ = version.__version__
 
 # import parameters
 default_config_file = pipeline_config.default_config_file
@@ -190,5 +198,116 @@ def get_pipeline_command(indir: pathlib.Path, outdir: pathlib.Path, runsheet: pa
 
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description = "Run the Nanopore 16S analysis pipeline")
+    arg_parser.add_argument("--rundir", help="Full path or name of sequencing folder")
+    arg_parser.add_argument("--runsheet", help="Path to runsheet")
+    arg_parser.add_argument("--outdir",
+                            help=f"Path to output directory "
+                                 f"(default: "
+                                 f"{workflow_config['paths']['output_base_path']}/[name of rundir])")
+    arg_parser.add_argument("--workflow_config_file",
+                            help="Config file for run (overrides default config given in script, "
+                                 "can be overridden by commandline options)")
+    arg_parser.add_argument("--continue_pipeline", action="store_true",
+                            help="Continue pipeline after interruption")
+    arg_parser.add_argument("--test_run", action="store_true",
+                            help="Start a test run")
+    args = arg_parser.parse_args()
+    # we assume this is commandline mode unless started without arguments
+    manual_mode = False
+    if len(sys.argv) == 1:
+        manual_mode = True
+        # lots of typing, so  allow tab completion of paths
+        readline.set_completer_delims('\t\n=')
+        readline.parse_and_bind("tab: complete")
+        # ...and greet the user nicely
+        print("### Nanopore 16S analysis")
+        print("# Setup analysis -------------------------------")
+    # otherwise set up terminal mode
+    else:
+        # load config if present - we need to do this early since it contains mode information
+        if args.workflow_config_file:
+            default_config_file = pathlib.Path(args.workflow_config_file).resolve()
+            with open(default_config_file, "r", encoding = "utf-8") as config_file:
+                workflow_config = yaml.safe_load(config_file)
+    # load debug settings from config (either the one we loaded or the default)
+    debug_run = workflow_config["debug"]
+    if manual_mode:
+        rundir = pathlib.Path(input("Type full path or name of Nanopore "
+                                    "sequencing folder and press enter: ").strip().strip("'"))
+
+        runsheet = pathlib.Path(input("Output directory will be based on experiment name."
+                                      "\n"
+                                      "Enter path to runsheet: ").strip().strip(
+            "'")).resolve()
+    else:
+        # if you're entering this from the commandline you should specify these
+        if not args.runsheet:
+            raise ValueError("Runsheet not specified.")
+        if not args.rundir:
+            raise ValueError("Nanopore run directory not specified.")
+        runsheet = pathlib.Path(args.runsheet).resolve()
+        rundir = pathlib.Path(args.rundir).resolve()
+
+    # check runsheet
+    runsheet_data = pd.read_excel(runsheet, usecols = "A", skiprows = 3,  # don't check CP for now
+                                  dtype = {"KMA nr": str})
+    runsheet_data = runsheet_data.dropna()
+    check_runsheet.check_sheet_format(runsheet_data, check_barcodes = True,
+                                      active_config = workflow_config)
+    # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?
+    if workflow_config["lab_info_system"]["use_lis_features"]:
+        lis_report = workflow_config["lab_info_system"]["lis_report"]
+        check_runsheet.check_against_lis(runsheet_data, lis_report, active_config = workflow_config)
+    else:
+        lis_report = None
+    # get output dir from experiment name
+    experiment_name = helpers.extract_nanopore_run_name(runsheet)
+    # set output dir
+    if args.outdir:  # can only be given in commandline mode
+        output_dir = pathlib.Path(args.outdir)
+    else:
+        output_dir = pathlib.Path(workflow_config["paths"]["output_base_path"]) / experiment_name
+
+    # in manual mode, we'll give the user a chance to fix the path
+    if manual_mode:
+        try:
+            # check if this would break anything in Windows or contains spaces
+            output_dir = get_clean_outdir(output_dir)
+            # ask user for confirmation
+            target_accept = input(f"Do you accept {str(output_dir)} as target folder [y/n]")
+            if target_accept == "n":
+                output_dir = pathlib.Path(input("Type full path or name of target folder and press "
+                                                "enter: ").strip().strip("'"))
+            elif target_accept == "y":
+                pass
+            else:
+                raise ValueError("Output folder not entered. Aborting")
+        except BadPathError as path_err:
+            print("The default target folder contains characters that can break the pipeline.")
+            output_dir = pathlib.Path(input("Type full path to new target folder "
+                                            "and press enter: ").strip().strip("'"))
+    # we check the output dir - first check in commandline mode, second in manual mode
+    # if something still is broken, or the commandline version has been given a wrong path,
+    # we yell at the user and fail
+    output_dir = get_clean_outdir(output_dir)
+    # we can check for whether this is a test and/or a continued pipeline here - in manual mode the
+    # arguments will be false, so it defaults to pipeline defaults
+    if args.test_run:
+        debug_run = True
+        append_to_databases = False
+    continue_pipeline = args.continue_pipeline
+    # we'll have to handle creating our folders ourselves
+    if not output_dir.exists():
+        output_dir.mkdir(parents = True)
+    # create dir for snakemake logs
+    if not (output_dir / "logs").exists():
+        (output_dir / "logs").mkdir()
+    # start pipeline (in Docker container)
+    logger.info("Running analysis pipeline")
+    start_command = get_pipeline_command(rundir, output_dir, runsheet,
+                                         configfile = default_config_file,
+                                         active_config = workflow_config,
+                                         debug = debug_run)
+    subprocess.run(start_command, check = True)
 
 
