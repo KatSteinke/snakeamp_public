@@ -249,7 +249,7 @@ if __name__ == "__main__":
         rundir = pathlib.Path(args.rundir).resolve()
 
     # check runsheet
-    runsheet_data = pd.read_excel(runsheet, usecols = "A", skiprows = 3,  # don't check CP for now
+    runsheet_data = pd.read_excel(runsheet, usecols = "A:C", skiprows = 3,  # don't check CP for now
                                   dtype = {"KMA nr": str})
     runsheet_data = runsheet_data.dropna()
     check_runsheet.check_sheet_format(runsheet_data, check_barcodes = True,
