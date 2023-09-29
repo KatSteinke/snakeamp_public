@@ -1,5 +1,7 @@
 import pathlib
 
+import pandas as pd
+
 import helpers
 import snake_helpers
 
@@ -10,13 +12,33 @@ workdir: config["outdir"]
 RUNDIR = pathlib.Path(config["rundir"])
 FASTQ_DIR = helpers.get_fastq_pass_dir(RUNDIR)
 print(FASTQ_DIR)
+sample_number_pattern = helpers.get_id_pattern(config["sample_number_settings"]["sample_number_format"],
+        negative_control = config["sample_number_settings"]["negative_control"],
+        positive_control = config["sample_number_settings"]["positive_control"])
+print(sample_number_pattern)
 wildcard_constraints:
-    barcode_number=r"\d{2}"
+    barcode_number = r"\d{2}",
+    barcode = config["barcode_format"],
+    #sample_number = sample_number_pattern
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
 
-BARCODES = glob_wildcards(f"{FASTQ_DIR}/{{barcode_dir}}/"
-                          f"{{flowcell_id}}_pass_barcode{{barcode_number}}_{{run_id}}_{{run_id_2}}_{{read_number}}.{{extension}}").barcode_number
-print(BARCODES)
+sheet_data = pd.read_excel(config["runsheet"],usecols = "A:C",skiprows = 3,
+                               dtype = {"KMA nr": str, "Barkode NB": str})
+sheet_data = sheet_data.dropna()
+if config["sample_number_settings"]["date_settings"]["splice_in_date"]:
+    sheet_data = helpers.add_years_in_sheet(sheet_data, active_config=config)
+else:
+    sheet_data["prøvenr"] = sheet_data["KMA nr"]
+
+BARCODE_PREFIX = config["barcode_prefix"]
+ALL_IDS = list(sheet_data["prøvenr"])
+print(ALL_IDS)
+print(sheet_data["prøvenr"].str.match(sample_number_pattern, na=False))
+ALL_BARCODES = list(sheet_data["Barkode NB"])
+
+#BARCODES = glob_wildcards(f"{FASTQ_DIR}/{{barcode_dir}}/"
+#                          f"{{flowcell_id}}_pass_barcode{{barcode_number}}_{{run_id}}_{{run_id_2}}_{{read_number}}.{{extension}}").barcode_number
+#print(BARCODES)
 
 
 
@@ -34,10 +56,11 @@ rule concatenate_fastqs:
                                                                            wildcards.barcode_number)
                                                else "cat"
     output:
-        concat_fasta = temp("barcode{barcode_number}/reads/barcode{barcode_number}.reads.fastq")
+        concat_fasta = temp(f"{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}/reads/"
+                            f"{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}.reads.fastq")
     message: f"# Concatenating fastq files for barcode {{wildcards.barcode_number}}...."
     log:
-        "logs/concat_fastq/barcode{barcode_number}_log.txt"
+        f"logs/concat_fastq/{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}_log.txt"
     conda:
         "nanopore_qc_env"
     resources:
@@ -59,9 +82,11 @@ rule concatenate_fastqs:
 
 rule clean_nanopore_reads:
     input:
-        concat_fastq = "barcode{barcode_number}/reads/barcode{barcode_number}.reads.fastq"
+        concat_fastq = "{sample_number}_{barcode}/reads/" \
+                       "{sample_number}_{barcode}.reads.fastq"
     output:
-        filtered_fastq = temp("barcode{barcode_number}/reads/barcode{barcode_number}.filtered.fastq")
+        filtered_fastq = temp("{sample_number}_{barcode}/reads/"
+                              "{sample_number}_{barcode}.filtered.fastq")
     params:
         min_length = 100
     conda: "nanopore_qc_env" # TODO: set up env!
@@ -73,9 +98,11 @@ rule clean_nanopore_reads:
 
 rule compress_nanopore_reads:
     input:
-        filtered_fastq = "barcode{barcode_number}/reads/barcode{barcode_number}.filtered.fastq"
+        filtered_fastq = "{sample_number}_{barcode}/reads/" \
+                         "{sample_number}_{barcode}.filtered.fastq"
     output:
-        compressed_fastq = "barcode{barcode_number}/reads/barcode{barcode_number}.filtered.fastq.gz"
+        compressed_fastq = "{sample_number}_{barcode}/reads/" \
+                           "{sample_number}_{barcode}.filtered.fastq.gz"
     conda:
         "nanopore_qc_env"  # TODO: needs to have pigz
     threads: 2
@@ -88,9 +115,11 @@ rule compress_nanopore_reads:
 
 rule fastq_to_fasta:
     input:
-        compressed_fastq = "barcode{barcode_number}/reads/barcode{barcode_number}.filtered.fastq.gz"
+        compressed_fastq = "{sample_number}_{barcode}/reads/" \
+                           "{sample_number}_{barcode}.filtered.fastq.gz"
     output:
-        fasta_reads = "barcode{barcode_number}/reads/barcode{barcode_number}.filtered.fasta"
+        fasta_reads = "{sample_number}_{barcode}/reads/" \
+                      "{sample_number}_{barcode}.filtered.fasta"
     conda:
         "nanopore_qc_env"
     shell:
@@ -100,18 +129,19 @@ rule fastq_to_fasta:
 
 rule run_emu:
     input:
-        fasta_reads = "barcode{barcode_number}/reads/barcode{barcode_number}.filtered.fasta"
+        fasta_reads = "{sample_number}_{barcode}/reads/" \
+                      "{sample_number}_{barcode}.filtered.fasta"
     output:
-        relative_abundance = "emu/barcode{barcode_number}_rel-abundance.tsv"
+        relative_abundance = "emu/{sample_number}_{barcode}_rel-abundance.tsv"
     params:
         emu_db = config["databases"]["emu_db"],
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
-        basename = "barcode{barcode_number}"
+        basename = "{sample_number}_{barcode}"
     conda:
         "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
     log:
-        "logs/emu/barcode{barcode_number}.log"
+        "logs/emu/{sample_number}_{barcode}.log"
     shell:
         """
         emu abundance "{input.fasta_reads}" --db "{params.emu_db}" --keep-counts \
@@ -121,8 +151,8 @@ rule run_emu:
 
 rule combine_emu:
     input:
-        all_relative_abundance = expand("emu/barcode{barcode_number}_rel-abundance.tsv",
-                                        barcode_number = BARCODES)
+        all_relative_abundance = expand("emu/{sample_number}_{barcode}_rel-abundance.tsv", zip,
+                                        sample_number=ALL_IDS, barcode=ALL_BARCODES)
     output:
         counts_combined = "emu-combined.xlsx"
     params:
