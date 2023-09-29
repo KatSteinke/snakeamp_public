@@ -32,6 +32,8 @@ else:
 
 BARCODE_PREFIX = config["barcode_prefix"]
 ALL_IDS = list(sheet_data["prøvenr"])
+print(ALL_IDS)
+print(sheet_data["prøvenr"].str.match(sample_number_pattern, na=False))
 ALL_BARCODES = list(sheet_data["Barkode NB"])
 
 #BARCODES = glob_wildcards(f"{FASTQ_DIR}/{{barcode_dir}}/"
