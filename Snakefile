@@ -19,7 +19,7 @@ print(sample_number_pattern)
 wildcard_constraints:
     barcode_number = r"\d{2}",
     barcode = config["barcode_format"],
-    sample_number = sample_number_pattern
+    #sample_number = sample_number_pattern
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
 
 sheet_data = pd.read_excel(config["runsheet"],usecols = "A:C",skiprows = 3,
