@@ -137,6 +137,7 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     # sample numbers can be identical except for the prefix
     # -> make subsets of sample sheet and report by prefix
     # remove both negative and positive controls here
+    # TODO: get control pattern?
     if active_config["sample_number_settings"]["positive_control"]:
         positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
                                                 "positive_control"].keys()))
@@ -252,25 +253,20 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         if not positive_controls_in_sheet.any():
             sheet_issues = True
             fail_record += f"\nNo positive controls given in runsheet."
-    else:
-        positive_control_pattern = ''
     if active_config["sample_number_settings"]["negative_control"]:
-        negative_control_pattern = active_config["sample_number_settings"]["negative_control"]
         # for negative controls: see if there is anything matching negative control pattern
-        negative_controls_in_sheet = sheet_data["KMA nr"].str.fullmatch(negative_control_pattern,
-                                                                        na = False)
+        negative_controls_in_sheet = sheet_data["KMA nr"].str.fullmatch(
+            active_config["sample_number_settings"]["negative_control"],
+            na = False)
         if not negative_controls_in_sheet.any():
             sheet_issues = True
             fail_record += "\nNo negative controls given in runsheet."
     else:
         negative_control_pattern = ''
-    id_pattern = '^(' \
-                 + active_config["sample_number_settings"]["sample_number_format"] \
-                 + '|' \
-                 + negative_control_pattern \
-                 + '|(' \
-                 + positive_control_pattern \
-                 + '))$'
+    id_pattern = helpers.get_id_pattern(
+        active_config["sample_number_settings"]["sample_number_format"],
+        negative_control = active_config["sample_number_settings"]["negative_control"],
+        positive_control = active_config["sample_number_settings"]["positive_control"])
     fail_ids = sheet_data["KMA nr"][~sheet_data["KMA nr"].apply(str).str.match(id_pattern,
                                                                                na=False)].dropna().tolist()
     if active_config['sample_number_settings']['sample_numbers_in'] == "number":
@@ -285,7 +281,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
                        'followed by eight numbers (six if leaving out year). '
         if active_config['sample_number_settings']['negative_control']:  # TODO: clean structure
             fail_record += "Negative controls must be given in the format " \
-                           f"{negative_control_pattern}. "
+                           f"{active_config['sample_number_settings']['negative_control']}. "
         fail_record += "Please correct sample IDs in runsheet."
     if sheet_issues:
         raise ValueError(fail_record)

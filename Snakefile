@@ -13,9 +13,11 @@ RUNDIR = pathlib.Path(config["rundir"])
 FASTQ_DIR = helpers.get_fastq_pass_dir(RUNDIR)
 print(FASTQ_DIR)
 wildcard_constraints:
-    barcode_number=r"\d{2}",
+    barcode_number = r"\d{2}",
     barcode = config["barcode_format"],
-    sample_number = config["sample_number_settings"]["sample_number_format"]
+    sample_number = helpers.get_id_pattern(config["sample_number_settings"]["sample_number_format"],
+        negative_control = config["sample_number_settings"]["negative_control"],
+        positive_control = config["sample_number_settings"]["positive_control"])
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
 
 sheet_data = pd.read_excel(config["runsheet"],usecols = "A:C",skiprows = 3,
