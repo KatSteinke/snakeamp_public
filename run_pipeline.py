@@ -251,7 +251,7 @@ if __name__ == "__main__":
     # check runsheet
     runsheet_data = pd.read_excel(runsheet, usecols = "A:C", skiprows = 3,  # don't check CP for now
                                   dtype = {"KMA nr": str})
-    runsheet_data = runsheet_data.dropna()
+    runsheet_data = runsheet_data.dropna(subset="KMA nr")
     check_runsheet.check_sheet_format(runsheet_data, check_barcodes = True,
                                       active_config = workflow_config)
     # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?
