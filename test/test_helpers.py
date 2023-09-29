@@ -8,6 +8,62 @@ import pytest
 import helpers
 
 
+class TestGetPatterns(unittest.TestCase):
+    def test_samples_only(self):
+        """Create a sample number pattern without controls."""
+        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC))$")
+        sample_number_pattern = "test(?P<suffix>A|BC)"
+        test_pattern = helpers.get_id_pattern(sample_number_pattern)
+        assert test_pattern == expected_pattern
+
+    def test_fail_sample_number_blank(self):
+        """Fail when there is no sample number pattern"""
+        sample_number_pattern = ""
+        error_msg = "Sample number pattern cannot be blank."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            helpers.get_id_pattern(sample_number_pattern)
+
+
+    def test_negative_control(self):
+        """Create a sample number pattern with a negative control."""
+        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC)|NegK)$")
+        sample_number_pattern = "test(?P<suffix>A|BC)"
+        negk_pattern = "NegK"
+        test_pattern = helpers.get_id_pattern(sample_number_pattern,
+                                              negative_control = negk_pattern)
+        assert test_pattern == expected_pattern
+
+    def test_positive_control(self):
+        """Create a sample number pattern with a single positive control."""
+        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC)|(PosK))$")
+        sample_number_pattern = "test(?P<suffix>A|BC)"
+        positive_controls = {"PosK": "Placeholderia"}
+        test_pattern = helpers.get_id_pattern(sample_number_pattern,
+                                              positive_control = positive_controls)
+        assert test_pattern == expected_pattern
+
+    def test_multiple_positive_controls(self):
+        """Create a sample number pattern with multiple positive controls."""
+        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC)|(PosK|PosK2))$")
+        sample_number_pattern = "test(?P<suffix>A|BC)"
+        positive_controls = {"PosK": "Placeholderia", "PosK2": "Fakeobacter"}
+        test_pattern = helpers.get_id_pattern(sample_number_pattern,
+                                              positive_control = positive_controls)
+        assert test_pattern == expected_pattern
+
+    def test_all_control_types(self):
+        """Create a sample number pattern with both positive and negative controls."""
+        """Create a sample number pattern with multiple positive controls."""
+        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC)|NegK|(PosK|PosK2))$")
+        sample_number_pattern = "test(?P<suffix>A|BC)"
+        negative_control = "NegK"
+        positive_controls = {"PosK": "Placeholderia", "PosK2": "Fakeobacter"}
+        test_pattern = helpers.get_id_pattern(sample_number_pattern,
+                                              negative_control = negative_control,
+                                              positive_control = positive_controls)
+        assert test_pattern == expected_pattern
+
+
 class TestFindRundir(unittest.TestCase):
     def test_find_absolute_path_success(self):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" \

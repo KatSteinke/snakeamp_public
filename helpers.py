@@ -6,7 +6,7 @@ import logging
 import pathlib
 import re
 
-from typing import Dict, Union
+from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 from pandas._libs.missing import NAType
@@ -23,6 +23,39 @@ logger.setLevel(logging.INFO)
 console_log = logging.StreamHandler()
 console_log.setLevel(logging.INFO)
 logger.addHandler(console_log)
+
+
+# TODO: use defaults from config instead?
+def get_id_pattern(sample_number_format: str,
+                   negative_control: Optional[str]=None,
+                   positive_control: Optional[Dict[str, Any]]=None) -> re.Pattern:
+    """Get a pattern matching all possible sample numbers and controls, if those are given.
+
+    Argument:
+        sample_number_format:   the format used for regular sample numbers
+        negative_control:       the format used for negative controls
+        positive_control:       positive controls and their expected results
+
+    Returns:
+        A pattern that matches any valid sample number or control.
+    Raises:
+        ValueError: when the sample number pattern is blank.
+    """
+    if not sample_number_format:
+        raise ValueError("Sample number pattern cannot be blank.")
+    negative_control_pattern = ""
+    if negative_control:
+        negative_control_pattern = f"|{negative_control}"
+    positive_control_pattern = ""
+    if positive_control:
+        positive_control_pattern = f"|({'|'.join(positive_control.keys())})"
+    pattern_all = re.compile(f"^({sample_number_format}"
+                             f"{negative_control_pattern}"
+                             f"{positive_control_pattern}"
+                             f")$")
+    return pattern_all
+
+
 
 
 def get_number_letter_combination(number_to_letter: Dict[str, str], samples_in: str,
