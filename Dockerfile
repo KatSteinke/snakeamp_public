@@ -11,5 +11,4 @@ RUN mamba install -c defaults -c bioconda -c conda-forge -n base pandas openpyxl
 	mamba clean --all -y
 
 WORKDIR /snake_data
-COPY * /snake_data/
-COPY config/ /snake_data/
+COPY . /snake_data/
