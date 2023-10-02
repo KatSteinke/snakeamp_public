@@ -137,7 +137,7 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
         merged_report:  the Emu report for all samples
         outfile:        the file to which the reports should be written
     """
-    with pd.ExcelWriter(path = outfile) as outfile_writer:
+    with (pd.ExcelWriter(path = outfile) as outfile_writer):  # pylint: disable=abstract-class-instantiated
         merged_report.to_excel(outfile_writer, sheet_name = "overview")
         merged_report.loc[:, pd.IndexSlice[:,
                                            ["abundance_from_all"]]].to_excel(outfile_writer,
