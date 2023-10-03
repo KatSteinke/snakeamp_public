@@ -10,7 +10,9 @@ import summarize_emu
 
 
 class TestExtractCounts(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}"}}
+    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+                                                  "positive_control": {},
+                                                  "negative_control": ""}}
 
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
@@ -25,6 +27,68 @@ class TestExtractCounts(unittest.TestCase):
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
                                                               expected_results.columns])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_handle_isolate_number(self):
+        """Handle formats including special characters"""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',  # TODO: replace with 0-9
+                                                      "positive_control": {},
+                                                      "negative_control": ""}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "F99123456-0_rel-abundance.tsv"
+        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
+                                                "estimated counts": [15.0, 4.0, 1.0],
+                                                "medtages": ["", "", ""]},
+                                        index = pd.Index(data = ["Placeholderia fakeorum",
+                                                                 "Placeholderia bielefeldensis",
+                                                                 "unassigned"], name = "species"))
+        barcode_header = ["F99123456-0"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+                                                              expected_results.columns])
+        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_handle_negative_control(self):
+        """Handle negative controls"""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      # TODO: replace with 0-9
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK"}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "NegK_rel-abundance.tsv"
+        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
+                                                "estimated counts": [15.0, 4.0, 1.0],
+                                                "medtages": ["", "", ""]},
+                                        index = pd.Index(data = ["Placeholderia fakeorum",
+                                                                 "Placeholderia bielefeldensis",
+                                                                 "unassigned"], name = "species"))
+        barcode_header = ["NegK"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+                                                              expected_results.columns])
+        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_handle_positive_control(self):
+        """Handle positive controls"""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      # TODO: replace with 0-9
+                                                      "positive_control": {"PosK": "Placeholderia"},
+                                                      "negative_control": ""}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "PosK_rel-abundance.tsv"
+        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
+                                                "estimated counts": [15.0, 4.0, 1.0],
+                                                "medtages": ["", "", ""]},
+                                        index = pd.Index(data = ["Placeholderia fakeorum",
+                                                                 "Placeholderia bielefeldensis",
+                                                                 "unassigned"], name = "species"))
+        barcode_header = ["PosK"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+                                                              expected_results.columns])
+        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_bad_name_format(self):
@@ -234,7 +298,10 @@ class TestMergeEmu(unittest.TestCase):
 
 
 class TestMergeEmuDir(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}"}}
+    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+                                                  "positive_control": {},
+                                                  "negative_control": ""}}
+
     def test_success_merge(self):
         """Test if multiple files are merged successfully."""
         sample_path = pathlib.Path(

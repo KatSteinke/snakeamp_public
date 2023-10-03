@@ -13,6 +13,8 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
+
+import helpers
 import pipeline_config
 import version
 __version__ = version.__version__
@@ -48,9 +50,16 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     """
     # check if name can be extracted to begin with - TODO: nicer flow
     sample_name = None
+    all_names_pattern = helpers.get_id_pattern(active_config['sample_number_settings'][
+                                                   'sample_number_format'],
+                                               active_config['sample_number_settings'][
+                                                   'negative_control'],
+                                               active_config['sample_number_settings'][
+                                                   'positive_control'])
     sample_name_pattern = re.compile(r"(?P<full_sample_name>"
-                                     f"{active_config['sample_number_settings']['sample_number_format']})"
+                                     f"{all_names_pattern.pattern})"
                                      r"_rel-abundance\.tsv")
+    print(sample_name_pattern)
     find_sample_name = re.search(sample_name_pattern, emu_counts.name)
     if find_sample_name:
         sample_name_groups = find_sample_name.groupdict()
