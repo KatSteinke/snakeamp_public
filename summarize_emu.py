@@ -13,6 +13,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
+import yaml
 
 import helpers
 import pipeline_config
@@ -180,8 +181,15 @@ if __name__ == "__main__":
     arg_parser.add_argument("--outfile",
                             help = "File to write Emu results to (default: emu_summarized.xlsx)",
                             default = "emu_summarized.xlsx")
+    arg_parser.add_argument("--workflow_config_file",
+                            help="Config file for run (overrides default config given in script, "
+                                 "can be overridden by commandline options)")
     args = arg_parser.parse_args()
+    if args.workflow_config_file:
+        default_config_file = pathlib.Path(args.workflow_config_file).resolve()
+        with open(default_config_file, "r", encoding = "utf-8") as config_file:
+            workflow_config = yaml.safe_load(config_file)
     input_dir = pathlib.Path(args.indir)
     output_file = pathlib.Path(args.outfile)
-    merged_emu = merge_all_in_emu_dir(input_dir)
+    merged_emu = merge_all_in_emu_dir(input_dir, active_config = workflow_config)
     write_to_sheets(merged_emu, output_file)
