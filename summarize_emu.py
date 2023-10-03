@@ -60,7 +60,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path) -> pd.DataFrame:
     # "unassigned" is only noted on the taxid level - fill it in on the species level
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
     # reindex so the species stays outside the multiindexed columns
-    emu_read_counts = emu_read_counts.set_index("species", drop=True)
+    emu_read_counts = emu_read_counts.set_index("species", drop = True)
     # note down barcode
     barcode_header = [sample_name] * len(emu_read_counts.columns)
     emu_read_counts.columns = pd.MultiIndex.from_arrays([barcode_header,
@@ -83,7 +83,7 @@ def merge_emu(emu_reports: List[pd.DataFrame]) -> pd.DataFrame:
                                                                 left_index = True,
                                                                 right_index = True),
                              emu_reports)
-    combined_report = combined_report.sort_index(level=0, axis = "columns")
+    combined_report = combined_report.sort_index(level = 0, axis = "columns")
     return combined_report
 
 
@@ -115,7 +115,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path) -> pd.DataFrame:
                                          emu_report.name)
             sample_name_groups = find_sample_name.groupdict()
             sample_name = sample_name_groups.get("sample_name")
-            emu_data = pd.DataFrame(index = pd.Index(data=["unassigned"], name="species"),
+            emu_data = pd.DataFrame(index = pd.Index(data = ["unassigned"], name = "species"),
                                     columns = pd.MultiIndex.from_arrays([[sample_name,
                                                                           sample_name,
                                                                           sample_name],
@@ -129,14 +129,33 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path) -> pd.DataFrame:
     return all_merged
 
 
+def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
+    """Export abundance and estimated counts for each sample to one combined and two separate sheets
+    in a given output file.
+
+    Arguments:
+        merged_report:  the Emu report for all samples
+        outfile:        the file to which the reports should be written
+    """
+    # Pylint complains here but it's a bug
+    with (pd.ExcelWriter(path = outfile) as outfile_writer):  # pylint: disable=abstract-class-instantiated
+        merged_report.to_excel(outfile_writer, sheet_name = "overview")
+        merged_report.loc[:, pd.IndexSlice[:,
+                                           ["abundance_from_all"]]].to_excel(outfile_writer,
+                                                                             sheet_name = "abundance")
+        merged_report.loc[:, pd.IndexSlice[:,
+                                           ["estimated counts"]]].to_excel(outfile_writer,
+                                                                           sheet_name = "count")
+
+
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description = "Combine all Emu reports in a given directory")
-    arg_parser.add_argument("indir", help="Directory containing all Emu reports to summarize")
+    arg_parser.add_argument("indir", help = "Directory containing all Emu reports to summarize")
     arg_parser.add_argument("--outfile",
-                            help="File to write Emu results to (default: emu_summarized.xlsx)",
+                            help = "File to write Emu results to (default: emu_summarized.xlsx)",
                             default = "emu_summarized.xlsx")
     args = arg_parser.parse_args()
     input_dir = pathlib.Path(args.indir)
-    outfile = pathlib.Path(args.outfile)
+    output_file = pathlib.Path(args.outfile)
     merged_emu = merge_all_in_emu_dir(input_dir)
-    merged_emu.to_excel(outfile)
+    write_to_sheets(merged_emu, output_file)

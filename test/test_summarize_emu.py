@@ -299,3 +299,69 @@ class TestMergeEmuDir(unittest.TestCase):
         with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
             summarize_emu.merge_all_in_emu_dir(sample_path)
 
+
+class TestWriteToSheets(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls) -> None:
+        # remove test sheet
+        (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+         / "test_results_sheet.xlsx").unlink()
+
+    def test_write_success(self):
+        expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan],
+                           [0.75, 15.0, "", 0.8, 16.0, ""],
+                           [np.nan, np.nan, np.nan, 0.2, 4.0, ""],
+                           [0.05, 1.0, "", 0.00, 0.0, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "Placeholderia testfacei",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["barcode01", "barcode01", "barcode01",
+                                                       "barcode02", "barcode02", "barcode02"],
+                                                      ["abundance_from_all", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all", "estimated counts",
+                                                       "medtages"]])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        expected_abundance_values = [[0.2, np.nan],
+                                     [0.75, 0.8],
+                                     [np.nan, 0.2],
+                                     [0.05, 0.00]]
+        expected_abundance_cols = pd.MultiIndex.from_arrays([["barcode01",
+                                                              "barcode02"],
+                                                             ["abundance_from_all",
+                                                              "abundance_from_all"]])
+        expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
+                                          columns = expected_abundance_cols)
+        expected_count_values = [[4.0, np.nan],
+                                 [15.0, 16.0],
+                                 [np.nan, 4.0],
+                                 [1.0, 0.00]]
+        expected_count_cols = pd.MultiIndex.from_arrays([["barcode01",
+                                                              "barcode02"],
+                                                             ["estimated counts",
+                                                              "estimated counts"]])
+        expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
+                                          columns = expected_count_cols)
+        test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+         / "test_results_sheet.xlsx")
+        summarize_emu.write_to_sheets(expected_merged, test_sheet)
+        test_merged = pd.read_excel(test_sheet, sheet_name = "overview", index_col = 0,
+                                    header = [0, 1])
+        test_merged.loc[["Placeholderia bielefeldensis",
+                         "Placeholderia fakeorum",
+                         "unassigned"], pd.IndexSlice[["barcode01"],
+                                                      ["medtages"]]] = ""
+        test_merged.loc[["Placeholderia fakeorum",
+                         "Placeholderia testfacei",
+                         "unassigned"], pd.IndexSlice[["barcode02"],
+                                                      ["medtages"]]] = ""
+        test_abundance = pd.read_excel(test_sheet, sheet_name = "abundance", index_col = 0,
+                                       header = [0, 1])
+        test_count = pd.read_excel(test_sheet, sheet_name = "count", index_col = 0,
+                                   header = [0, 1])
+        pd.testing.assert_frame_equal(test_merged, expected_merged)
+        pd.testing.assert_frame_equal(test_abundance, expected_abundance)
+        pd.testing.assert_frame_equal(test_count, expected_count)
+
