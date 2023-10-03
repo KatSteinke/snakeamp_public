@@ -4,7 +4,15 @@ import re
 import pandas as pd
 
 import helpers
+import pipeline_config
 import snake_helpers
+
+# set default config if none is provided - will be overridden in most setups
+configfile: pipeline_config.default_config_file
+# path to config file needs to be specified for other scripts
+CONFIG_PATH = config["config_path"] if "config_path" in config \
+    else pipeline_config.default_config_file
+
 
 workdir: config["outdir"]
 
@@ -159,13 +167,15 @@ rule combine_emu:
         counts_combined = "emu-combined.xlsx"
     params:
         emu_dir = "emu",
-        basedir = workflow.current_basedir
+        basedir = workflow.current_basedir,
+        configfile = CONFIG_PATH
     log:
         "logs/emu/combine_all.log"
     shell:
         """
         python3 {params.basedir}/summarize_emu.py "{params.emu_dir}" \
-         --outfile "{output.counts_combined}" &> "{log}"
+         --outfile "{output.counts_combined}" \
+         --workflow_config_file "{params.configfile}" &> "{log}"
         """
 
 onsuccess:
