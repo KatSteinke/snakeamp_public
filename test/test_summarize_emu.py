@@ -10,6 +10,8 @@ import summarize_emu
 
 
 class TestExtractCounts(unittest.TestCase):
+    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}"}}
+
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "barcode01_rel-abundance.tsv"
@@ -22,7 +24,7 @@ class TestExtractCounts(unittest.TestCase):
         barcode_header = ["barcode01"] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
                                                               expected_results.columns])
-        test_results = summarize_emu.report_species_per_barcode(sample_path)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_bad_name_format(self):
@@ -33,7 +35,17 @@ class TestExtractCounts(unittest.TestCase):
         error_msg = "File name barcode02_emu.tsv does not conform to the expected format " \
                     "([SAMPLE]_rel-abundance.tsv). Sample name could not be extracted."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            summarize_emu.report_species_per_barcode(sample_path)
+            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+
+    def test_bad_sample_name(self):
+        """Ensure the function complains if the name doesn't match the expected sample name format
+        (so sample name can't be inferred)"""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "barcode2_rel-abundance.tsv"
+        error_msg = "File name barcode2_rel-abundance.tsv does not conform to the expected format " \
+                    "([SAMPLE]_rel-abundance.tsv). Sample name could not be extracted."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
 
     def test_fail_wrong_abundance(self):
         """Ensure a relative abundance that does not sum to 1 (suggesting a corrupted file)
@@ -43,7 +55,7 @@ class TestExtractCounts(unittest.TestCase):
         error_msg = "Relative abundance does not sum to 1. " \
                     "This suggests the result file is broken (missing/extra lines)."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            summarize_emu.report_species_per_barcode(sample_path)
+            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
 
 
 class TestMergeEmu(unittest.TestCase):
@@ -222,6 +234,7 @@ class TestMergeEmu(unittest.TestCase):
 
 
 class TestMergeEmuDir(unittest.TestCase):
+    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}"}}
     def test_success_merge(self):
         """Test if multiple files are merged successfully."""
         sample_path = pathlib.Path(
@@ -242,7 +255,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "medtages"]])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                         active_config = self.workflow_config)
         print(expected_merged)
         print(test_merged)
         pd.testing.assert_frame_equal(expected_merged, test_merged)
@@ -260,7 +274,8 @@ class TestMergeEmuDir(unittest.TestCase):
         barcode_header = ["barcode01"] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
                                                               expected_results.columns])
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                         active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_merged)
 
     def test_handle_broken_file(self):
@@ -286,7 +301,8 @@ class TestMergeEmuDir(unittest.TestCase):
                       "Relative abundance does not sum to 1. " \
                       "This suggests the result file is broken (missing/extra lines).\n" \
                       "Empty results will be added to the merged summary."
-            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path)
+            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                             active_config = self.workflow_config)
         print("\n".join(logged.output))
         assert log_msg in logged.output
         pd.testing.assert_frame_equal(expected_merged, test_merged)
@@ -297,7 +313,7 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "blank_dir"
         error_msg = f"No Emu reports found in {sample_path}."
         with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
-            summarize_emu.merge_all_in_emu_dir(sample_path)
+            summarize_emu.merge_all_in_emu_dir(sample_path, active_config = self.workflow_config)
 
 
 class TestWriteToSheets(unittest.TestCase):
