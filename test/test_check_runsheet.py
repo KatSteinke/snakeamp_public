@@ -282,6 +282,26 @@ class TestCheckRunsheet(unittest.TestCase):
             assert dropped_component_msg in logged.output
 
 class TestCheckSampleNumbers(unittest.TestCase):
+    test_config = {"sample_number_settings": {"sample_number_format":
+                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                              "sample_numbers_in": "number",
+                                              "sample_numbers_out": "letter",
+                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "number_to_letter": {"70": "P",
+                                                                   "30": "B",
+                                                                   "10": "D",
+                                                                   "50": "T"},
+                                              "date_settings":
+                                                  {"splice_in_date": False,
+                                                   "length_without_date": 8,
+                                                   "splice_after": 2},
+                                              "negative_control": '',
+                                              "positive_control": {}},
+                   "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                   "barcode_prefix": "RB"
+                   # barcode prefix as letter (for transferring original fastqs by barcode)
+                   }
     def test_fail_ids(self):
         id_fail_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-fail.xlsx"
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
@@ -293,7 +313,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                    dtype={"KMA nr": str})
         sheet_data = sheet_data.dropna()
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
 
     def test_fail_ids_letters(self):
         id_fail_sheet = pathlib.Path(__file__).parent /"data"/ "utilities_test" \
@@ -366,7 +386,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "No sample IDs found."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
 
     def test_fail_no_positive_control(self):
         no_positive_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-posk.xlsx"
@@ -430,7 +450,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
         sheet_data = pd.read_excel(duplicated_id_sheet, usecols="A:B", skiprows=3,
                                    dtype={"KMA nr": str})
         with self.assertLogs("check_runsheet") as logged:
-            check_runsheet.check_sheet_format(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
             duplicated_warning = "WARNING:check_runsheet:Sample number(s) ['1123456789'] are duplicated." \
                                  " If you are sure you want to sequence the same sample twice, " \
                                  "you can ignore this warning."
@@ -444,7 +464,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     "\nBarcodes ['RB3'] are not valid barcodes. " \
                     "Barcodes must consist of RB + a number between 01 and 96."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              active_config = self.test_config)
 
     def test_fail_no_barcodes(self):
         no_barcode_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-barcode.xlsx"
@@ -453,7 +474,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nNo barcodes found."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              active_config = self.test_config)
 
     def test_fail_more_barcodes(self):
         more_barcodes_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-more-barcodes.xlsx"
@@ -463,7 +485,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     "\nAmount of sample IDs and barcodes don't match. " \
                     "There are 2 sample IDs but 3 barcodes."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              active_config = self.test_config)
 
     def test_fail_duplicated_barcodes(self):
         duplicated_barcodes_sheet = pathlib.Path(
@@ -473,4 +496,5 @@ class TestCheckSampleNumbers(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nBarcode(s) ['RB02'] are duplicated."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              active_config = self.test_config)

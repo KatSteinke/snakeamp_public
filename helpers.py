@@ -57,12 +57,11 @@ def get_id_pattern(sample_number_format: str,
     positive_control_pattern = ""
     if positive_control:
         positive_control_pattern = f"|({'|'.join(positive_control.keys())})"
-    pattern_all = re.compile(f"^({sample_number_format}"
+    pattern_all = re.compile(f"({sample_number_format}"
                              f"{negative_control_pattern}"
                              f"{positive_control_pattern}"
-                             f")$")
+                             f")")
     return pattern_all
-
 
 
 def get_number_letter_combination(number_to_letter: Dict[str, str], samples_in: str,

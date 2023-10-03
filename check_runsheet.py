@@ -282,6 +282,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         active_config["sample_number_settings"]["sample_number_format"],
         negative_control = active_config["sample_number_settings"]["negative_control"],
         positive_control = active_config["sample_number_settings"]["positive_control"])
+    id_pattern = re.compile(f"^{id_pattern.pattern}$")
     fail_ids = sheet_data["KMA nr"][~sheet_data["KMA nr"].apply(str).str.match(id_pattern,
                                                                                na=False)].dropna().tolist()
     if active_config['sample_number_settings']['sample_numbers_in'] == "number":

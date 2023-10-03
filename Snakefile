@@ -1,4 +1,5 @@
 import pathlib
+import re
 
 import pandas as pd
 
@@ -15,6 +16,7 @@ print(FASTQ_DIR)
 sample_number_pattern = helpers.get_id_pattern(config["sample_number_settings"]["sample_number_format"],
         negative_control = config["sample_number_settings"]["negative_control"],
         positive_control = config["sample_number_settings"]["positive_control"])
+sample_number_pattern = re.compile(f"^{sample_number_pattern.pattern}$")
 print(sample_number_pattern)
 wildcard_constraints:
     barcode_number = r"\d{2}",
