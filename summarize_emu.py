@@ -58,7 +58,8 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
                                                active_config['sample_number_settings'][
                                                    'positive_control'])
     sample_name_pattern = re.compile(r"(?P<full_sample_name>"
-                                     f"{all_names_pattern.pattern})"
+                                     f"{all_names_pattern.pattern}"
+                                     f"_{active_config['barcode_format']})"
                                      r"_rel-abundance\.tsv")
     find_sample_name = re.search(sample_name_pattern, emu_counts.name)
     if find_sample_name:
@@ -66,7 +67,8 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
         sample_name = sample_name_groups.get("full_sample_name")
     if not sample_name:
         raise ValueError(f"File name {emu_counts.name} does not conform to the expected format "
-                         "([SAMPLE]_rel-abundance.tsv). Sample name could not be extracted.")
+                         "([SAMPLE]_[BARCODE]_rel-abundance.tsv)."
+                         " Sample name could not be extracted.")
     # get read counts per species
     emu_read_counts = pd.read_csv(emu_counts, sep = "\t")
     # check if something is wrong with the abundance as is
@@ -146,7 +148,8 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
                                                        active_config['sample_number_settings'][
                                                            'positive_control'])
             sample_name_pattern = re.compile(r"(?P<full_sample_name>"
-                                             f"{all_names_pattern.pattern})"
+                                             f"{all_names_pattern.pattern}"
+                                             f"_{active_config['barcode_format']})"
                                              r"_rel-abundance\.tsv")
             find_sample_name = re.search(sample_name_pattern,
                                          emu_report.name)
