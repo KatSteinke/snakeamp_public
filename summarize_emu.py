@@ -94,17 +94,9 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     report_headers = [barcode_header]
     # TODO: should we get the translation etc. in a separate function?
     if active_config["lab_info_system"]["use_lis_features"]:
-        if active_config["sample_number_settings"]["positive_control"]:  # TODO: move out to separate function
-            positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
-                                                    "positive_control"].keys()))
-        else:
-            # "unmatchable" regex so nothing gets seen as a positive control when we don't have one
-            positive_control_pattern = re.compile('(?!.*)')
-        if active_config["sample_number_settings"]["negative_control"]:
-            negative_control_pattern = re.compile(active_config["sample_number_settings"][
-                                                      "negative_control"])
-        else:
-            negative_control_pattern = re.compile('(?!.*)')
+        (negative_control_pattern,
+         positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
+                                                                  active_config["sample_number_settings"]["positive_control"])
         sample_material = ""
         # we only want to load the LIS report if we need it
         if not (re.match(positive_control_pattern, name_only)

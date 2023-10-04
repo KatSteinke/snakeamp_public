@@ -66,17 +66,9 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
     # prefix is already known
     runsheet_filtered["proevenr_prefix"] = sheet_prefix
     # extract sample number
-    if active_config["sample_number_settings"]["positive_control"]:
-        positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
-                                                "positive_control"].keys()))
-    else:
-        # "unmatchable" regex so nothing gets seen as a positive control when we don't have one
-        positive_control_pattern = re.compile('(?!.*)')
-    if active_config["sample_number_settings"]["negative_control"]:
-        negative_control_pattern = re.compile(active_config["sample_number_settings"][
-                                                  "negative_control"])
-    else:
-        negative_control_pattern = re.compile('(?!.*)')
+    (negative_control_pattern,
+     positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
+                                                              active_config["sample_number_settings"]["positive_control"])
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
     runsheet_filtered["proevenr_kort"] = runsheet_filtered["KMA nr"].apply(lambda x:
                                                                            extract_sample_number_part(x,
@@ -138,17 +130,9 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     # -> make subsets of sample sheet and report by prefix
     # remove both negative and positive controls here
     # TODO: get control pattern?
-    if active_config["sample_number_settings"]["positive_control"]:
-        positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
-                                                "positive_control"].keys()))
-    else:
-        # "unmatchable" regex so nothing gets seen as a positive control when we don't have one
-        positive_control_pattern = re.compile('(?!.*)')
-    if active_config["sample_number_settings"]["negative_control"]:
-        negative_control_pattern = re.compile(active_config["sample_number_settings"][
-                                                  "negative_control"])
-    else:
-        negative_control_pattern = re.compile('(?!.*)')
+    (negative_control_pattern,
+     positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
+                                                              active_config["sample_number_settings"]["positive_control"])
     # extract prefix: numbers or letters
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
     # add date if needed
