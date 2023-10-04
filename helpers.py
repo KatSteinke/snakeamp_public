@@ -317,7 +317,7 @@ def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) ->
     negative_controls["prøvenr"] = negative_controls["KMA nr"]
     all_samples = pd.concat([non_controls,
                              positive_controls,
-                             negative_controls]).sort_values(by = "Barkode NB")
+                             negative_controls]).sort_values(by = "Barkode")
     return all_samples
 
 

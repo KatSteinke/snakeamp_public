@@ -220,7 +220,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         fail_record += "\nNo sample IDs found."
         data_missing = True
     if check_barcodes:
-        no_barcodes = sheet_data["Barkode NB"].isna().all()
+        no_barcodes = sheet_data["Barkode"].isna().all()
         if no_barcodes:
             fail_record += "\nNo barcodes found."
             data_missing = True
@@ -231,15 +231,15 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         # now we can be sure there are sample IDs and barcodes, we can check them
         # start by checking if we have the same amount of sample IDs and barcodes
         amount_sample_ids = sheet_data["KMA nr"].dropna().size
-        amount_barcodes = sheet_data["Barkode NB"].dropna().size
+        amount_barcodes = sheet_data["Barkode"].dropna().size
         if amount_sample_ids != amount_barcodes:
             sheet_issues = True
             fail_record += "\nAmount of sample IDs and barcodes don't match. " \
                            f"There are {amount_sample_ids} sample IDs" \
                            f" but {amount_barcodes} barcodes."
         # check that barcodes have correct format
-        fail_barcodes = sheet_data["Barkode NB"][
-            ~sheet_data["Barkode NB"].apply(str).str.match(active_config["barcode_format"],
+        fail_barcodes = sheet_data["Barkode"][
+            ~sheet_data["Barkode"].apply(str).str.match(active_config["barcode_format"],
                                                            na = False)].dropna().tolist()
 
         if fail_barcodes:
@@ -250,9 +250,9 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
                            "+ a number between 01 and 96."
         # duplicated sample numbers have been checked in the separate runsheet check
         # duplicated barcodes indicate a serious issue though
-        if any(sheet_data["Barkode NB"].dropna().duplicated()):
+        if any(sheet_data["Barkode"].dropna().duplicated()):
             sheet_issues = True
-            duplicated_barcodes = sheet_data["Barkode NB"][sheet_data["Barkode NB"].duplicated()].dropna().unique()
+            duplicated_barcodes = sheet_data["Barkode"][sheet_data["Barkode"].duplicated()].dropna().unique()
             fail_record += f"\nBarcode(s) {duplicated_barcodes} are duplicated."
     # check duplicates early - this only needs to warn, not break
     if any(sheet_data["KMA nr"].dropna().duplicated()):
