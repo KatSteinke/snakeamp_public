@@ -8,6 +8,35 @@ import pytest
 import helpers
 
 
+class TestGetControls(unittest.TestCase):
+    def test_no_controls(self):
+        """Return unmatchable patterns for no controls."""
+        expected_negative = re.compile('(?!.*)')
+        expected_positive = re.compile('(?!.*)')
+        test_negative, test_positive = helpers.get_control_patterns()
+        assert expected_negative.pattern == test_negative.pattern
+        assert expected_positive.pattern == test_positive.pattern
+
+    def test_get_negative_control(self):
+        """Return the correct pattern if there is a negative control."""
+        expected_negative = re.compile('NegK')
+        expected_positive = re.compile('(?!.*)')
+        test_negative, test_positive = helpers.get_control_patterns(negative_control = "NegK")
+        assert expected_negative.pattern == test_negative.pattern
+        assert expected_positive.pattern == test_positive.pattern
+
+    def test_get_positive_control(self):
+        """Return the correct pattern if there is a positive control."""
+        expected_negative = re.compile('(?!.*)')
+        expected_positive = re.compile('PosK|PosK2')
+        test_negative, test_positive = helpers.get_control_patterns(positive_control = {"PosK":
+                                                                                            "Placeholderia bielefeldensis",
+                                                                                        "PosK2":
+                                                                                            "Placeholderia fakeorum"})
+        assert expected_negative.pattern == test_negative.pattern
+        assert expected_positive.pattern == test_positive.pattern
+
+
 class TestGetPatterns(unittest.TestCase):
     def test_samples_only(self):
         """Create a sample number pattern without controls."""

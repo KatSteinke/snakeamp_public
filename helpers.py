@@ -6,7 +6,7 @@ import logging
 import pathlib
 import re
 
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import pandas as pd
 from pandas._libs.missing import NAType
@@ -31,6 +31,29 @@ class PrettyKeyErrorMessage(str):
     """
     def __repr__(self):
         return str(self)
+
+
+def get_control_patterns(negative_control: Optional[str] = None,
+                         positive_control: Optional[Dict[str, Any]] = None) \
+        -> Tuple[re.Pattern, re.Pattern]:
+    """Return patterns matching negative and positive controls if given,
+     else an unmatchable pattern.
+
+    Arguments:
+        negative_control:   the format used for negative controls
+        positive_control:   positive controls and their expected results
+
+    Returns:
+        Patterns matching negative and positive controls if given, else unmatchable patterns.
+    """
+    # "unmatchable" regex so nothing gets seen as a control when we don't have one
+    negative_control_pattern = re.compile('(?!.*)')
+    positive_control_pattern = re.compile('(?!.*)')
+    if negative_control:
+        negative_control_pattern = re.compile(negative_control)
+    if positive_control:
+        positive_control_pattern = re.compile("|".join(positive_control.keys()))
+    return negative_control_pattern, positive_control_pattern
 
 
 # TODO: use defaults from config instead?
