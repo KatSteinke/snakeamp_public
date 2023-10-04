@@ -60,7 +60,6 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     sample_name_pattern = re.compile(r"(?P<full_sample_name>"
                                      f"{all_names_pattern.pattern})"
                                      r"_rel-abundance\.tsv")
-    print(sample_name_pattern)
     find_sample_name = re.search(sample_name_pattern, emu_counts.name)
     if find_sample_name:
         sample_name_groups = find_sample_name.groupdict()
@@ -131,17 +130,28 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
         raise FileNotFoundError(f"No Emu reports found in {emu_dir}.")
     all_reports = []
     for emu_report in sorted(emu_reports, key = lambda report: report.name):
+        print(emu_report)
         try:
             emu_data = report_species_per_barcode(emu_report, active_config)
         except ValueError as value_err:
+            print("Whoops")
             logger.error(f"Error in {emu_report}:\n"
                          f"{value_err}\n"
                          "Empty results will be added to the merged summary.")
             # we know the file matches the pattern
-            find_sample_name = re.search(r'(?P<sample_name>\w+)_rel-abundance\.tsv',
+            all_names_pattern = helpers.get_id_pattern(active_config['sample_number_settings'][
+                                                           'sample_number_format'],
+                                                       active_config['sample_number_settings'][
+                                                           'negative_control'],
+                                                       active_config['sample_number_settings'][
+                                                           'positive_control'])
+            sample_name_pattern = re.compile(r"(?P<full_sample_name>"
+                                             f"{all_names_pattern.pattern})"
+                                             r"_rel-abundance\.tsv")
+            find_sample_name = re.search(sample_name_pattern,
                                          emu_report.name)
             sample_name_groups = find_sample_name.groupdict()
-            sample_name = sample_name_groups.get("sample_name")
+            sample_name = sample_name_groups.get("full_sample_name")
             emu_data = pd.DataFrame(index = pd.Index(data = ["unassigned"], name = "species"),
                                     columns = pd.MultiIndex.from_arrays([[sample_name,
                                                                           sample_name,

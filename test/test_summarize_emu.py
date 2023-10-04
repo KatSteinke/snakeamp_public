@@ -242,6 +242,7 @@ class TestMergeEmu(unittest.TestCase):
         print(test_merged)
         pd.testing.assert_frame_equal(expected_merged, test_merged)
 
+
     def test_multi_merge(self):
         """Merge more than two dataframes."""
         barcode_1 = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
@@ -372,6 +373,33 @@ class TestMergeEmuDir(unittest.TestCase):
                                                              active_config = self.workflow_config)
         print("\n".join(logged.output))
         assert log_msg in logged.output
+        pd.testing.assert_frame_equal(expected_merged, test_merged)
+
+    def test_merge_different_format_with_controls(self):
+        """Ensure samples with different formats and controls are handled properly."""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK"}}
+        sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_different_format"
+
+        expected_values = [[0.75, 15.0, "", 0.75, 15.0, ""],
+                           [0.2, 4.0, "", 0.2, 4.0, ""],
+                           [0.05, 1.0, "", 0.05, 1.0, ""]]
+        expected_index = pd.Index(data = ["Placeholderia fakeorum",
+                                          "Placeholderia bielefeldensis",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["F99123456-0", "F99123456-0", "F99123456-0",
+                                                       "NegK", "NegK", "NegK"],
+                                                      ["abundance_from_all", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all", "estimated counts",
+                                                       "medtages"]])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                         active_config = workflow_config)
+        print(expected_merged)
         pd.testing.assert_frame_equal(expected_merged, test_merged)
 
     def test_fail_no_files(self):
