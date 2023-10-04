@@ -105,6 +105,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
                                                       "negative_control"])
         else:
             negative_control_pattern = re.compile('(?!.*)')
+        sample_material = ""
         # we only want to load the LIS report if we need it
         if not (re.match(positive_control_pattern, name_only)
                 or re.match(negative_control_pattern, name_only)):
@@ -131,8 +132,8 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
             name_translate = helpers.rearrange_sample_number(name_translate, sample_format_sheet,
                                                              component_order_lis)
             sample_material = lab_info_data[lab_info_data["prøvenr"] == name_translate]["prøvekategori"].squeeze()
-            material_header = [sample_material] * len(emu_read_counts.columns)
-            report_headers.append(material_header)
+        material_header = [sample_material] * len(emu_read_counts.columns)
+        report_headers.append(material_header)
 
     report_headers.append(emu_read_counts.columns)
     emu_read_counts.columns = pd.MultiIndex.from_arrays(report_headers)

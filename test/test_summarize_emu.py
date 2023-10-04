@@ -89,6 +89,42 @@ class TestExtractCounts(unittest.TestCase):
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
+    def test_handle_control_material(self):
+        """Insert blank "material" for controls"""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK",
+                                                      "sample_numbers_in": "number",
+                                                      "sample_numbers_out": "letter",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material.csv")}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "NegK_RB02_rel-abundance.tsv"
+        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
+                                                "estimated counts": [15.0, 4.0, 1.0],
+                                                "medtages": ["", "", ""]},
+                                        index = pd.Index(data = ["Placeholderia fakeorum",
+                                                                 "Placeholderia bielefeldensis",
+                                                                 "unassigned"], name = "species"))
+        barcode_header = ["NegK_RB02"] * len(expected_results.columns)
+        material_header = [""] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+                                                              material_header,
+                                                              expected_results.columns])
+        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
     def test_handle_negative_control(self):
         """Handle negative controls"""
         workflow_config = {"sample_number_settings": {"sample_number_format":
@@ -471,6 +507,57 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "NegK_RB02",
                                                        "NegK_RB02",
                                                        "NegK_RB02"],
+                                                      ["abundance_from_all", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all", "estimated counts",
+                                                       "medtages"]])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                         active_config = workflow_config)
+        print(expected_merged)
+        pd.testing.assert_frame_equal(expected_merged, test_merged)
+
+    def test_merge_and_get_material(self):
+        """Get sample material for all samples."""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK",
+                                                      "sample_numbers_in": "number",
+                                                      "sample_numbers_out": "letter",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material.csv")}}
+        sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_different_format"
+
+        expected_values = [[0.75, 15.0, "", 0.75, 15.0, ""],
+                           [0.2, 4.0, "", 0.2, 4.0, ""],
+                           [0.05, 1.0, "", 0.05, 1.0, ""]]
+        expected_index = pd.Index(data = ["Placeholderia fakeorum",
+                                          "Placeholderia bielefeldensis",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["F99123456-0_RB01",
+                                                       "F99123456-0_RB01",
+                                                       "F99123456-0_RB01",
+                                                       "NegK_RB02",
+                                                       "NegK_RB02",
+                                                       "NegK_RB02"],
+                                                      ["Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "",
+                                                       "",
+                                                       ""],
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
