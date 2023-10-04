@@ -115,7 +115,8 @@ class TestCheckRunsheet(unittest.TestCase):
                                                   '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
                                               "sample_numbers_in": "number",
                                               "sample_numbers_out": "letter",
-                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                              # TODO: how to handle splicing in year?
+                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})?(?P<sample_number>\d{6})',
                                               "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                               "number_to_letter": {"70": "P",
                                                                    "30": "B",
@@ -165,7 +166,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                       '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
@@ -195,7 +196,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                       '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})?(?P<sample_number>\d{6})',
                                                   "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
@@ -214,8 +215,93 @@ class TestCheckRunsheet(unittest.TestCase):
             check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
             assert success_msg in logged.output
 
+    def test_success_rearrange(self):
+        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet_year.xlsx"
+        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data_move_year.csv"
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"KMA nr": str, "årstal": str})
+        sheet_data = sheet_data.dropna()
+        success_msg = "INFO:check_runsheet:The runsheet is correct."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_number>\d{6})(?P<sample_year>\d{2})',
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": '',
+                                                  "positive_control": {}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        with self.assertLogs("check_runsheet") as logged:
+            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
+            assert success_msg in logged.output
+
+    def test_success_drop_component(self):
+        """Alert the user when sample number format in LIS report contains fewer components than
+        sample number format in sheet."""
+        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet_isolate.xlsx"
+        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"KMA nr": str, "årstal": str})
+        sheet_data = sheet_data.dropna()
+        dropped_component_msg = ("INFO:check_runsheet:Comparing only"
+                                 " ['sample_type', 'sample_year', 'sample_number'] to LIS report. "
+                                 "Cannot check if ['bact_number'] component(s) are correct.")
+        success_msg = "INFO:check_runsheet:The runsheet is correct."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": '',
+                                                  "positive_control": {}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        with self.assertLogs("check_runsheet") as logged:
+            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
+            assert success_msg in logged.output
+            assert dropped_component_msg in logged.output
 
 class TestCheckSampleNumbers(unittest.TestCase):
+    test_config = {"sample_number_settings": {"sample_number_format":
+                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                              "sample_numbers_in": "number",
+                                              "sample_numbers_out": "letter",
+                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "number_to_letter": {"70": "P",
+                                                                   "30": "B",
+                                                                   "10": "D",
+                                                                   "50": "T"},
+                                              "date_settings":
+                                                  {"splice_in_date": False,
+                                                   "length_without_date": 8,
+                                                   "splice_after": 2},
+                                              "negative_control": '',
+                                              "positive_control": {}},
+                   "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                   "barcode_prefix": "RB"
+                   # barcode prefix as letter (for transferring original fastqs by barcode)
+                   }
     def test_fail_ids(self):
         id_fail_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-fail.xlsx"
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
@@ -227,7 +313,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                    dtype={"KMA nr": str})
         sheet_data = sheet_data.dropna()
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
 
     def test_fail_ids_letters(self):
         id_fail_sheet = pathlib.Path(__file__).parent /"data"/ "utilities_test" \
@@ -300,7 +386,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "No sample IDs found."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
 
     def test_fail_no_positive_control(self):
         no_positive_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-posk.xlsx"
@@ -364,7 +450,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
         sheet_data = pd.read_excel(duplicated_id_sheet, usecols="A:B", skiprows=3,
                                    dtype={"KMA nr": str})
         with self.assertLogs("check_runsheet") as logged:
-            check_runsheet.check_sheet_format(sheet_data)
+            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
             duplicated_warning = "WARNING:check_runsheet:Sample number(s) ['1123456789'] are duplicated." \
                                  " If you are sure you want to sequence the same sample twice, " \
                                  "you can ignore this warning."
@@ -378,7 +464,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     "\nBarcodes ['RB3'] are not valid barcodes. " \
                     "Barcodes must consist of RB + a number between 01 and 96."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              active_config = self.test_config)
 
     def test_fail_no_barcodes(self):
         no_barcode_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-barcode.xlsx"
@@ -387,7 +474,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nNo barcodes found."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              active_config = self.test_config)
 
     def test_fail_more_barcodes(self):
         more_barcodes_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-more-barcodes.xlsx"
@@ -397,7 +485,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     "\nAmount of sample IDs and barcodes don't match. " \
                     "There are 2 sample IDs but 3 barcodes."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              active_config = self.test_config)
 
     def test_fail_duplicated_barcodes(self):
         duplicated_barcodes_sheet = pathlib.Path(
@@ -407,4 +496,5 @@ class TestCheckSampleNumbers(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nBarcode(s) ['RB02'] are duplicated."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True)
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              active_config = self.test_config)

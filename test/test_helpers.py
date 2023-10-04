@@ -11,7 +11,7 @@ import helpers
 class TestGetPatterns(unittest.TestCase):
     def test_samples_only(self):
         """Create a sample number pattern without controls."""
-        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC))$")
+        expected_pattern = re.compile(r"(test(?P<suffix>A|BC))")
         sample_number_pattern = "test(?P<suffix>A|BC)"
         test_pattern = helpers.get_id_pattern(sample_number_pattern)
         assert test_pattern == expected_pattern
@@ -23,10 +23,9 @@ class TestGetPatterns(unittest.TestCase):
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             helpers.get_id_pattern(sample_number_pattern)
 
-
     def test_negative_control(self):
         """Create a sample number pattern with a negative control."""
-        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC)|NegK)$")
+        expected_pattern = re.compile(r"(test(?P<suffix>A|BC)|NegK)")
         sample_number_pattern = "test(?P<suffix>A|BC)"
         negk_pattern = "NegK"
         test_pattern = helpers.get_id_pattern(sample_number_pattern,
@@ -35,7 +34,7 @@ class TestGetPatterns(unittest.TestCase):
 
     def test_positive_control(self):
         """Create a sample number pattern with a single positive control."""
-        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC)|(PosK))$")
+        expected_pattern = re.compile(r"(test(?P<suffix>A|BC)|(PosK))")
         sample_number_pattern = "test(?P<suffix>A|BC)"
         positive_controls = {"PosK": "Placeholderia"}
         test_pattern = helpers.get_id_pattern(sample_number_pattern,
@@ -44,7 +43,7 @@ class TestGetPatterns(unittest.TestCase):
 
     def test_multiple_positive_controls(self):
         """Create a sample number pattern with multiple positive controls."""
-        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC)|(PosK|PosK2))$")
+        expected_pattern = re.compile(r"(test(?P<suffix>A|BC)|(PosK|PosK2))")
         sample_number_pattern = "test(?P<suffix>A|BC)"
         positive_controls = {"PosK": "Placeholderia", "PosK2": "Fakeobacter"}
         test_pattern = helpers.get_id_pattern(sample_number_pattern,
@@ -54,7 +53,7 @@ class TestGetPatterns(unittest.TestCase):
     def test_all_control_types(self):
         """Create a sample number pattern with both positive and negative controls."""
         """Create a sample number pattern with multiple positive controls."""
-        expected_pattern = re.compile(r"^(test(?P<suffix>A|BC)|NegK|(PosK|PosK2))$")
+        expected_pattern = re.compile(r"(test(?P<suffix>A|BC)|NegK|(PosK|PosK2))")
         sample_number_pattern = "test(?P<suffix>A|BC)"
         negative_control = "NegK"
         positive_controls = {"PosK": "Placeholderia", "PosK2": "Fakeobacter"}
@@ -230,6 +229,64 @@ class TestFindPart(unittest.TestCase):
             assert log_msg in logged.output
         assert pd.isna(test_prefix)
 
+class TestRearrangeSampleNumber(unittest.TestCase):
+    def test_no_change(self):
+        input_number = "F99123456-1"
+        true_number = "F99123456-1"
+        pattern_in = re.compile(r"(?P<sample_type>[BDFT])"
+                                r"(?P<sample_year>\d{2})"
+                                r"(?P<sample_number>\d{6})"
+                                r"(?P<bact_number>-\d)")
+        order_out = {1:"sample_type", 2: "sample_year", 3: "sample_number",4: "bact_number"}
+        test_number = helpers.rearrange_sample_number(input_number, pattern_in, order_out)
+        assert test_number == true_number
+
+    def test_rearrange_success(self):
+        input_number = "F99123456-1"
+        true_number = "F12345699-1"
+        pattern_in = re.compile(r"(?P<sample_type>[BDFT])"
+                                r"(?P<sample_year>\d{2})"
+                                r"(?P<sample_number>\d{6})"
+                                r"(?P<bact_number>-\d)")
+        order_out ={1:"sample_type", 2: "sample_number", 3: "sample_year",4: "bact_number"}
+        test_number = helpers.rearrange_sample_number(input_number, pattern_in, order_out)
+        assert test_number == true_number
+
+    def test_fail_too_many_components(self):
+        input_number = "F99123456-1"
+        pattern_in = re.compile(r"(?P<sample_type>[BDFT])"
+                                r"(?P<sample_number>\d{6})"
+                                r"(?P<bact_number>-\d)")
+        order_out = {1:"sample_type", 2: "sample_year", 3: "sample_number",4: "bact_number"}
+        error_msg = "Not all desired sample number components could be " \
+                    "found in the original format. " \
+                    "Desired sample number format contains additional " \
+                    "components {'sample_year'}."
+        with pytest.raises(KeyError, match = error_msg):
+            helpers.rearrange_sample_number(input_number, pattern_in, order_out)
+
+    def test_fail_no_hits(self):
+        input_number = "1199123456-1"
+        pattern_in = re.compile(r"(?P<sample_type>[BDFT])"
+                                r"(?P<sample_year>\d{2})"
+                                r"(?P<sample_number>\d{6})"
+                                r"(?P<bact_number>-\d)")
+        order_out = {1:"sample_type", 2: "sample_year", 3: "sample_number",4: "bact_number"}
+        error_msg = "No match in sample number 1199123456-1."
+        with pytest.raises(ValueError, match = error_msg):
+            helpers.rearrange_sample_number(input_number, pattern_in, order_out)
+
+    def test_success_remove_component(self):
+        input_number = "F99123456-1"
+        true_number = "F99123456"
+        pattern_in = re.compile(r"(?P<sample_type>[BDFT])"
+                                r"(?P<sample_year>\d{2})"
+                                r"(?P<sample_number>\d{6})"
+                                r"(?P<bact_number>-\d)")
+        order_out = {1:"sample_type", 2: "sample_year", 3: "sample_number"}
+        test_number = helpers.rearrange_sample_number(input_number, pattern_in, order_out)
+        assert test_number == true_number
+
 
 class TestExtractMatchGroup(unittest.TestCase):
     def test_extract_simple_group(self):
@@ -276,6 +333,27 @@ class TestExtractMatchGroup(unittest.TestCase):
 
 
 class TestAddYearsInSheet(unittest.TestCase):
+    test_config = {"sample_number_settings": {"sample_number_format":
+                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                              "sample_numbers_in": "number",
+                                              "sample_numbers_out": "letter",
+                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "number_to_letter": {"70": "P",
+                                                                   "30": "B",
+                                                                   "10": "D",
+                                                                   "50": "T"},
+                                              "date_settings":
+                                                  {"splice_in_date": True,
+                                                   "length_without_date": 8,
+                                                   "splice_after": 2},
+                                              "negative_control": '',
+                                              "positive_control": {}},
+                   "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                   "barcode_prefix": "RB"
+                   # barcode prefix as letter (for transferring original fastqs by barcode)
+                   }
+
     def test_success_add_year(self):
         """Ensure year is added to properly formatted sample numbers."""
         test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
@@ -285,7 +363,7 @@ class TestAddYearsInSheet(unittest.TestCase):
                                            "årstal": ["99", "99"],
                                            "Barkode NB": ["RB01", "RB02"],
                                            "prøvenr": ["1199123456", "1199123456"]})
-        test_df = helpers.add_years_in_sheet(test_input)
+        test_df = helpers.add_years_in_sheet(test_input, active_config = self.test_config)
         pd.testing.assert_frame_equal(expected_df, test_df)
 
     def test_complain_no_year_col(self):
@@ -295,7 +373,7 @@ class TestAddYearsInSheet(unittest.TestCase):
         error_msg = "No year column found. " \
                     "The pipeline needs a column named 'årstal' to add year to sample number."
         with pytest.raises(KeyError, match=re.escape(error_msg)):
-            helpers.add_years_in_sheet(test_input)
+            helpers.add_years_in_sheet(test_input, active_config = self.test_config)
 
     def test_complain_wrong_year_format(self):
         """Ensure an error is raised if the year is given in the wrong format."""
@@ -309,7 +387,7 @@ class TestAddYearsInSheet(unittest.TestCase):
                     " Affected samples:\n" \
                     f"{bad_years.to_string()}"
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            helpers.add_years_in_sheet(test_input)
+            helpers.add_years_in_sheet(test_input, active_config = self.test_config)
 
     def test_complain_blank_year_column(self):
         """Ensure an error is raised if no year is given for a sample."""
@@ -323,7 +401,7 @@ class TestAddYearsInSheet(unittest.TestCase):
                     " Affected samples:\n" \
                     f"{bad_years.to_string()}"
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            helpers.add_years_in_sheet(test_input)
+            helpers.add_years_in_sheet(test_input, active_config = self.test_config)
 
     def test_handle_controls(self):
         """Ensure positive and negative controls are processed unaltered."""
@@ -393,6 +471,7 @@ class TestCheckExperimentName(unittest.TestCase):
                     " Replace forward slashes with underscores (_)."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             helpers.check_experiment_name_problems(test_name)
+
 
 class TestExtractNanoporeRun(unittest.TestCase):
     def test_get_run_name(self):

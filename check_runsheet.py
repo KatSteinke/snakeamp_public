@@ -169,6 +169,22 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
                                                                              prefix_mapping.get(match.group(),
                                                                                                 match.group()),
                                                                              x))
+    # get the order of components in the LIS and rearrange accordingly
+    component_order_lis = {value: key for key, value in
+                           re.compile(active_config[
+                                          "sample_number_settings"][
+                                          "format_in_lis"]).groupindex.items()}
+    extra_components = (set(sample_format_sheet.groupindex.keys())
+                        - set(component_order_lis.values()))
+    if extra_components:
+        logger.info(f"Comparing only {list(component_order_lis.values())} to LIS report. "
+                    f"Cannot check if {list(extra_components)} component(s) are correct.")
+    non_controls["prøvenr_translate"] = non_controls["prøvenr_translate"].apply(lambda x:
+                                                                                helpers.rearrange_sample_number(
+                                                                                    x,
+                                                                                    sample_format_sheet,
+                                                                                    component_order_lis))
+
     # left join the rest on the LIS report
     samples_in_lis = non_controls.merge(lab_info_data, how = "left",
                                         left_on = "prøvenr_translate", right_on = "prøvenr",
@@ -261,12 +277,12 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         if not negative_controls_in_sheet.any():
             sheet_issues = True
             fail_record += "\nNo negative controls given in runsheet."
-    else:
-        negative_control_pattern = ''
+
     id_pattern = helpers.get_id_pattern(
         active_config["sample_number_settings"]["sample_number_format"],
         negative_control = active_config["sample_number_settings"]["negative_control"],
         positive_control = active_config["sample_number_settings"]["positive_control"])
+    id_pattern = re.compile(f"^{id_pattern.pattern}$")
     fail_ids = sheet_data["KMA nr"][~sheet_data["KMA nr"].apply(str).str.match(id_pattern,
                                                                                na=False)].dropna().tolist()
     if active_config['sample_number_settings']['sample_numbers_in'] == "number":

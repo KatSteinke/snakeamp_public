@@ -25,6 +25,14 @@ console_log.setLevel(logging.INFO)
 logger.addHandler(console_log)
 
 
+class PrettyKeyErrorMessage(str):
+    """Workaround to allow formatted explanatory messages when raising a KeyError.
+    Taken from https://stackoverflow.com/a/70114007/15704972
+    """
+    def __repr__(self):
+        return str(self)
+
+
 # TODO: use defaults from config instead?
 def get_id_pattern(sample_number_format: str,
                    negative_control: Optional[str]=None,
@@ -49,13 +57,11 @@ def get_id_pattern(sample_number_format: str,
     positive_control_pattern = ""
     if positive_control:
         positive_control_pattern = f"|({'|'.join(positive_control.keys())})"
-    pattern_all = re.compile(f"^({sample_number_format}"
+    pattern_all = re.compile(f"({sample_number_format}"
                              f"{negative_control_pattern}"
                              f"{positive_control_pattern}"
-                             f")$")
+                             f")")
     return pattern_all
-
-
 
 
 def get_number_letter_combination(number_to_letter: Dict[str, str], samples_in: str,
@@ -196,6 +202,50 @@ def parse_out_group_pattern(complete_pattern: re.Pattern, group_to_extract: str)
     raise KeyError(error_msg)
 
 
+def rearrange_sample_number(old_sample_number: str, pattern_in: re.Pattern,
+                            order_out: Dict[int, str]) -> str:
+    """
+    Split up a sample number in its components (as given by a regex) and reorder them
+    in the order given.
+
+    Arguments:
+        old_sample_number:  the sample number in its original order
+        pattern_in:         a regex representing the components of the original sample number
+        order_out:          the desired order of the components: position to component
+
+    Returns:
+        The sample number with components reordered in the desired order.
+
+    Raises:
+        KeyError:   if the desired order contains a component not found in the input pattern
+
+
+    """
+    # sanity check if we have everything
+    extra_components = set(order_out.values()) - set(pattern_in.groupindex.keys())
+    if extra_components:
+        error_msg = PrettyKeyErrorMessage(f"Not all desired sample number components could be "
+                                          f"found in the original format. "
+                                          f"Desired sample number format contains additional "
+                                          f"components {extra_components}.")
+        raise KeyError(error_msg)
+    # find components of the sample number
+    sample_components = re.search(pattern_in, old_sample_number)
+    # check if any are missing
+    if not sample_components:
+        raise ValueError(f"No match in sample number {old_sample_number}.")
+    # add components in the order given in the input
+    sample_reordered = []
+    # we're getting this as a key, value tuple - TODO: reverse dict
+    component_order = dict(sorted(order_out.items()))
+    for component in component_order.values():
+        sample_reordered.append(sample_components.group(component))
+
+    # combine components
+    new_sample_number = "".join(sample_reordered)
+    return new_sample_number
+
+
 def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) -> pd.DataFrame:
     """Add year to sample number from sample year column.
 
@@ -270,6 +320,7 @@ def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) ->
                              negative_controls]).sort_values(by = "Barkode NB")
     return all_samples
 
+
 def check_experiment_name_problems(experiment_name: str) -> None:
     """Check whether an experiment name contains any parts that may cause issues
      when used as filenames.
@@ -299,6 +350,7 @@ def check_experiment_name_problems(experiment_name: str) -> None:
                          " Replace forward slashes with underscores (_).")
     logger.debug(f"No issues found with experiment name {experiment_name}.")
 
+
 def extract_nanopore_run_name(runsheet: pathlib.Path) -> str:
     """Extract the name of a Nanopore sequencing run from its Excel runsheet.
 
@@ -318,3 +370,4 @@ def extract_nanopore_run_name(runsheet: pathlib.Path) -> str:
     # could break something from containing characters that aren't allowed in Windows
     check_experiment_name_problems(experiment_name)
     return experiment_name
+
