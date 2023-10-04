@@ -13,7 +13,8 @@ class TestExtractCounts(unittest.TestCase):
     workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
-                       "barcode_format": "RB[0-9]{2}"}
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": False}}
 
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
@@ -37,7 +38,8 @@ class TestExtractCounts(unittest.TestCase):
                                                       # TODO: replace with 0-9
                                                       "positive_control": {},
                                                       "negative_control": ""},
-                           "barcode_format": "RB[0-9]{2}"}
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "F99123456-0_RB01_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
                                                 "estimated counts": [15.0, 4.0, 1.0],
@@ -51,6 +53,42 @@ class TestExtractCounts(unittest.TestCase):
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
+    def test_get_material_from_lis(self):
+        """Optionally add material from LIS"""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "positive_control": {},
+                                                      "negative_control": "",
+                                                      "sample_numbers_in": "number",
+                                                      "sample_numbers_out": "letter",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material.csv")}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "F99123456-0_RB01_rel-abundance.tsv"
+        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
+                                                "estimated counts": [15.0, 4.0, 1.0],
+                                                "medtages": ["", "", ""]},
+                                        index = pd.Index(data = ["Placeholderia fakeorum",
+                                                                 "Placeholderia bielefeldensis",
+                                                                 "unassigned"], name = "species"))
+        barcode_header = ["F99123456-0_RB01"] * len(expected_results.columns)
+        material_header = ["Podning"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+                                                              material_header,
+                                                              expected_results.columns])
+        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
     def test_handle_negative_control(self):
         """Handle negative controls"""
         workflow_config = {"sample_number_settings": {"sample_number_format":
@@ -58,7 +96,8 @@ class TestExtractCounts(unittest.TestCase):
                                                       # TODO: replace with 0-9
                                                       "positive_control": {},
                                                       "negative_control": "NegK"},
-                       "barcode_format": "RB[0-9]{2}"}
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "NegK_RB02_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
@@ -80,7 +119,8 @@ class TestExtractCounts(unittest.TestCase):
                                                       # TODO: replace with 0-9
                                                       "positive_control": {"PosK": "Placeholderia"},
                                                       "negative_control": ""},
-                       "barcode_format": "RB[0-9]{2}"}
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "PosK_RB03_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
@@ -325,7 +365,8 @@ class TestMergeEmuDir(unittest.TestCase):
     workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
-                       "barcode_format": "RB[0-9]{2}"}
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": False}}
 
     def test_success_merge(self):
         """Test if multiple files are merged successfully."""
@@ -414,7 +455,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "positive_control": {},
                                                       "negative_control": "NegK"},
-                       "barcode_format": "RB[0-9]{2}"}
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_different_format"
 
         expected_values = [[0.75, 15.0, "", 0.75, 15.0, ""],
