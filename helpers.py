@@ -364,7 +364,7 @@ def extract_nanopore_run_name(runsheet: pathlib.Path) -> str:
                     (reserved chars, whitespace, slashes)
     """
     experiment_sheet = pd.read_excel(runsheet, sheet_name = "Runsheet_Nanopore",
-                                   usecols = "A:C", skiprows = 1, nrows=2)
+                                   usecols = "A:D", skiprows = 1, nrows=2)
     experiment_name = experiment_sheet.at[0, "RUNxxxx-INI"]
     # the experiment name is used as file names for a lot of things, so catch if it breaks something
     # could break something from containing characters that aren't allowed in Windows
