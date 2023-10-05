@@ -25,7 +25,6 @@ sample_number_pattern = helpers.get_id_pattern(config["sample_number_settings"][
         negative_control = config["sample_number_settings"]["negative_control"],
         positive_control = config["sample_number_settings"]["positive_control"])
 sample_number_pattern = re.compile(f"^{sample_number_pattern.pattern}$")
-print(sample_number_pattern)
 wildcard_constraints:
     barcode_number = r"\d{2}",
     barcode = config["barcode_format"],
@@ -33,7 +32,7 @@ wildcard_constraints:
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
 
 sheet_data = pd.read_excel(config["runsheet"],usecols = "A:C",skiprows = 3,
-                               dtype = {"KMA nr": str, "Barkode NB": str})
+                               dtype = {"KMA nr": str, "Barkode": str})
 sheet_data = sheet_data.dropna()
 if config["sample_number_settings"]["date_settings"]["splice_in_date"]:
     sheet_data = helpers.add_years_in_sheet(sheet_data, active_config=config)
@@ -44,17 +43,14 @@ BARCODE_PREFIX = config["barcode_prefix"]
 ALL_IDS = list(sheet_data["prøvenr"])
 print(ALL_IDS)
 print(sheet_data["prøvenr"].str.match(sample_number_pattern, na=False))
-ALL_BARCODES = list(sheet_data["Barkode NB"])
+ALL_BARCODES = list(sheet_data["Barkode"])
 
-#BARCODES = glob_wildcards(f"{FASTQ_DIR}/{{barcode_dir}}/"
-#                          f"{{flowcell_id}}_pass_barcode{{barcode_number}}_{{run_id}}_{{run_id_2}}_{{read_number}}.{{extension}}").barcode_number
-#print(BARCODES)
-
-
+# we need to name some files after the experiment name
+EXPERIMENT_NAME = helpers.extract_nanopore_run_name(pathlib.Path(config["runsheet"]))
 
 rule all:
     input:
-        all_results = "emu-combined.xlsx"  # TODO: experiment name!
+        all_results = f"{EXPERIMENT_NAME}_emu-combined.xlsx"  # TODO: experiment name!
 
 rule concatenate_fastqs:
     params:
@@ -164,7 +160,7 @@ rule combine_emu:
         all_relative_abundance = expand("emu/{sample_number}_{barcode}_rel-abundance.tsv", zip,
                                         sample_number=ALL_IDS, barcode=ALL_BARCODES)
     output:
-        counts_combined = "emu-combined.xlsx"
+        counts_combined = f"{EXPERIMENT_NAME}_emu-combined.xlsx"
     params:
         emu_dir = "emu",
         basedir = workflow.current_basedir,

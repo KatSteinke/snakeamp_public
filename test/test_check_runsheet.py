@@ -46,7 +46,7 @@ class TestCheckSinglePrefix(unittest.TestCase):
         fail_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test"\
                         / "test_notinmads_runsheet.xlsx"
         fail_data = pd.read_excel(fail_runsheet, usecols="A:C", skiprows=3,
-                                  dtype={"KMA nr": str, "Barkode NB": str})
+                                  dtype={"KMA nr": str, "Barkode": str})
         fail_data = fail_data.dropna()
         error_msg = "Samples ['11410000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
