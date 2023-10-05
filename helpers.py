@@ -6,7 +6,7 @@ import logging
 import pathlib
 import re
 
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import pandas as pd
 from pandas._libs.missing import NAType
@@ -31,6 +31,29 @@ class PrettyKeyErrorMessage(str):
     """
     def __repr__(self):
         return str(self)
+
+
+def get_control_patterns(negative_control: Optional[str] = None,
+                         positive_control: Optional[Dict[str, Any]] = None) \
+        -> Tuple[re.Pattern, re.Pattern]:
+    """Return patterns matching negative and positive controls if given,
+     else an unmatchable pattern.
+
+    Arguments:
+        negative_control:   the format used for negative controls
+        positive_control:   positive controls and their expected results
+
+    Returns:
+        Patterns matching negative and positive controls if given, else unmatchable patterns.
+    """
+    # "unmatchable" regex so nothing gets seen as a control when we don't have one
+    negative_control_pattern = re.compile('(?!.*)')
+    positive_control_pattern = re.compile('(?!.*)')
+    if negative_control:
+        negative_control_pattern = re.compile(negative_control)
+    if positive_control:
+        positive_control_pattern = re.compile("|".join(positive_control.keys()))
+    return negative_control_pattern, positive_control_pattern
 
 
 # TODO: use defaults from config instead?
@@ -246,6 +269,49 @@ def rearrange_sample_number(old_sample_number: str, pattern_in: re.Pattern,
     return new_sample_number
 
 
+def translate_sample_number(sample_number: str, pattern_in: re.Pattern, pattern_out: re.Pattern,
+                            prefix_mapping: Dict[str, str]) -> str:
+    """Translate a sample number by rearranging it to match a desired output pattern and
+    optionally substituting prefixes.
+
+    Arguments:
+        sample_number:  the original sample number
+        pattern_in:     a pattern describing the original format
+        pattern_out:    a pattern describing the desired format
+        prefix_mapping: a mapping of what prefix to translate to what
+
+    Returns:
+        The rearranged and translated sample number.
+
+    Raises:
+        KeyError:   if the sample number's prefix is not found in the mapping
+        ValueError: if the original sample number does not match the input pattern
+                    or the translated sample number does not match the desired output
+    """
+    original_format_match = re.match(pattern_in, sample_number)
+    if not original_format_match:
+        error_msg = f"Sample number {sample_number} does not match specified input format."
+        raise ValueError(error_msg)
+    start_pattern = re.compile(r"^" + parse_out_group_pattern(pattern_in,
+                                                              "sample_type").pattern)
+    current_start = original_format_match.group("sample_type")
+    if current_start not in prefix_mapping:
+        error_msg = (f"Prefix {current_start} not found "
+                     f"(allowed prefixes are {list(prefix_mapping.keys())}).")
+        raise KeyError(error_msg)
+    name_translate = re.sub(start_pattern, lambda match: prefix_mapping.get(match.group(),
+                                                                            match.group()),
+                            sample_number)
+    component_order_out = {value: key for key, value in pattern_out.groupindex.items()}
+    name_translate = rearrange_sample_number(name_translate, pattern_in,
+                                             component_order_out)
+    if not re.match(pattern_out, name_translate):
+        error_msg = (f"Translated sample number {name_translate} (was {sample_number})"
+                     " does not match desired output format.")
+        raise ValueError(error_msg)
+    return name_translate
+
+
 def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) -> pd.DataFrame:
     """Add year to sample number from sample year column.
 
@@ -266,18 +332,11 @@ def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) ->
     if sample_year_colname not in runsheet.columns:
         raise KeyError("No year column found. "
                        "The pipeline needs a column named 'årstal' to add year to sample number.")
-    # establish what is what
-    if active_config["sample_number_settings"]["positive_control"]:
-        positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
-                                                "positive_control"].keys()))
-    else:
-        # "unmatchable" regex so nothing gets seen as a positive control when we don't have one
-        positive_control_pattern = re.compile('(?!.*)')
-    if active_config["sample_number_settings"]["negative_control"]:
-        negative_control_pattern = re.compile(active_config["sample_number_settings"][
-                                                  "negative_control"])
-    else:
-        negative_control_pattern = re.compile('(?!.*)')
+    # establish what is what # TODO: we can replace the ID pattern thing
+    (negative_control_pattern,
+     positive_control_pattern) = get_control_patterns(
+        active_config["sample_number_settings"]["negative_control"],
+        active_config["sample_number_settings"]["positive_control"])
     positive_controls = runsheet[runsheet["KMA nr"].str.fullmatch(positive_control_pattern)]
     negative_controls = runsheet[runsheet["KMA nr"].str.fullmatch(negative_control_pattern)]
     non_controls = runsheet[~(runsheet["KMA nr"].str.fullmatch(positive_control_pattern)

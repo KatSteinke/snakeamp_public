@@ -66,17 +66,9 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
     # prefix is already known
     runsheet_filtered["proevenr_prefix"] = sheet_prefix
     # extract sample number
-    if active_config["sample_number_settings"]["positive_control"]:
-        positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
-                                                "positive_control"].keys()))
-    else:
-        # "unmatchable" regex so nothing gets seen as a positive control when we don't have one
-        positive_control_pattern = re.compile('(?!.*)')
-    if active_config["sample_number_settings"]["negative_control"]:
-        negative_control_pattern = re.compile(active_config["sample_number_settings"][
-                                                  "negative_control"])
-    else:
-        negative_control_pattern = re.compile('(?!.*)')
+    (negative_control_pattern,
+     positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
+                                                              active_config["sample_number_settings"]["positive_control"])
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
     runsheet_filtered["proevenr_kort"] = runsheet_filtered["KMA nr"].apply(lambda x:
                                                                            extract_sample_number_part(x,
@@ -138,17 +130,9 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     # -> make subsets of sample sheet and report by prefix
     # remove both negative and positive controls here
     # TODO: get control pattern?
-    if active_config["sample_number_settings"]["positive_control"]:
-        positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
-                                                "positive_control"].keys()))
-    else:
-        # "unmatchable" regex so nothing gets seen as a positive control when we don't have one
-        positive_control_pattern = re.compile('(?!.*)')
-    if active_config["sample_number_settings"]["negative_control"]:
-        negative_control_pattern = re.compile(active_config["sample_number_settings"][
-                                                  "negative_control"])
-    else:
-        negative_control_pattern = re.compile('(?!.*)')
+    (negative_control_pattern,
+     positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
+                                                              active_config["sample_number_settings"]["positive_control"])
     # extract prefix: numbers or letters
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
     # add date if needed
@@ -160,30 +144,23 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     # remove all controls
     non_controls = sheet_data[~(sheet_data["KMA nr"].str.fullmatch(positive_control_pattern)
                               | sheet_data["KMA nr"].str.fullmatch(negative_control_pattern))]
-    # parse out start pattern
-    start_pattern = re.compile(r"^" + helpers.parse_out_group_pattern(sample_format_sheet,
-                                                                      "sample_type").pattern)
-    non_controls["prøvenr_translate"] = non_controls["prøvenr"].apply(lambda x:
-                                                                      re.sub(start_pattern,
-                                                                             lambda match:
-                                                                             prefix_mapping.get(match.group(),
-                                                                                                match.group()),
-                                                                             x))
-    # get the order of components in the LIS and rearrange accordingly
-    component_order_lis = {value: key for key, value in
-                           re.compile(active_config[
+    # get the order of components in the LIS and rearrange accordingly - TODO: can we handle this elsewhere?
+    sample_format_lis = re.compile(active_config[
                                           "sample_number_settings"][
-                                          "format_in_lis"]).groupindex.items()}
+                                          "format_in_lis"])
+    component_order_lis = {value: key for key, value in
+                           sample_format_lis.groupindex.items()}
     extra_components = (set(sample_format_sheet.groupindex.keys())
                         - set(component_order_lis.values()))
     if extra_components:
         logger.info(f"Comparing only {list(component_order_lis.values())} to LIS report. "
                     f"Cannot check if {list(extra_components)} component(s) are correct.")
-    non_controls["prøvenr_translate"] = non_controls["prøvenr_translate"].apply(lambda x:
-                                                                                helpers.rearrange_sample_number(
-                                                                                    x,
-                                                                                    sample_format_sheet,
-                                                                                    component_order_lis))
+    non_controls["prøvenr_translate"] = non_controls["prøvenr"].apply(lambda x:
+                                                                      helpers.translate_sample_number(
+                                                                          x,
+                                                                          sample_format_sheet,
+                                                                          sample_format_lis,
+                                                                          prefix_mapping))
 
     # left join the rest on the LIS report
     samples_in_lis = non_controls.merge(lab_info_data, how = "left",

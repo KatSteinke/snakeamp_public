@@ -50,7 +50,8 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
         ValueError: if the name cannot be extracted or if relative abundance does not sum to 1
     """
     # check if name can be extracted to begin with - TODO: nicer flow
-    sample_name = None
+    name_and_barcode = None
+    name_only = None
     all_names_pattern = helpers.get_id_pattern(active_config['sample_number_settings'][
                                                    'sample_number_format'],
                                                active_config['sample_number_settings'][
@@ -58,14 +59,16 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
                                                active_config['sample_number_settings'][
                                                    'positive_control'])
     sample_name_pattern = re.compile(r"(?P<full_sample_name>"
-                                     f"{all_names_pattern.pattern}"
+                                     r"(?P<name_only>"
+                                     f"{all_names_pattern.pattern})"
                                      f"_{active_config['barcode_format']})"
                                      r"_rel-abundance\.tsv")
     find_sample_name = re.search(sample_name_pattern, emu_counts.name)
     if find_sample_name:
         sample_name_groups = find_sample_name.groupdict()
-        sample_name = sample_name_groups.get("full_sample_name")
-    if not sample_name:
+        name_and_barcode = sample_name_groups.get("full_sample_name")
+        name_only = sample_name_groups.get("name_only")
+    if not name_and_barcode:
         raise ValueError(f"File name {emu_counts.name} does not conform to the expected format "
                          "([SAMPLE]_[BARCODE]_rel-abundance.tsv)."
                          " Sample name could not be extracted.")
@@ -87,9 +90,38 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     # reindex so the species stays outside the multiindexed columns
     emu_read_counts = emu_read_counts.set_index("species", drop = True)
     # note down barcode
-    barcode_header = [sample_name] * len(emu_read_counts.columns)
-    emu_read_counts.columns = pd.MultiIndex.from_arrays([barcode_header,
-                                                         emu_read_counts.columns])
+    barcode_header = [name_and_barcode] * len(emu_read_counts.columns)
+    report_headers = [barcode_header]
+    # TODO: should we get the translation etc. in a separate function?
+    if active_config["lab_info_system"]["use_lis_features"]:
+        (negative_control_pattern,
+         positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
+                                                                  active_config["sample_number_settings"]["positive_control"])
+        sample_material = ""
+        # we only want to load the LIS report if we need it
+        if not (re.match(positive_control_pattern, name_only)
+                or re.match(negative_control_pattern, name_only)):
+            prefix_mapping = helpers.get_number_letter_combination(
+                active_config["sample_number_settings"][
+                    "number_to_letter"],
+                active_config["sample_number_settings"][
+                    "sample_numbers_in"],
+                active_config["sample_number_settings"][
+                    "sample_numbers_out"])
+            lab_info_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
+                                        encoding = "latin1")
+            sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
+            sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
+            # start by translating the sample number
+            name_translate = helpers.translate_sample_number(name_only, sample_format_sheet,
+                                                             sample_format_lis,
+                                                             prefix_mapping)
+            sample_material = lab_info_data[lab_info_data["prøvenr"] == name_translate]["prøvekategori"].squeeze()
+        material_header = [sample_material] * len(emu_read_counts.columns)
+        report_headers.append(material_header)
+
+    report_headers.append(emu_read_counts.columns)
+    emu_read_counts.columns = pd.MultiIndex.from_arrays(report_headers)
     return emu_read_counts
 
 
@@ -178,7 +210,7 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
         outfile:        the file to which the reports should be written
     """
     # Pylint complains here but it's a bug
-    with (pd.ExcelWriter(path = outfile) as outfile_writer):  # pylint: disable=abstract-class-instantiated
+    with pd.ExcelWriter(path = outfile) as outfile_writer:  # pylint: disable=abstract-class-instantiated
         merged_report.to_excel(outfile_writer, sheet_name = "overview")
         merged_report.loc[:, pd.IndexSlice[:,
                                            ["abundance_from_all"]]].to_excel(outfile_writer,

@@ -8,6 +8,35 @@ import pytest
 import helpers
 
 
+class TestGetControls(unittest.TestCase):
+    def test_no_controls(self):
+        """Return unmatchable patterns for no controls."""
+        expected_negative = re.compile('(?!.*)')
+        expected_positive = re.compile('(?!.*)')
+        test_negative, test_positive = helpers.get_control_patterns()
+        assert expected_negative.pattern == test_negative.pattern
+        assert expected_positive.pattern == test_positive.pattern
+
+    def test_get_negative_control(self):
+        """Return the correct pattern if there is a negative control."""
+        expected_negative = re.compile('NegK')
+        expected_positive = re.compile('(?!.*)')
+        test_negative, test_positive = helpers.get_control_patterns(negative_control = "NegK")
+        assert expected_negative.pattern == test_negative.pattern
+        assert expected_positive.pattern == test_positive.pattern
+
+    def test_get_positive_control(self):
+        """Return the correct pattern if there is a positive control."""
+        expected_negative = re.compile('(?!.*)')
+        expected_positive = re.compile('PosK|PosK2')
+        test_negative, test_positive = helpers.get_control_patterns(positive_control = {"PosK":
+                                                                                            "Placeholderia bielefeldensis",
+                                                                                        "PosK2":
+                                                                                            "Placeholderia fakeorum"})
+        assert expected_negative.pattern == test_negative.pattern
+        assert expected_positive.pattern == test_positive.pattern
+
+
 class TestGetPatterns(unittest.TestCase):
     def test_samples_only(self):
         """Create a sample number pattern without controls."""
@@ -331,6 +360,92 @@ class TestExtractMatchGroup(unittest.TestCase):
         with pytest.raises(KeyError, match = re.escape(error_msg)):
             helpers.parse_out_group_pattern(sample_pattern, "test_group")
 
+
+class TestTranslateSampleNumber(unittest.TestCase):
+    def test_fail_no_match(self):
+        """Complain if the input sample number does not match the original format."""
+        format_in = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        prefix_mapping = { "70": "P", "30": "B", "10": "D", "50": "T"}
+        sample_number = "F99123456-1"
+        error_msg = "Sample number F99123456-1 does not match specified input format."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+
+    def test_fail_missing_prefix(self):
+        """Complain if the sample number's prefix is not contained in the prefix mapping."""
+        format_in = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        prefix_mapping = {"70": "P", "30": "B", "10": "D", "50": "T"}
+        sample_number = "F99123456-1"
+        error_msg = "Prefix B not found (allowed prefixes are ['70', '30', '10', '50'])."
+        with pytest.raises(KeyError, match = re.escape(error_msg)):
+            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+
+    def test_fail_no_match_after_translate(self):
+        """Complain if the sample number does not match the desired format after translation."""
+        format_in = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile(
+            '(?P<sample_type>[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        prefix_mapping = {"70": "P", "30": "B", "10": "D", "50": "T"}
+        sample_number = "1199123456-1"
+        error_msg = ("Translated sample number F99123456-1 (was 1199123456-1)"
+                     " does not match desired output format.")
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+
+    def test_translate_no_change(self):
+        """Pass the sample number through without any changes if none are needed."""
+        format_in = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        prefix_mapping = {"P": "P", "B": "B", "D": "D", "T": "T"}
+        sample_number = "F99123456-1"
+        test_number = helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+        assert sample_number == test_number
+
+    def test_translate_prefix_only(self):
+        """Translate a prefix."""
+        format_in = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        prefix_mapping = {"70": "P", "30": "B", "10": "D", "50": "T"}
+        sample_number = "1199123456-1"
+        expected_number = "F99123456-1"
+        test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
+                                                      prefix_mapping)
+        assert expected_number == test_number
+
+    def test_rearrange_only(self):
+        """Rearrange a sample number."""
+        format_in = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})')
+        prefix_mapping = {"P": "P", "B": "B", "D": "D", "T": "T"}
+        sample_number = "F99123456-1"
+        expected_number = "F99123456"
+        test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
+                                                      prefix_mapping)
+        assert expected_number == test_number
+
+    def test_translate_and_rearrange(self):
+        """Translate the prefix and rearrange the sample number."""
+        format_in = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})')
+        prefix_mapping = {"70": "P", "30": "B", "10": "D", "50": "T"}
+        sample_number = "1199123456-1"
+        expected_number = "F99123456"
+        test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
+                                                      prefix_mapping)
+        assert expected_number == test_number
 
 class TestAddYearsInSheet(unittest.TestCase):
     test_config = {"sample_number_settings": {"sample_number_format":
