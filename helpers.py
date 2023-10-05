@@ -333,17 +333,10 @@ def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) ->
         raise KeyError("No year column found. "
                        "The pipeline needs a column named 'årstal' to add year to sample number.")
     # establish what is what # TODO: we can replace the ID pattern thing
-    if active_config["sample_number_settings"]["positive_control"]:
-        positive_control_pattern = re.compile("|".join(active_config["sample_number_settings"][
-                                                "positive_control"].keys()))
-    else:
-        # "unmatchable" regex so nothing gets seen as a positive control when we don't have one
-        positive_control_pattern = re.compile('(?!.*)')
-    if active_config["sample_number_settings"]["negative_control"]:
-        negative_control_pattern = re.compile(active_config["sample_number_settings"][
-                                                  "negative_control"])
-    else:
-        negative_control_pattern = re.compile('(?!.*)')
+    (negative_control_pattern,
+     positive_control_pattern) = get_control_patterns(
+        active_config["sample_number_settings"]["negative_control"],
+        active_config["sample_number_settings"]["positive_control"])
     positive_controls = runsheet[runsheet["KMA nr"].str.fullmatch(positive_control_pattern)]
     negative_controls = runsheet[runsheet["KMA nr"].str.fullmatch(negative_control_pattern)]
     non_controls = runsheet[~(runsheet["KMA nr"].str.fullmatch(positive_control_pattern)
