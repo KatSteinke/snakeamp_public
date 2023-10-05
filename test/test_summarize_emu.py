@@ -63,7 +63,7 @@ class TestExtractCounts(unittest.TestCase):
                                                           r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                       "positive_control": {},
                                                       "negative_control": "",
-                                                      "sample_numbers_in": "number",
+                                                      "sample_numbers_in": "letter",
                                                       "sample_numbers_out": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
                                                                            "10": "D", "50": "T"}
@@ -528,7 +528,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                           r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                       "positive_control": {},
                                                       "negative_control": "NegK",
-                                                      "sample_numbers_in": "number",
+                                                      "sample_numbers_in": "letter",
                                                       "sample_numbers_out": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
                                                                            "10": "D", "50": "T"}

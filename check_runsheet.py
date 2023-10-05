@@ -144,30 +144,23 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     # remove all controls
     non_controls = sheet_data[~(sheet_data["KMA nr"].str.fullmatch(positive_control_pattern)
                               | sheet_data["KMA nr"].str.fullmatch(negative_control_pattern))]
-    # parse out start pattern
-    start_pattern = re.compile(r"^" + helpers.parse_out_group_pattern(sample_format_sheet,
-                                                                      "sample_type").pattern)
-    non_controls["prøvenr_translate"] = non_controls["prøvenr"].apply(lambda x:
-                                                                      re.sub(start_pattern,
-                                                                             lambda match:
-                                                                             prefix_mapping.get(match.group(),
-                                                                                                match.group()),
-                                                                             x))
-    # get the order of components in the LIS and rearrange accordingly
-    component_order_lis = {value: key for key, value in
-                           re.compile(active_config[
+    # get the order of components in the LIS and rearrange accordingly - TODO: can we handle this elsewhere?
+    sample_format_lis = re.compile(active_config[
                                           "sample_number_settings"][
-                                          "format_in_lis"]).groupindex.items()}
+                                          "format_in_lis"])
+    component_order_lis = {value: key for key, value in
+                           sample_format_lis.groupindex.items()}
     extra_components = (set(sample_format_sheet.groupindex.keys())
                         - set(component_order_lis.values()))
     if extra_components:
         logger.info(f"Comparing only {list(component_order_lis.values())} to LIS report. "
                     f"Cannot check if {list(extra_components)} component(s) are correct.")
-    non_controls["prøvenr_translate"] = non_controls["prøvenr_translate"].apply(lambda x:
-                                                                                helpers.rearrange_sample_number(
-                                                                                    x,
-                                                                                    sample_format_sheet,
-                                                                                    component_order_lis))
+    non_controls["prøvenr_translate"] = non_controls["prøvenr"].apply(lambda x:
+                                                                      helpers.translate_sample_number(
+                                                                          x,
+                                                                          sample_format_sheet,
+                                                                          sample_format_lis,
+                                                                          prefix_mapping))
 
     # left join the rest on the LIS report
     samples_in_lis = non_controls.merge(lab_info_data, how = "left",

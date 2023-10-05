@@ -111,18 +111,11 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
             lab_info_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
                                         encoding = "latin1")
             sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
+            sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
             # start by translating the sample number
-            start_pattern = re.compile(r"^" + helpers.parse_out_group_pattern(sample_format_sheet,
-                                                                              "sample_type").pattern)
-            name_translate = re.sub(start_pattern, lambda match: prefix_mapping.get(match.group(),
-                                                                                    match.group()),
-                                    name_only)
-            component_order_lis = {value: key for key, value in
-                                   re.compile(active_config[
-                                                  "sample_number_settings"][
-                                                  "format_in_lis"]).groupindex.items()}
-            name_translate = helpers.rearrange_sample_number(name_translate, sample_format_sheet,
-                                                             component_order_lis)
+            name_translate = helpers.translate_sample_number(name_only, sample_format_sheet,
+                                                             sample_format_lis,
+                                                             prefix_mapping)
             sample_material = lab_info_data[lab_info_data["prøvenr"] == name_translate]["prøvekategori"].squeeze()
         material_header = [sample_material] * len(emu_read_counts.columns)
         report_headers.append(material_header)
@@ -217,7 +210,7 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
         outfile:        the file to which the reports should be written
     """
     # Pylint complains here but it's a bug
-    with (pd.ExcelWriter(path = outfile) as outfile_writer):  # pylint: disable=abstract-class-instantiated
+    with pd.ExcelWriter(path = outfile) as outfile_writer:  # pylint: disable=abstract-class-instantiated
         merged_report.to_excel(outfile_writer, sheet_name = "overview")
         merged_report.loc[:, pd.IndexSlice[:,
                                            ["abundance_from_all"]]].to_excel(outfile_writer,

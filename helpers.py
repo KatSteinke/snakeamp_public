@@ -293,7 +293,7 @@ def translate_sample_number(sample_number: str, pattern_in: re.Pattern, pattern_
         error_msg = f"Sample number {sample_number} does not match specified input format."
         raise ValueError(error_msg)
     start_pattern = re.compile(r"^" + parse_out_group_pattern(pattern_in,
-                                                                      "sample_type").pattern)
+                                                              "sample_type").pattern)
     current_start = original_format_match.group("sample_type")
     if current_start not in prefix_mapping:
         error_msg = (f"Prefix {current_start} not found "
@@ -304,7 +304,7 @@ def translate_sample_number(sample_number: str, pattern_in: re.Pattern, pattern_
                             sample_number)
     component_order_out = {value: key for key, value in pattern_out.groupindex.items()}
     name_translate = rearrange_sample_number(name_translate, pattern_in,
-                                                     component_order_out)
+                                             component_order_out)
     if not re.match(pattern_out, name_translate):
         error_msg = (f"Translated sample number {name_translate} (was {sample_number})"
                      " does not match desired output format.")
