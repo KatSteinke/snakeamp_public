@@ -212,12 +212,17 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
     # Pylint complains here but it's a bug
     with pd.ExcelWriter(path = outfile) as outfile_writer:  # pylint: disable=abstract-class-instantiated
         merged_report.to_excel(outfile_writer, sheet_name = "overview")
-        merged_report.loc[:, pd.IndexSlice[:,
-                                           ["abundance_from_all"]]].to_excel(outfile_writer,
-                                                                             sheet_name = "abundance")
-        merged_report.loc[:, pd.IndexSlice[:,
-                                           ["estimated counts"]]].to_excel(outfile_writer,
-                                                                           sheet_name = "count")
+        # depending on absence/presence of LIS features we may have more or fewer multiindex levels
+        # (sample material/location get added as extra levels)
+        # the columns we're interested in are on the last level
+        amount_header_cols = merged_report.columns.nlevels - 1
+        header_col_slice = [slice(None)] * amount_header_cols
+        merged_report.loc[:, (*header_col_slice,
+                              "abundance_from_all")].to_excel(outfile_writer,
+                                                              sheet_name = "abundance")
+        merged_report.loc[:, (*header_col_slice,
+                              "estimated counts")].to_excel(outfile_writer,
+                                                            sheet_name = "count")
 
 
 if __name__ == "__main__":
