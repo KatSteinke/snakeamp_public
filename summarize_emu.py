@@ -8,6 +8,7 @@ import pathlib
 import re
 
 from argparse import ArgumentParser
+from datetime import datetime
 from functools import reduce
 from typing import Any, Dict, List
 
@@ -29,6 +30,63 @@ logger.setLevel(logging.INFO)
 console_log = logging.StreamHandler()
 console_log.setLevel(logging.WARNING)
 logger.addHandler(console_log)
+
+
+def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
+                        active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
+    """Get sample information from LIS (date received, sample category and anatomy).
+
+    Arguments:
+        sample_number:  the sample number to look up in the LIS
+        lis_report:     a report from the LIS giving sample date ("modtagedato"),
+                        category ("prøvekategori") and anatomical location ("anatomi").
+        active_config:  the config file to use
+
+    Returns:
+        Date received, sample category and anatomical location for the sample (blank for a control).
+
+    Raises:
+        KeyError:   if the sample number cannot be found in the LIS report after translation
+    """
+    (negative_control_pattern,
+     positive_control_pattern) = helpers.get_control_patterns(
+        active_config["sample_number_settings"]["negative_control"],
+        active_config["sample_number_settings"]["positive_control"])
+    sample_information = pd.DataFrame(data = {"prøvenr": [sample_number], "modtagedato": [""],
+                                              "prøvemateriale": [""],
+                                              "anatomi": [""]})
+    if not (re.match(positive_control_pattern, sample_number)
+            or re.match(negative_control_pattern, sample_number)):
+        prefix_mapping = helpers.get_number_letter_combination(
+            active_config["sample_number_settings"][
+                "number_to_letter"],
+            active_config["sample_number_settings"][
+                "sample_numbers_in"],
+            active_config["sample_number_settings"][
+                "sample_numbers_out"])
+
+        sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
+        sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
+        # start by translating the sample number
+        name_translate = helpers.translate_sample_number(sample_number, sample_format_sheet,
+                                                         sample_format_lis,
+                                                         prefix_mapping)
+        if name_translate not in lis_report["prøvenr"].tolist():
+            error_msg = (f"Sample number {name_translate} (original number: {sample_number}) "
+                         "not found in LIS report.")
+            raise KeyError(error_msg)
+        sample_information = lis_report[lis_report["prøvenr"] == name_translate][["prøvenr",
+                                                                                  "modtaget",
+                                                                                  "prøvekategori",
+                                                                                  "anatomi"]]
+        sample_information = sample_information.rename(columns = {"modtaget": "modtagedato",
+                                                                  "prøvekategori":
+                                                                      "prøvemateriale"})
+        sample_information["modtagedato"] = sample_information["modtagedato"].apply(lambda x:
+                                                                              datetime.strptime(x,
+                                                                                        "%d%m%Y").strftime("%Y-%m-%d"))
+    return sample_information
+
 
 
 def report_species_per_barcode(emu_counts: pathlib.Path,
@@ -92,36 +150,20 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     # note down barcode
     barcode_header = [name_and_barcode] * len(emu_read_counts.columns)
     report_headers = [barcode_header]
-    # TODO: should we get the translation etc. in a separate function?
+    header_names = ["prøvenummer"]
     if active_config["lab_info_system"]["use_lis_features"]:
-        (negative_control_pattern,
-         positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
-                                                                  active_config["sample_number_settings"]["positive_control"])
-        sample_material = ""
-        # we only want to load the LIS report if we need it
-        if not (re.match(positive_control_pattern, name_only)
-                or re.match(negative_control_pattern, name_only)):
-            prefix_mapping = helpers.get_number_letter_combination(
-                active_config["sample_number_settings"][
-                    "number_to_letter"],
-                active_config["sample_number_settings"][
-                    "sample_numbers_in"],
-                active_config["sample_number_settings"][
-                    "sample_numbers_out"])
-            lab_info_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
-                                        encoding = "latin1")
-            sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
-            sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
-            # start by translating the sample number
-            name_translate = helpers.translate_sample_number(name_only, sample_format_sheet,
-                                                             sample_format_lis,
-                                                             prefix_mapping)
-            sample_material = lab_info_data[lab_info_data["prøvenr"] == name_translate]["prøvekategori"].squeeze()
-        material_header = [sample_material] * len(emu_read_counts.columns)
-        report_headers.append(material_header)
-
+        lis_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
+                               encoding = "latin1", dtype = {"modtaget": str})
+        data_from_lis = get_lis_information(name_only, lis_data, active_config)
+        lis_data_cols = ["modtagedato", "prøvemateriale", "anatomi"]
+        lis_headers = [[data_from_lis[sample_metadata].squeeze()] * len(emu_read_counts.columns)
+                       for sample_metadata in lis_data_cols]
+        for lis_header in lis_headers:  # TODO: there has to be a prettier solution
+            report_headers.append(lis_header)
+        header_names.extend(lis_data_cols)
     report_headers.append(emu_read_counts.columns)
-    emu_read_counts.columns = pd.MultiIndex.from_arrays(report_headers)
+    header_names += [None]
+    emu_read_counts.columns = pd.MultiIndex.from_arrays(report_headers, names = header_names)
     return emu_read_counts
 
 
@@ -163,12 +205,21 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     if not emu_reports:
         raise FileNotFoundError(f"No Emu reports found in {emu_dir}.")
     all_reports = []
+    # set up fallbacks - sample number is easiest to set up only when we have it..
+    fallback_cols = [["abundance_from_all",
+                      "estimated counts",
+                      "medtages"]]
+    fallback_names = [None]
+    # ... but we don't want to have to check whether we're using LIS features for every sample
+    if active_config["lab_info_system"]["use_lis_features"]:
+        fallback_cols = [["", "", ""],
+                         ["", "", ""],
+                         ["", "", ""]] + fallback_cols
+        fallback_names = ["modtagedato","prøvemateriale", "anatomi"] + fallback_names
     for emu_report in sorted(emu_reports, key = lambda report: report.name):
-        print(emu_report)
         try:
             emu_data = report_species_per_barcode(emu_report, active_config)
         except ValueError as value_err:
-            print("Whoops")
             logger.error(f"Error in {emu_report}:\n"
                          f"{value_err}\n"
                          "Empty results will be added to the merged summary.")
@@ -187,14 +238,13 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
                                          emu_report.name)
             sample_name_groups = find_sample_name.groupdict()
             sample_name = sample_name_groups.get("full_sample_name")
+            fallback_cols = [[sample_name, sample_name, sample_name]] + fallback_cols
+            fallback_names = ["prøvenummer"] + fallback_names
+            fallback_headers = pd.MultiIndex.from_arrays(fallback_cols, names=fallback_names)
             emu_data = pd.DataFrame(index = pd.Index(data = ["unassigned"], name = "species"),
-                                    columns = pd.MultiIndex.from_arrays([[sample_name,
-                                                                          sample_name,
-                                                                          sample_name],
-                                                                         ["abundance_from_all",
-                                                                          "estimated counts",
-                                                                          "medtages"]]),
+                                    columns = fallback_headers,
                                     data = [[np.nan, np.nan, ""]])
+
         all_reports.append(emu_data)
 
     all_merged = merge_emu(all_reports)

@@ -9,6 +9,68 @@ import pytest
 import summarize_emu
 
 
+class TestGetLISData(unittest.TestCase):
+    workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                      r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                  "format_in_sheet":
+                                                      r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                  "format_in_lis":
+                                                      r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "positive_control": {"PosK": "Placeholderia"},
+                                                  "negative_control": "NegK",
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "number_to_letter": {"70": "P", "30": "B",
+                                                                       "10": "D", "50": "T"}
+                                                  },
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": True,
+                                           "lis_report": (pathlib.Path(
+                                               __file__).parent / "data" / "summarize_emu"
+                                                          / "fake_mads_material.csv")}}
+    lis_data = pd.read_csv(workflow_config["lab_info_system"]["lis_report"],
+                           encoding = "latin1", dtype={"modtaget": str})
+    def test_fail_missing_number(self):
+        """Fail if the sample number cannot be found in the LIS report."""
+        sample_number = "1199123456-0"
+        error_msg = ("Sample number F99123456 (original number: 1199123456-0)"
+                     " not found in LIS report.")
+        with pytest.raises(KeyError, match=re.escape(error_msg)):
+            summarize_emu.get_lis_information(sample_number, self.lis_data, self.workflow_config)
+
+
+    def test_get_data_success(self):
+        """Correctly retrieve and convert data from LIS report."""
+        expected_result = pd.DataFrame(data={"prøvenr": ["F99123456"],
+                                             "modtagedato": ["2021-01-02"],
+                                             "prøvemateriale": ["Podning"],
+                                             "anatomi": ["Svælg/tonsil"]})
+        sample_number = "1199123456-0"
+        test_result = summarize_emu.get_lis_information(sample_number, self.lis_data,
+                                                        self.workflow_config)
+        pd.testing.assert_frame_equal(expected_result, test_result)
+
+    def test_handle_control(self):
+        """Return blank results for controls."""
+        expected_result = pd.DataFrame(data={"prøvenr": ["NegK"],
+                                             "modtagedato": [""],
+                                             "prøvemateriale": [""],
+                                             "anatomi": [""]})
+        sample_number = "NegK"
+        test_result = summarize_emu.get_lis_information(sample_number, self.lis_data,
+                                                        self.workflow_config)
+        pd.testing.assert_frame_equal(expected_result, test_result)
+
+        positive_expected = pd.DataFrame(data = {"prøvenr": ["PosK"],
+                                               "modtagedato": [""],
+                                               "prøvemateriale": [""],
+                                               "anatomi": [""]})
+        sample_number = "PosK"
+        positive_test = summarize_emu.get_lis_information(sample_number, self.lis_data,
+                                                        self.workflow_config)
+        pd.testing.assert_frame_equal(positive_expected, positive_test)
+
+
 class TestExtractCounts(unittest.TestCase):
     workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
@@ -27,7 +89,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                  "unassigned"], name = "species"))
         barcode_header = ["barcode01_RB01"] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
-                                                              expected_results.columns])
+                                                              expected_results.columns],
+                                                             names=["prøvenummer", None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -49,12 +112,13 @@ class TestExtractCounts(unittest.TestCase):
                                                                  "unassigned"], name = "species"))
         barcode_header = ["F99123456-0_RB01"] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
-                                                              expected_results.columns])
+                                                              expected_results.columns],
+                                                             names=["prøvenummer", None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
-    def test_get_material_from_lis(self):
-        """Optionally add material from LIS"""
+    def test_get_data_from_lis(self):
+        """Optionally add metadata from LIS"""
         workflow_config = {"sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
@@ -82,10 +146,20 @@ class TestExtractCounts(unittest.TestCase):
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
         barcode_header = ["F99123456-0_RB01"] * len(expected_results.columns)
+        date_header = ["2021-01-02"] * len(expected_results.columns)
         material_header = ["Podning"] * len(expected_results.columns)
+        anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+                                                              date_header,
                                                               material_header,
-                                                              expected_results.columns])
+                                                              anatomy_header,
+                                                              expected_results.columns],
+                                                             names = ["prøvenummer",
+                                                                      "modtagedato",
+                                                                      "prøvemateriale",
+                                                                      "anatomi",
+                                                                      None]
+                                                             )
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -118,10 +192,19 @@ class TestExtractCounts(unittest.TestCase):
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
         barcode_header = ["NegK_RB02"] * len(expected_results.columns)
+        date_header = [""] * len(expected_results.columns)
         material_header = [""] * len(expected_results.columns)
+        anatomy_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+                                                              date_header,
                                                               material_header,
-                                                              expected_results.columns])
+                                                              anatomy_header,
+                                                              expected_results.columns],
+                                                             names=["prøvenummer",
+                                                                    "modtagedato",
+                                                                    "prøvemateriale",
+                                                                    "anatomi",
+                                                                    None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -144,7 +227,9 @@ class TestExtractCounts(unittest.TestCase):
                                                                  "unassigned"], name = "species"))
         barcode_header = ["NegK_RB02"] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
-                                                              expected_results.columns])
+                                                              expected_results.columns],
+                                                             names = ["prøvenummer", None]
+                                                             )
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -167,7 +252,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                  "unassigned"], name = "species"))
         barcode_header = ["PosK_RB03"] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
-                                                              expected_results.columns])
+                                                              expected_results.columns],
+                                                             names=["prøvenummer", None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -425,7 +511,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
-                                                       "medtages"]])
+                                                       "medtages"]],
+                                                             names = ["prøvenummer", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
@@ -446,7 +533,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                                  "unassigned"], name = "species"))
         barcode_header = ["barcode01_RB01"] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
-                                                              expected_results.columns])
+                                                              expected_results.columns],
+                                                             names = ["prøvenummer", None])
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                          active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_merged)
@@ -470,7 +558,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
-                                                       "medtages"]])
+                                                       "medtages"]],
+                                                             names = ["prøvenummer", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         with self.assertLogs("summarize_emu") as logged:
@@ -481,6 +570,82 @@ class TestMergeEmuDir(unittest.TestCase):
                       "Empty results will be added to the merged summary."
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                              active_config = self.workflow_config)
+        print("\n".join(logged.output))
+        assert log_msg in logged.output
+        pd.testing.assert_frame_equal(expected_merged, test_merged)
+
+    def test_handle_broken_with_lis(self):
+        """Ensure that an invalid file is handled properly when using LIS data"""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK",
+                                                      "sample_numbers_in": "letter",
+                                                      "sample_numbers_out": "letter",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material.csv")}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "one_broken_lis"
+        expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan],
+                           [0.75, 15.0, "",np.nan, np.nan, np.nan],
+                           [0.05, 1.0, "", np.nan, np.nan, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["F99123456-0_RB01",
+                                                       "F99123456-0_RB01",
+                                                       "F99123456-0_RB01",
+                                                       "F99654321-0_RB02",
+                                                       "F99654321-0_RB02",
+                                                       "F99654321-0_RB02"],
+                                                      ["2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "",
+                                                       "",
+                                                       ""],
+                                                      ["Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "",
+                                                       "",
+                                                       ""],
+                                                      ["Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "",
+                                                       "",
+                                                       ""
+                                                       ],
+                                                      ["abundance_from_all", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["prøvenummer",
+                                                              "modtagedato",
+                                                              "prøvemateriale",
+                                                              "anatomi",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        with self.assertLogs("summarize_emu") as logged:
+            log_msg = "ERROR:summarize_emu:Error in " \
+                       f"{sample_path / 'F99654321-0_RB02_rel-abundance.tsv'}:\n" \
+                      "Relative abundance does not sum to 1. " \
+                      "This suggests the result file is broken (missing/extra lines).\n" \
+                      "Empty results will be added to the merged summary."
+            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                             active_config = workflow_config)
         print("\n".join(logged.output))
         assert log_msg in logged.output
         pd.testing.assert_frame_equal(expected_merged, test_merged)
@@ -510,7 +675,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
-                                                       "medtages"]])
+                                                       "medtages"]],
+                                                             names = ["prøvenummer", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
@@ -552,16 +718,34 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "NegK_RB02",
                                                        "NegK_RB02",
                                                        "NegK_RB02"],
+                                                      ["2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "",
+                                                       "",
+                                                       ""],
                                                       ["Podning",
                                                        "Podning",
                                                        "Podning",
                                                        "",
                                                        "",
                                                        ""],
+                                                      ["Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "",
+                                                       "",
+                                                       ""
+                                                       ],
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
-                                                       "medtages"]])
+                                                       "medtages"]],
+                                                             names=["prøvenummer",
+                                                                    "modtagedato",
+                                                                    "prøvemateriale",
+                                                                    "anatomi",
+                                                                    None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
