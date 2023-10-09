@@ -138,11 +138,11 @@ rule run_emu:
         fasta_reads = "{sample_number}_{barcode}/reads/" \
                       "{sample_number}_{barcode}.filtered.fasta"
     output:
-        relative_abundance = "emu/{sample_number}_{barcode}_rel-abundance.tsv"
+        relative_abundance = f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv"
     params:
         emu_db = config["databases"]["emu_db"],
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
-        basename = "{sample_number}_{barcode}"
+        basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}"
     conda:
         "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
@@ -157,7 +157,8 @@ rule run_emu:
 
 rule combine_emu:
     input:
-        all_relative_abundance = expand("emu/{sample_number}_{barcode}_rel-abundance.tsv", zip,
+        all_relative_abundance = expand(f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv",
+                                        zip,
                                         sample_number=ALL_IDS, barcode=ALL_BARCODES)
     output:
         counts_combined = f"{EXPERIMENT_NAME}_emu-combined.xlsx"
