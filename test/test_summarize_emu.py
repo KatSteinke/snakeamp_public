@@ -87,10 +87,11 @@ class TestExtractCounts(unittest.TestCase):
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
-        barcode_header = ["barcode01_RB01"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+        name_header = ["barcode01"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
                                                               expected_results.columns],
-                                                             names=["prøvenummer", None])
+                                                             names=["barcode", "prøvenummer", None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -110,10 +111,11 @@ class TestExtractCounts(unittest.TestCase):
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
-        barcode_header = ["F99123456-0_RB01"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+        name_header = ["F99123456-0"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
                                                               expected_results.columns],
-                                                             names=["prøvenummer", None])
+                                                             names=["barcode","prøvenummer", None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -145,16 +147,18 @@ class TestExtractCounts(unittest.TestCase):
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
-        barcode_header = ["F99123456-0_RB01"] * len(expected_results.columns)
+        name_header = ["F99123456-0"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
         date_header = ["2021-01-02"] * len(expected_results.columns)
         material_header = ["Podning"] * len(expected_results.columns)
         anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
                                                               date_header,
                                                               material_header,
                                                               anatomy_header,
                                                               expected_results.columns],
-                                                             names = ["prøvenummer",
+                                                             names = ["barcode",
+                                                                      "prøvenummer",
                                                                       "modtagedato",
                                                                       "prøvemateriale",
                                                                       "anatomi",
@@ -191,16 +195,18 @@ class TestExtractCounts(unittest.TestCase):
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
-        barcode_header = ["NegK_RB02"] * len(expected_results.columns)
+        name_header = ["NegK"] * len(expected_results.columns)
+        barcode_header = ["RB02"] * len(expected_results.columns)
+
         date_header = [""] * len(expected_results.columns)
         material_header = [""] * len(expected_results.columns)
         anatomy_header = [""] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
                                                               date_header,
                                                               material_header,
                                                               anatomy_header,
                                                               expected_results.columns],
-                                                             names=["prøvenummer",
+                                                             names=["barcode","prøvenummer",
                                                                     "modtagedato",
                                                                     "prøvemateriale",
                                                                     "anatomi",
@@ -225,10 +231,11 @@ class TestExtractCounts(unittest.TestCase):
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
-        barcode_header = ["NegK_RB02"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+        name_header = ["NegK"] * len(expected_results.columns)
+        barcode_header = ["RB02"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
                                                               expected_results.columns],
-                                                             names = ["prøvenummer", None]
+                                                             names = ["barcode","prøvenummer", None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
@@ -250,10 +257,11 @@ class TestExtractCounts(unittest.TestCase):
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
-        barcode_header = ["PosK_RB03"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+        name_header = ["PosK"] * len(expected_results.columns)
+        barcode_header = ["RB03"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
                                                               expected_results.columns],
-                                                             names=["prøvenummer", None])
+                                                             names=["barcode", "prøvenummer", None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -298,8 +306,10 @@ class TestMergeEmu(unittest.TestCase):
                                  index = pd.Index(data = ["Placeholderia fakeorum",
                                                           "Placeholderia bielefeldensis",
                                                           "unassigned"], name = "species"))
-        barcode_1_header = ["barcode01_RB01"] * len(barcode_1.columns)
-        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header,
+        name_1_header = ["barcode01"] * len(barcode_1.columns)
+        barcode_1_header = ["RB01"] * len(barcode_1.columns)
+
+        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header, name_1_header,
                                                        barcode_1.columns])
         barcode_2 = pd.DataFrame(data = {"abundance_from_all": [0.8, 0.2, 0.00],
                                          "estimated counts": [16.0, 4.0, 0.0],
@@ -307,8 +317,10 @@ class TestMergeEmu(unittest.TestCase):
                                  index = pd.Index(data = ["Placeholderia fakeorum",
                                                           "Placeholderia bielefeldensis",
                                                           "unassigned"], name = "species"))
-        barcode_2_header = ["barcode02_RB02"] * len(barcode_2.columns)
-        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header,
+        name_2_header = ["barcode02"] * len(barcode_2.columns)
+        barcode_2_header = ["RB02"] * len(barcode_2.columns)
+
+        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
                                                        barcode_2.columns])
         expected_values = [[0.75, 15.0, "", 0.8, 16.0, ""],
                            [0.2, 4.0, "", 0.2, 4.0, ""],
@@ -316,12 +328,18 @@ class TestMergeEmu(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia fakeorum",
                                           "Placeholderia bielefeldensis",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02"],
+        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode02",
+                                                       "barcode02",
+                                                       "barcode02"],
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
@@ -341,8 +359,9 @@ class TestMergeEmu(unittest.TestCase):
                                  index = pd.Index(data = ["Placeholderia fakeorum",
                                                           "Placeholderia bielefeldensis",
                                                           "unassigned"], name = "species"))
-        barcode_1_header = ["barcode01_RB01"] * len(barcode_1.columns)
-        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header,
+        name_1_header = ["barcode01"] * len(barcode_1.columns)
+        barcode_1_header = ["RB01"] * len(barcode_1.columns)
+        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header, name_1_header,
                                                        barcode_1.columns])
         barcode_2 = pd.DataFrame(data = {"abundance_from_all": [0.8, 0.2, 0.00],
                                          "estimated counts": [16.0, 4.0, 0.0],
@@ -350,8 +369,9 @@ class TestMergeEmu(unittest.TestCase):
                                  index = pd.Index(data = ["Placeholderia fakeorum",
                                                           "Placeholderia bielefeldensis",
                                                           "unassigned"], name = "species"))
-        barcode_2_header = ["barcode02_RB02"] * len(barcode_2.columns)
-        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header,
+        name_2_header = ["barcode02"] * len(barcode_2.columns)
+        barcode_2_header = ["RB02"] * len(barcode_2.columns)
+        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
                                                        barcode_2.columns])
         expected_values = [[0.75, 15.0, "", 0.8, 16.0, ""],
                            [0.2, 4.0, "", 0.2, 4.0, ""],
@@ -359,12 +379,17 @@ class TestMergeEmu(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia fakeorum",
                                           "Placeholderia bielefeldensis",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02"],
+        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"], ["barcode01",
+                                                                 "barcode01",
+                                                                 "barcode01",
+                                                                 "barcode02",
+                                                                 "barcode02",
+                                                                 "barcode02"],
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
@@ -384,8 +409,10 @@ class TestMergeEmu(unittest.TestCase):
                                  index = pd.Index(data = ["Placeholderia fakeorum",
                                                           "Placeholderia bielefeldensis",
                                                           "unassigned"], name = "species"))
-        barcode_1_header = ["barcode01_RB01"] * len(barcode_1.columns)
-        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header,
+        name_1_header = ["barcode01"] * len(barcode_1.columns)
+        barcode_1_header = ["RB01"] * len(barcode_1.columns)
+
+        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header, name_1_header,
                                                        barcode_1.columns])
         barcode_2 = pd.DataFrame(data = {"abundance_from_all": [0.8, 0.2, 0.00],
                                          "estimated counts": [16.0, 4.0, 0.0],
@@ -393,8 +420,9 @@ class TestMergeEmu(unittest.TestCase):
                                  index = pd.Index(data = ["Placeholderia fakeorum",
                                                           "Placeholderia testfacei",
                                                           "unassigned"], name = "species"))
-        barcode_2_header = ["barcode02_RB02"] * len(barcode_2.columns)
-        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header,
+        name_2_header = ["barcode02"] * len(barcode_2.columns)
+        barcode_2_header = ["RB02"] * len(barcode_2.columns)
+        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
                                                        barcode_2.columns])
         expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan],
                            [0.75, 15.0, "", 0.8, 16.0, ""],
@@ -404,12 +432,18 @@ class TestMergeEmu(unittest.TestCase):
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02"],
+        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode02",
+                                                       "barcode02",
+                                                       "barcode02"],
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
@@ -430,8 +464,10 @@ class TestMergeEmu(unittest.TestCase):
                                  index = pd.Index(data = ["Placeholderia fakeorum",
                                                           "Placeholderia bielefeldensis",
                                                           "unassigned"], name = "species"))
-        barcode_1_header = ["barcode01_RB01"] * len(barcode_1.columns)
-        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header,
+        name_1_header = ["barcode01"] * len(barcode_1.columns)
+        barcode_1_header = ["RB01"] * len(barcode_1.columns)
+
+        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header, name_1_header,
                                                        barcode_1.columns])
         barcode_2 = pd.DataFrame(data = {"abundance_from_all": [0.8, 0.2, 0.00],
                                          "estimated counts": [16.0, 4.0, 0.0],
@@ -439,8 +475,9 @@ class TestMergeEmu(unittest.TestCase):
                                  index = pd.Index(data = ["Placeholderia fakeorum",
                                                           "Placeholderia testfacei",
                                                           "unassigned"], name = "species"))
-        barcode_2_header = ["barcode02_RB02"] * len(barcode_2.columns)
-        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header,
+        name_2_header = ["barcode02"] * len(barcode_2.columns)
+        barcode_2_header = ["RB02"] * len(barcode_2.columns)
+        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
                                                        barcode_2.columns])
         barcode_3 = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
                                          "estimated counts": [15.0, 4.0, 1.0],
@@ -448,8 +485,9 @@ class TestMergeEmu(unittest.TestCase):
                                  index = pd.Index(data = ["Placeholderia fakeorum",
                                                           "Placeholderia bielefeldensis",
                                                           "unassigned"], name = "species"))
-        barcode_3_header = ["barcode03_RB03"] * len(barcode_3.columns)
-        barcode_3.columns = pd.MultiIndex.from_arrays([barcode_3_header,
+        name_3_header = ["barcode03"] * len(barcode_3.columns)
+        barcode_3_header = ["RB03"] * len(barcode_3.columns)
+        barcode_3.columns = pd.MultiIndex.from_arrays([barcode_3_header, name_3_header,
                                                        barcode_3.columns])
         expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan, 0.2, 4.0, ""],
                            [0.75, 15.0, "", 0.8, 16.0, "", 0.75, 15.0, ""],
@@ -459,15 +497,24 @@ class TestMergeEmu(unittest.TestCase):
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02",
-                                                       "barcode03_RB03",
-                                                       "barcode03_RB03",
-                                                       "barcode03_RB03"],
+        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode02",
+                                                       "barcode02",
+                                                       "barcode02",
+                                                       "barcode03",
+                                                       "barcode03",
+                                                       "barcode03"],
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
@@ -502,17 +549,23 @@ class TestMergeEmuDir(unittest.TestCase):
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02"],
+        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode02",
+                                                       "barcode02",
+                                                       "barcode02"],
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                             names = ["prøvenummer", None])
+                                                             names = ["barcode", "prøvenummer", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
@@ -531,10 +584,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
-        barcode_header = ["barcode01_RB01"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header,
+        name_header = ["barcode01"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
                                                               expected_results.columns],
-                                                             names = ["prøvenummer", None])
+                                                             names = ["barcode","prøvenummer", None])
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                          active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_merged)
@@ -549,17 +603,24 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode03_RB03",
-                                                       "barcode03_RB03",
-                                                       "barcode03_RB03"],
+        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode03",
+                                                       "barcode03",
+                                                       "barcode03"],
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                             names = ["prøvenummer", None])
+                                                             names = ["barcode",
+                                                                      "prøvenummer", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         with self.assertLogs("summarize_emu") as logged:
@@ -602,12 +663,18 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["F99123456-0_RB01",
-                                                       "F99123456-0_RB01",
-                                                       "F99123456-0_RB01",
-                                                       "F99654321-0_RB02",
-                                                       "F99654321-0_RB02",
-                                                       "F99654321-0_RB02"],
+        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99654321-0",
+                                                       "F99654321-0",
+                                                       "F99654321-0"],
                                                       ["2021-01-02",
                                                        "2021-01-02",
                                                        "2021-01-02",
@@ -631,7 +698,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                     names = ["prøvenummer",
+                                                     names = ["barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "prøvemateriale",
                                                               "anatomi",
@@ -666,17 +734,24 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia fakeorum",
                                           "Placeholderia bielefeldensis",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["F99123456-0_RB01",
-                                                       "F99123456-0_RB01",
-                                                       "F99123456-0_RB01",
-                                                       "NegK_RB02",
-                                                       "NegK_RB02",
-                                                       "NegK_RB02"],
+        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "NegK"],
                                                       ["abundance_from_all", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                             names = ["prøvenummer", None])
+                                                     names = ["barcode",
+                                                              "prøvenummer", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
@@ -712,12 +787,18 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia fakeorum",
                                           "Placeholderia bielefeldensis",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["F99123456-0_RB01",
-                                                       "F99123456-0_RB01",
-                                                       "F99123456-0_RB01",
-                                                       "NegK_RB02",
-                                                       "NegK_RB02",
-                                                       "NegK_RB02"],
+        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "NegK"],
                                                       ["2021-01-02",
                                                        "2021-01-02",
                                                        "2021-01-02",
@@ -741,11 +822,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                             names=["prøvenummer",
-                                                                    "modtagedato",
-                                                                    "prøvemateriale",
-                                                                    "anatomi",
-                                                                    None])
+                                                     names = ["barcode", "prøvenummer",
+                                                              "modtagedato",
+                                                              "prøvemateriale",
+                                                              "anatomi",
+                                                              None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,

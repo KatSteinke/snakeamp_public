@@ -108,7 +108,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
         ValueError: if the name cannot be extracted or if relative abundance does not sum to 1
     """
     # check if name can be extracted to begin with - TODO: nicer flow
-    name_and_barcode = None
+    barcode = None
     name_only = None
     all_names_pattern = helpers.get_id_pattern(active_config['sample_number_settings'][
                                                    'sample_number_format'],
@@ -116,17 +116,17 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
                                                    'negative_control'],
                                                active_config['sample_number_settings'][
                                                    'positive_control'])
-    sample_name_pattern = re.compile(r"(?P<full_sample_name>"
-                                     r"(?P<name_only>"
+    sample_name_pattern = re.compile(r"(?P<name_only>"
                                      f"{all_names_pattern.pattern})"
-                                     f"_{active_config['barcode_format']})"
+                                     r"_(?P<barcode>"
+                                     f"{active_config['barcode_format']})"
                                      r"_rel-abundance\.tsv")
     find_sample_name = re.search(sample_name_pattern, emu_counts.name)
     if find_sample_name:
         sample_name_groups = find_sample_name.groupdict()
-        name_and_barcode = sample_name_groups.get("full_sample_name")
+        barcode = sample_name_groups.get("barcode")
         name_only = sample_name_groups.get("name_only")
-    if not name_and_barcode:
+    if not barcode or not name_only:
         raise ValueError(f"File name {emu_counts.name} does not conform to the expected format "
                          "([SAMPLE]_[BARCODE]_rel-abundance.tsv)."
                          " Sample name could not be extracted.")
@@ -148,9 +148,10 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     # reindex so the species stays outside the multiindexed columns
     emu_read_counts = emu_read_counts.set_index("species", drop = True)
     # note down barcode
-    barcode_header = [name_and_barcode] * len(emu_read_counts.columns)
-    report_headers = [barcode_header]
-    header_names = ["prøvenummer"]
+    barcode_header = [barcode] * len(emu_read_counts.columns)
+    name_header = [name_only] * len(emu_read_counts.columns)
+    report_headers = [barcode_header, name_header]
+    header_names = ["barcode","prøvenummer"]
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
                                encoding = "latin1", dtype = {"modtaget": str})
@@ -215,7 +216,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
         fallback_cols = [["", "", ""],
                          ["", "", ""],
                          ["", "", ""]] + fallback_cols
-        fallback_names = ["modtagedato","prøvemateriale", "anatomi"] + fallback_names
+        fallback_names = ["modtagedato", "prøvemateriale", "anatomi"] + fallback_names
     for emu_report in sorted(emu_reports, key = lambda report: report.name):
         try:
             emu_data = report_species_per_barcode(emu_report, active_config)
@@ -231,15 +232,18 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
                                                        active_config['sample_number_settings'][
                                                            'positive_control'])
             sample_name_pattern = re.compile(r"(?P<full_sample_name>"
-                                             f"{all_names_pattern.pattern}"
-                                             f"_{active_config['barcode_format']})"
+                                             f"{all_names_pattern.pattern})"
+                                             r"_(?P<barcode>"
+                                             f"{active_config['barcode_format']})"
                                              r"_rel-abundance\.tsv")
             find_sample_name = re.search(sample_name_pattern,
                                          emu_report.name)
             sample_name_groups = find_sample_name.groupdict()
             sample_name = sample_name_groups.get("full_sample_name")
-            fallback_cols = [[sample_name, sample_name, sample_name]] + fallback_cols
-            fallback_names = ["prøvenummer"] + fallback_names
+            barcode = sample_name_groups.get("barcode")
+            fallback_cols = [[barcode, barcode, barcode],
+                             [sample_name, sample_name, sample_name]] + fallback_cols
+            fallback_names = ["barcode", "prøvenummer"] + fallback_names
             fallback_headers = pd.MultiIndex.from_arrays(fallback_cols, names=fallback_names)
             emu_data = pd.DataFrame(index = pd.Index(data = ["unassigned"], name = "species"),
                                     columns = fallback_headers,
