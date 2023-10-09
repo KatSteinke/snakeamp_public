@@ -142,7 +142,7 @@ rule run_emu:
     params:
         emu_db = config["databases"]["emu_db"],
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
-        basename = "{sample_number}_{barcode}"
+        basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}"
     conda:
         "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
