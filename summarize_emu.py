@@ -246,26 +246,10 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
             logger.error(f"Error in {emu_report}:\n"
                          f"{value_err}\n"
                          "Empty results will be added to the merged summary.")
-            # we know the file matches the pattern
-            all_names_pattern = helpers.get_id_pattern(active_config['sample_number_settings'][
-                                                           'sample_number_format'],
-                                                       active_config['sample_number_settings'][
-                                                           'negative_control'],
-                                                       active_config['sample_number_settings'][
-                                                           'positive_control'])
-            sample_name_pattern = re.compile(r"(?P<run_name>[A-Za-z0-9_æøåÆØÅ-]+)_"
-                                             r"(?P<full_sample_name>"
-                                             f"{all_names_pattern.pattern})"
-                                             r"_(?P<barcode>"
-                                             f"{active_config['barcode_format']})"
-                                             r"_rel-abundance\.tsv")
-            # TODO: handle bad sample number!
-            find_sample_name = re.search(sample_name_pattern,
-                                         emu_report.name)
-            sample_name_groups = find_sample_name.groupdict()
-            run_name = sample_name_groups.get("run_name")
-            sample_name = sample_name_groups.get("full_sample_name")
-            barcode = sample_name_groups.get("barcode")
+            sample_name_components = extract_name_components(emu_report.name, active_config)
+            run_name = sample_name_components.run_name
+            sample_name = sample_name_components.sample_name
+            barcode = sample_name_components.barcode
             fallback_cols = [[run_name, run_name, run_name],
                              [barcode, barcode, barcode],
                              [sample_name, sample_name, sample_name]] + fallback_cols
