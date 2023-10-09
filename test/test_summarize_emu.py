@@ -30,6 +30,7 @@ class TestGetLISData(unittest.TestCase):
                                                           / "fake_mads_material.csv")}}
     lis_data = pd.read_csv(workflow_config["lab_info_system"]["lis_report"],
                            encoding = "latin1", dtype={"modtaget": str})
+
     def test_fail_missing_number(self):
         """Fail if the sample number cannot be found in the LIS report."""
         sample_number = "1199123456-0"
@@ -71,6 +72,33 @@ class TestGetLISData(unittest.TestCase):
         pd.testing.assert_frame_equal(positive_expected, positive_test)
 
 
+class TestGetNameComponents(unittest.TestCase):
+    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+                                                  "positive_control": {},
+                                                  "negative_control": ""},
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": False}}
+
+    def test_fail_bad_name(self):
+        """Fail if the name doesn't conform to the expected format."""
+        sample_name = "barcode02_RB02_emu.tsv"
+        error_msg = "File name barcode02_RB02_emu.tsv does not conform to the expected format " \
+                    "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)." \
+                    " Sample name components could not be extracted."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            summarize_emu.extract_name_components(sample_name, self.workflow_config)
+
+    def test_get_name(self):
+        """Extract the components of the name where present."""
+        sample_name = "kørsel0001-Y20231009_barcode01_RB01_rel-abundance.tsv"
+        expected_run = "kørsel0001-Y20231009"
+        expected_name = "barcode01"
+        expected_barcode = "RB01"
+        test_components = summarize_emu.extract_name_components(sample_name, self.workflow_config)
+        assert expected_run == test_components.run_name
+        assert expected_name == test_components.sample_name
+        assert expected_barcode == test_components.barcode
+
 class TestExtractCounts(unittest.TestCase):
     workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
@@ -80,18 +108,22 @@ class TestExtractCounts(unittest.TestCase):
 
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "barcode01_RB01_rel-abundance.tsv"
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode01_RB01_rel-abundance.tsv"
         expected_results = pd.DataFrame(data={"abundance_from_all": [0.75, 0.2, 0.05],
                                               "estimated counts": [15.0, 4.0, 1.0],
                                               "medtages": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
+        run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header,
+                                                              name_header,
                                                               expected_results.columns],
-                                                             names=["barcode", "prøvenummer", None])
+                                                             names=["run", "barcode", "prøvenummer",
+                                                                    None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -104,18 +136,21 @@ class TestExtractCounts(unittest.TestCase):
                                                       "negative_control": ""},
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": False}}
-        sample_path = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "F99123456-0_RB01_rel-abundance.tsv"
+        sample_path = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "RUN0001_F99123456-0_RB01_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
                                                 "estimated counts": [15.0, 4.0, 1.0],
                                                 "medtages": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
+        run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456-0"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header, name_header,
                                                               expected_results.columns],
-                                                             names=["barcode","prøvenummer", None])
+                                                             names=["run", "barcode","prøvenummer",
+                                                                    None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -140,24 +175,27 @@ class TestExtractCounts(unittest.TestCase):
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "F99123456-0_RB01_rel-abundance.tsv"
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_F99123456-0_RB01_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
                                                 "estimated counts": [15.0, 4.0, 1.0],
                                                 "medtages": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
+        run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456-0"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         date_header = ["2021-01-02"] * len(expected_results.columns)
         material_header = ["Podning"] * len(expected_results.columns)
         anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header, name_header,
                                                               date_header,
                                                               material_header,
                                                               anatomy_header,
                                                               expected_results.columns],
-                                                             names = ["barcode",
+                                                             names = ["run",
+                                                                      "barcode",
                                                                       "prøvenummer",
                                                                       "modtagedato",
                                                                       "prøvemateriale",
@@ -188,25 +226,29 @@ class TestExtractCounts(unittest.TestCase):
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "NegK_RB02_rel-abundance.tsv"
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
                                                 "estimated counts": [15.0, 4.0, 1.0],
                                                 "medtages": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
+        run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["NegK"] * len(expected_results.columns)
         barcode_header = ["RB02"] * len(expected_results.columns)
 
         date_header = [""] * len(expected_results.columns)
         material_header = [""] * len(expected_results.columns)
         anatomy_header = [""] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header, name_header,
                                                               date_header,
                                                               material_header,
                                                               anatomy_header,
                                                               expected_results.columns],
-                                                             names=["barcode","prøvenummer",
+                                                             names=["run",
+                                                                    "barcode",
+                                                                    "prøvenummer",
                                                                     "modtagedato",
                                                                     "prøvemateriale",
                                                                     "anatomi",
@@ -224,18 +266,21 @@ class TestExtractCounts(unittest.TestCase):
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "NegK_RB02_rel-abundance.tsv"
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
                                                 "estimated counts": [15.0, 4.0, 1.0],
                                                 "medtages": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
+        run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["NegK"] * len(expected_results.columns)
         barcode_header = ["RB02"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header, name_header,
                                                               expected_results.columns],
-                                                             names = ["barcode","prøvenummer", None]
+                                                             names = ["run",
+                                                                      "barcode","prøvenummer", None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
@@ -250,18 +295,21 @@ class TestExtractCounts(unittest.TestCase):
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "PosK_RB03_rel-abundance.tsv"
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_PosK_RB03_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
                                                 "estimated counts": [15.0, 4.0, 1.0],
                                                 "medtages": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
+        run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["PosK"] * len(expected_results.columns)
         barcode_header = ["RB03"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header, name_header,
                                                               expected_results.columns],
-                                                             names=["barcode", "prøvenummer", None])
+                                                             names=["run",
+                                                                    "barcode", "prøvenummer", None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -271,7 +319,8 @@ class TestExtractCounts(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "barcode02_RB02_emu.tsv"
         error_msg = "File name barcode02_RB02_emu.tsv does not conform to the expected format " \
-                    "([SAMPLE]_[BARCODE]_rel-abundance.tsv). Sample name could not be extracted."
+                    "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)." \
+                    " Sample name components could not be extracted."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
 
@@ -281,8 +330,9 @@ class TestExtractCounts(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "barcode2_RB02_rel-abundance.tsv"
         error_msg = "File name barcode2_RB02_rel-abundance.tsv does not conform to " \
-                     "the expected format " \
-                    "([SAMPLE]_[BARCODE]_rel-abundance.tsv). Sample name could not be extracted."
+                    "the expected format " \
+                    "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)." \
+                    " Sample name components could not be extracted."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
 
@@ -290,7 +340,7 @@ class TestExtractCounts(unittest.TestCase):
         """Ensure a relative abundance that does not sum to 1 (suggesting a corrupted file)
         is caught."""
         sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "barcode03_RB03_rel-abundance.tsv"
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode03_RB03_rel-abundance.tsv"
         error_msg = "Relative abundance does not sum to 1. " \
                     "This suggests the result file is broken (missing/extra lines)."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
@@ -549,7 +599,13 @@ class TestMergeEmuDir(unittest.TestCase):
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
                                                        "RB01",
                                                        "RB01",
                                                        "RB02",
@@ -565,7 +621,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                             names = ["barcode", "prøvenummer", None])
+                                                     names = ["run",
+                                                              "barcode",
+                                                              "prøvenummer", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
@@ -584,11 +642,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                         index = pd.Index(data = ["Placeholderia fakeorum",
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
+        run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
-        expected_results.columns = pd.MultiIndex.from_arrays([barcode_header, name_header,
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header, name_header,
                                                               expected_results.columns],
-                                                             names = ["barcode","prøvenummer", None])
+                                                             names = ["run",
+                                                                      "barcode",
+                                                                      "prøvenummer", None])
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                          active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_merged)
@@ -603,7 +665,13 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
                                                        "RB01",
                                                        "RB01",
                                                        "RB03",
@@ -619,16 +687,59 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                             names = ["barcode",
-                                                                      "prøvenummer", None])
+                                                     names = ["run", "barcode",
+                                                              "prøvenummer", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         with self.assertLogs("summarize_emu") as logged:
             log_msg = "ERROR:summarize_emu:Error in " \
-                       f"{sample_path / 'barcode03_RB03_rel-abundance.tsv'}:\n" \
+                       f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
                       "Relative abundance does not sum to 1. " \
                       "This suggests the result file is broken (missing/extra lines).\n" \
                       "Empty results will be added to the merged summary."
+            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                             active_config = self.workflow_config)
+        print("\n".join(logged.output))
+        assert log_msg in logged.output
+        pd.testing.assert_frame_equal(expected_merged, test_merged)
+
+    def test_warn_different_runs(self):
+        """Warn when a directory contains data from multiple runs."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "multi_run"
+        expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan],
+                           [0.75, 15.0, "", 0.8, 16.0, ""],
+                           [np.nan, np.nan, np.nan, 0.2, 4.0, ""],
+                           [0.05, 1.0, "", 0.00, 0.0, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "Placeholderia testfacei",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001", "RUN0001", "RUN0001",
+                                                       "RUN0002", "RUN0002", "RUN0002"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode02",
+                                                       "barcode02",
+                                                       "barcode02"],
+                                                      ["abundance_from_all", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode", "prøvenummer",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        with self.assertLogs("summarize_emu") as logged:
+            log_msg = ("WARNING:summarize_emu:Data appear to be from multiple runs "
+                       "(['RUN0001', 'RUN0002']).")
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                              active_config = self.workflow_config)
         print("\n".join(logged.output))
@@ -663,7 +774,13 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
                                                        "RB01",
                                                        "RB01",
                                                        "RB02",
@@ -698,7 +815,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                     names = ["barcode",
+                                                     names = ["run", "barcode",
                                                               "prøvenummer",
                                                               "modtagedato",
                                                               "prøvemateriale",
@@ -708,7 +825,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                        columns = expected_columns)
         with self.assertLogs("summarize_emu") as logged:
             log_msg = "ERROR:summarize_emu:Error in " \
-                       f"{sample_path / 'F99654321-0_RB02_rel-abundance.tsv'}:\n" \
+                       f"{sample_path / 'RUN0001_F99654321-0_RB02_rel-abundance.tsv'}:\n" \
                       "Relative abundance does not sum to 1. " \
                       "This suggests the result file is broken (missing/extra lines).\n" \
                       "Empty results will be added to the merged summary."
@@ -734,7 +851,13 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia fakeorum",
                                           "Placeholderia bielefeldensis",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
                                                        "RB01",
                                                        "RB01",
                                                        "RB02",
@@ -750,7 +873,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                     names = ["barcode",
+                                                     names = ["run", "barcode",
                                                               "prøvenummer", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
@@ -787,7 +910,13 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_index = pd.Index(data = ["Placeholderia fakeorum",
                                           "Placeholderia bielefeldensis",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["RB01",
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
                                                        "RB01",
                                                        "RB01",
                                                        "RB02",
@@ -822,7 +951,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "medtages",
                                                        "abundance_from_all", "estimated counts",
                                                        "medtages"]],
-                                                     names = ["barcode", "prøvenummer",
+                                                     names = ["run", "barcode", "prøvenummer",
                                                               "modtagedato",
                                                               "prøvemateriale",
                                                               "anatomi",

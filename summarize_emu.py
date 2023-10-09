@@ -10,7 +10,7 @@ import re
 from argparse import ArgumentParser
 from datetime import datetime
 from functools import reduce
-from typing import Any, Dict, List
+from typing import Any, Dict, List, NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -87,6 +87,47 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
                                                                                         "%d%m%Y").strftime("%Y-%m-%d"))
     return sample_information
 
+class SampleNameComponents(NamedTuple):
+    """Run, sample/isolate number and barcode for a given sample."""
+    run_name: str
+    sample_name: str
+    barcode: str
+
+
+def extract_name_components(report_name: str, active_config: Dict[str, Any] = workflow_config) \
+        -> SampleNameComponents:
+    """Extract run name, sample name and barcode from an Emu report's name.
+
+    Arguments:
+        report_name:    the name to be parsed
+        active_config:  the configuration to be used
+
+    Returns:
+        Run name, sample name and barcode encoded in the report's name.
+    Raises:
+        ValueError: if one or more components are missing
+    """
+    all_names_pattern = helpers.get_id_pattern(active_config['sample_number_settings'][
+                                                   'sample_number_format'],
+                                               active_config['sample_number_settings'][
+                                                   'negative_control'],
+                                               active_config['sample_number_settings'][
+                                                   'positive_control'])
+    sample_name_pattern = re.compile(r"(?P<run_name>[A-Za-z0-9_æøåÆØÅ-]+)_(?P<name_only>"
+                                     f"{all_names_pattern.pattern})"
+                                     r"_(?P<barcode>"
+                                     f"{active_config['barcode_format']})"
+                                     r"_rel-abundance\.tsv")
+    find_sample_name = re.search(sample_name_pattern, report_name)
+    if find_sample_name:
+        sample_name_groups = find_sample_name.groupdict()
+        sample_name_components = SampleNameComponents(run_name = sample_name_groups["run_name"],
+                                                      sample_name = sample_name_groups["name_only"],
+                                                      barcode = sample_name_groups["barcode"])
+        return sample_name_components
+    raise ValueError(f"File name {report_name} does not conform to the expected format "
+                     "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)."
+                     " Sample name components could not be extracted.")
 
 
 def report_species_per_barcode(emu_counts: pathlib.Path,
@@ -108,28 +149,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
         ValueError: if the name cannot be extracted or if relative abundance does not sum to 1
     """
     # check if name can be extracted to begin with - TODO: nicer flow
-    barcode = None
-    name_only = None
-    all_names_pattern = helpers.get_id_pattern(active_config['sample_number_settings'][
-                                                   'sample_number_format'],
-                                               active_config['sample_number_settings'][
-                                                   'negative_control'],
-                                               active_config['sample_number_settings'][
-                                                   'positive_control'])
-    sample_name_pattern = re.compile(r"(?P<name_only>"
-                                     f"{all_names_pattern.pattern})"
-                                     r"_(?P<barcode>"
-                                     f"{active_config['barcode_format']})"
-                                     r"_rel-abundance\.tsv")
-    find_sample_name = re.search(sample_name_pattern, emu_counts.name)
-    if find_sample_name:
-        sample_name_groups = find_sample_name.groupdict()
-        barcode = sample_name_groups.get("barcode")
-        name_only = sample_name_groups.get("name_only")
-    if not barcode or not name_only:
-        raise ValueError(f"File name {emu_counts.name} does not conform to the expected format "
-                         "([SAMPLE]_[BARCODE]_rel-abundance.tsv)."
-                         " Sample name could not be extracted.")
+    sample_name_components = extract_name_components(emu_counts.name, active_config)
     # get read counts per species
     emu_read_counts = pd.read_csv(emu_counts, sep = "\t")
     # check if something is wrong with the abundance as is
@@ -147,15 +167,17 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
     # reindex so the species stays outside the multiindexed columns
     emu_read_counts = emu_read_counts.set_index("species", drop = True)
-    # note down barcode
-    barcode_header = [barcode] * len(emu_read_counts.columns)
-    name_header = [name_only] * len(emu_read_counts.columns)
-    report_headers = [barcode_header, name_header]
-    header_names = ["barcode","prøvenummer"]
+    # note down relevant information
+    run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
+    barcode_header = [sample_name_components.barcode] * len(emu_read_counts.columns)
+    name_header = [sample_name_components.sample_name] * len(emu_read_counts.columns)
+    report_headers = [run_header, barcode_header, name_header]
+    header_names = ["run", "barcode", "prøvenummer"]
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
                                encoding = "latin1", dtype = {"modtaget": str})
-        data_from_lis = get_lis_information(name_only, lis_data, active_config)
+        data_from_lis = get_lis_information(sample_name_components.sample_name, lis_data,
+                                            active_config)
         lis_data_cols = ["modtagedato", "prøvemateriale", "anatomi"]
         lis_headers = [[data_from_lis[sample_metadata].squeeze()] * len(emu_read_counts.columns)
                        for sample_metadata in lis_data_cols]
@@ -231,19 +253,23 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
                                                            'negative_control'],
                                                        active_config['sample_number_settings'][
                                                            'positive_control'])
-            sample_name_pattern = re.compile(r"(?P<full_sample_name>"
+            sample_name_pattern = re.compile(r"(?P<run_name>[A-Za-z0-9_æøåÆØÅ-]+)_"
+                                             r"(?P<full_sample_name>"
                                              f"{all_names_pattern.pattern})"
                                              r"_(?P<barcode>"
                                              f"{active_config['barcode_format']})"
                                              r"_rel-abundance\.tsv")
+            # TODO: handle bad sample number!
             find_sample_name = re.search(sample_name_pattern,
                                          emu_report.name)
             sample_name_groups = find_sample_name.groupdict()
+            run_name = sample_name_groups.get("run_name")
             sample_name = sample_name_groups.get("full_sample_name")
             barcode = sample_name_groups.get("barcode")
-            fallback_cols = [[barcode, barcode, barcode],
+            fallback_cols = [[run_name, run_name, run_name],
+                             [barcode, barcode, barcode],
                              [sample_name, sample_name, sample_name]] + fallback_cols
-            fallback_names = ["barcode", "prøvenummer"] + fallback_names
+            fallback_names = ["run", "barcode", "prøvenummer"] + fallback_names
             fallback_headers = pd.MultiIndex.from_arrays(fallback_cols, names=fallback_names)
             emu_data = pd.DataFrame(index = pd.Index(data = ["unassigned"], name = "species"),
                                     columns = fallback_headers,
@@ -252,6 +278,10 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
         all_reports.append(emu_data)
 
     all_merged = merge_emu(all_reports)
+    run_names = all_merged.columns.get_level_values("run").unique().tolist()
+    if len(run_names) > 1:
+        log_msg = f"Data appear to be from multiple runs ({run_names})."
+        logger.warning(log_msg)
     return all_merged
 
 
