@@ -1,5 +1,14 @@
 FROM condaforge/mambaforge:latest
 
-RUN mamba install -c defaults -c bioconda -c conda-forge -n base emu=3.4.4 filtlong=0.2.1 seqtk=1.3
+# TODO: change to use separate container
 
-COPY emu_barcodes.sh emu_barcodes.sh
+RUN mkdir /conda-envs
+COPY envs/ /conda-envs
+
+RUN mamba install -c defaults -c bioconda -c conda-forge -n base pandas openpyxl snakemake==7.22.0 numpy>=1.22.2 && \
+    mamba env create --file /conda-envs/emu_env.yml && \
+    mamba env create --file /conda-envs/nanopore_qc.yml && \
+	mamba clean --all -y
+
+WORKDIR /snake_data
+COPY . /snake_data/

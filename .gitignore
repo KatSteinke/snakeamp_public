@@ -1,0 +1,8 @@
+.idea/
+.idea/**
+.pytest_cache
+**/__pycache__
+/.idea/inspectionProfiles/
+/.idea/
+/.idea/16s-nanopore.iml
+/.idea/misc.xml
