@@ -183,7 +183,58 @@ class TestExtractCounts(unittest.TestCase):
                                                                  "Placeholderia bielefeldensis",
                                                                  "unassigned"], name = "species"))
         run_header = ["RUN0001"] * len(expected_results.columns)
-        name_header = ["F99123456-0"] * len(expected_results.columns)
+        name_header = ["F99123456"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
+        date_header = ["2021-01-02"] * len(expected_results.columns)
+        material_header = ["Podning"] * len(expected_results.columns)
+        anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header, name_header,
+                                                              date_header,
+                                                              material_header,
+                                                              anatomy_header,
+                                                              expected_results.columns],
+                                                             names = ["run",
+                                                                      "barcode",
+                                                                      "prøvenummer",
+                                                                      "modtagedato",
+                                                                      "prøvemateriale",
+                                                                      "anatomi",
+                                                                      None]
+                                                             )
+        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_translate_number(self):
+        """Translate the sample number if needed"""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "positive_control": {},
+                                                      "negative_control": "",
+                                                      "sample_numbers_in": "number",
+                                                      "sample_numbers_out": "letter",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material.csv")}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_1199123456-0_RB01_rel-abundance.tsv"
+        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
+                                                "estimated counts": [15.0, 4.0, 1.0],
+                                                "medtages": ["", "", ""]},
+                                        index = pd.Index(data = ["Placeholderia fakeorum",
+                                                                 "Placeholderia bielefeldensis",
+                                                                 "unassigned"], name = "species"))
+        run_header = ["RUN0001"] * len(expected_results.columns)
+        name_header = ["F99123456"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         date_header = ["2021-01-02"] * len(expected_results.columns)
         material_header = ["Podning"] * len(expected_results.columns)
@@ -786,9 +837,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RB02",
                                                        "RB02",
                                                        "RB02"],
-                                                      ["F99123456-0",
-                                                       "F99123456-0",
-                                                       "F99123456-0",
+                                                      ["F99123456",
+                                                       "F99123456",
+                                                       "F99123456",
                                                        "F99654321-0",
                                                        "F99654321-0",
                                                        "F99654321-0"],
@@ -922,9 +973,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RB02",
                                                        "RB02",
                                                        "RB02"],
-                                                      ["F99123456-0",
-                                                       "F99123456-0",
-                                                       "F99123456-0",
+                                                      ["F99123456",
+                                                       "F99123456",
+                                                       "F99123456",
                                                        "NegK",
                                                        "NegK",
                                                        "NegK"],
