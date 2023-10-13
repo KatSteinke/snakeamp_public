@@ -51,6 +51,21 @@ class TestGetLISData(unittest.TestCase):
                                                         self.workflow_config)
         pd.testing.assert_frame_equal(expected_result, test_result)
 
+    def test_get_blank_success(self):
+        """Handle blank components in LIS report."""
+        expected_result = pd.DataFrame(data={"prøvenr": ["F99654321"],
+                                             "modtagedato": ["2021-01-02"],
+                                             "prøvemateriale": ["Spinalvæske"],
+                                             "anatomi": [""]})
+        sample_number = "1199654321-0"
+        lis_data = pd.read_csv((pathlib.Path(__file__).parent / "data"/"summarize_emu"
+                                /"fake_mads_material_blank.csv"),
+                               encoding = "latin1", dtype = {"modtaget": str})
+        test_result = summarize_emu.get_lis_information(sample_number, lis_data,
+                                                        self.workflow_config)
+        print(test_result)
+        pd.testing.assert_frame_equal(expected_result, test_result)
+
     def test_handle_control(self):
         """Return blank results for controls."""
         expected_result = pd.DataFrame(data={"prøvenr": ["NegK"],
@@ -1014,6 +1029,86 @@ class TestMergeEmuDir(unittest.TestCase):
         print(expected_merged)
         pd.testing.assert_frame_equal(expected_merged, test_merged)
 
+    def test_merge_and_get_material(self):
+        """Get sample material for all samples."""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK",
+                                                      "sample_numbers_in": "letter",
+                                                      "sample_numbers_out": "letter",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material_blank.csv")}}
+        sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_blank_material"
+
+        expected_values = [[0.75, 15.0, "", 0.75, 15.0, ""],
+                           [0.2, 4.0, "", 0.2, 4.0, ""],
+                           [0.05, 1.0, "", 0.05, 1.0, ""]]
+        expected_index = pd.Index(data = ["Placeholderia fakeorum",
+                                          "Placeholderia bielefeldensis",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["F99123456",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99654321",
+                                                       "F99654321",
+                                                       "F99654321"],
+                                                      ["2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02"],
+                                                      ["Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Spinalvæske",
+                                                       "Spinalvæske",
+                                                       "Spinalvæske"],
+                                                      ["Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "",
+                                                       "",
+                                                       ""
+                                                       ],
+                                                      ["abundance_from_all", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode", "prøvenummer",
+                                                              "modtagedato",
+                                                              "prøvemateriale",
+                                                              "anatomi",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                         active_config = workflow_config)
+        print(expected_merged)
+        pd.testing.assert_frame_equal(expected_merged, test_merged)
     def test_fail_no_files(self):
         """Ensure the function fails if no files matching the format are found."""
         sample_path = pathlib.Path(
@@ -1031,6 +1126,8 @@ class TestWriteToSheets(unittest.TestCase):
          / "test_results_sheet.xlsx").unlink()
         (pathlib.Path(__file__).parent / "data" / "summarize_emu"
          / "test_results_mads.xlsx").unlink()
+        (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+         / "test_results_mads_blank.xlsx").unlink()
 
     def test_write_success(self):
         expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan],
@@ -1161,6 +1258,84 @@ class TestWriteToSheets(unittest.TestCase):
                                        header = [0, 1, 2])
         test_count = pd.read_excel(test_sheet, sheet_name = "count", index_col = 0,
                                    header = [0, 1, 2])
+        pd.testing.assert_frame_equal(test_merged, expected_merged)
+        pd.testing.assert_frame_equal(test_abundance, expected_abundance)
+        pd.testing.assert_frame_equal(test_count, expected_count)
+
+    def test_handle_blank_anatomy(self):
+        """Handle a blank non-sample field in the multiindex."""
+        expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan],
+                           [0.75, 15.0, "", 0.8, 16.0, ""],
+                           [np.nan, np.nan, np.nan, 0.2, 4.0, ""],
+                           [0.05, 1.0, "", 0.00, 0.0, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "Placeholderia testfacei",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
+                                                       "barcode01_RB01",
+                                                       "barcode01_RB01",
+                                                       "barcode02_RB02",
+                                                       "barcode02_RB02",
+                                                       "barcode02_RB02"],
+                                                      ["podning",
+                                                       "podning",
+                                                       "podning",
+                                                       "",
+                                                       "",
+                                                       ""],
+                                                      ["abundance_from_all", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all", "estimated counts",
+                                                       "medtages"]])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        expected_abundance_values = [[0.2, np.nan],
+                                     [0.75, 0.8],
+                                     [np.nan, 0.2],
+                                     [0.05, 0.00]]
+        expected_abundance_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
+                                                              "barcode02_RB02"],
+                                                             ["podning", ""],
+                                                             ["abundance_from_all",
+                                                              "abundance_from_all"]])
+        expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
+                                          columns = expected_abundance_cols)
+        expected_count_values = [[4.0, np.nan],
+                                 [15.0, 16.0],
+                                 [np.nan, 4.0],
+                                 [1.0, 0.00]]
+        expected_count_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
+                                                          "barcode02_RB02"],
+                                                         ["podning", ""],
+                                                         ["estimated counts",
+                                                          "estimated counts"]])
+        expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
+                                      columns = expected_count_cols)
+        test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                      / "test_results_mads_blank.xlsx")
+        summarize_emu.write_to_sheets(expected_merged, test_sheet)
+        test_merged = pd.read_excel(test_sheet, sheet_name = "overview", index_col = 0,
+                                    header = [0, 1, 2])
+        # if the header was blank then it'll be renamed to "Unnamed [n]" - handle all of these
+        test_merged = test_merged.rename(columns=lambda colname: "" if "Unnamed" in colname
+                                                                 else colname)
+        test_merged.loc[["Placeholderia bielefeldensis",
+                         "Placeholderia fakeorum",
+                         "unassigned"], pd.IndexSlice[["barcode01_RB01"], :,
+        ["medtages"]]] = ""
+        test_merged.loc[["Placeholderia fakeorum",
+                         "Placeholderia testfacei",
+                         "unassigned"], pd.IndexSlice[["barcode02_RB02"], :,
+        ["medtages"]]] = ""
+        test_abundance = pd.read_excel(test_sheet, sheet_name = "abundance", index_col = 0,
+                                       header = [0, 1, 2])
+        test_abundance = test_abundance.rename(columns = lambda colname: "" if "Unnamed" in colname
+                                                                         else colname)
+        test_count = pd.read_excel(test_sheet, sheet_name = "count", index_col = 0,
+                                   header = [0, 1, 2])
+        test_count = test_count.rename(columns = lambda colname: "" if "Unnamed" in colname
+                                                                 else colname)
         pd.testing.assert_frame_equal(test_merged, expected_merged)
         pd.testing.assert_frame_equal(test_abundance, expected_abundance)
         pd.testing.assert_frame_equal(test_count, expected_count)

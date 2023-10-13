@@ -85,6 +85,7 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
         sample_information["modtagedato"] = sample_information["modtagedato"].apply(lambda x:
                                                                               datetime.strptime(x,
                                                                                         "%d%m%Y").strftime("%Y-%m-%d"))
+        sample_information = sample_information.fillna("").reset_index(drop=True)
     return sample_information
 
 class SampleNameComponents(NamedTuple):
@@ -183,6 +184,8 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
         report_headers[-1] = name_header
         lis_data_cols = ["modtagedato", "prøvemateriale", "anatomi"]
         lis_headers = [[data_from_lis[sample_metadata].squeeze()] * len(emu_read_counts.columns)
+                       if pd.notna(data_from_lis[sample_metadata].squeeze())
+                       else [""] * len(emu_read_counts.columns)
                        for sample_metadata in lis_data_cols]
         for lis_header in lis_headers:  # TODO: there has to be a prettier solution
             report_headers.append(lis_header)
