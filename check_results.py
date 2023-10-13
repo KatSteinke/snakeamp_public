@@ -7,6 +7,12 @@ import pathlib
 
 import pandas as pd
 
+# start logging
+logger = logging.getLogger("QATest")
+logger.setLevel(logging.INFO)
+console_log = logging.StreamHandler()
+console_log.setLevel(logging.INFO)
+logger.addHandler(console_log)
 
 # check whether emu file has been created to start with
 def check_files_present(output_dir: pathlib.Path) -> bool:
@@ -18,6 +24,17 @@ def check_files_present(output_dir: pathlib.Path) -> bool:
     Returns:
         True if all files are present, False otherwise.
     """
+    # find emu file
+    emu_files = list(output_dir.glob("*_emu-combined.xlsx"))
+    if not emu_files:
+        logger.warning("Emu report is missing. Cannot evaluate Emu results.")
+        return False
+    if len(emu_files) > 1:
+        logger.warning("Multiple Emu summaries found, need only one. "
+                       "Cannot evaluate Emu results.")
+        return False
+    return True
+
 
 
 # check whether emu report file contains everything that's needed:

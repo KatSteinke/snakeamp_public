@@ -23,6 +23,16 @@ class TestCheckFilePresence(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_files
 
+    def test_too_many_emus(self):
+        """Alert when there are multiple Emu reports"""
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "multiple_emus"
+        warn_msg = ("WARNING:QATest:Multiple Emu summaries found, need only one. "
+                    "Cannot evaluate Emu results.")
+        with self.assertLogs("QATest") as logged:
+            check_files = check_results.check_files_present(test_dir)
+            assert warn_msg in logged.output
+        assert not check_files
+
 
 class TestCheckEmuResults(unittest.TestCase):
     def test_all_good(self):
@@ -64,7 +74,7 @@ class TestCheckEmuResults(unittest.TestCase):
         """Warn if one of the test samples isn't the organism we expect it to be (overview tab)."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_organism_main_emu-combined.xlsx")
-        expected_data = pd.DataFrame(data={"expected": ["Propionibacterium acnes"],
+        expected_data = pd.DataFrame(data={"expected": ["Cutibacterium acnes"],
                                            "found": ["Placeholderia bielefeldensis"]},
                                      index = pd.Index(["1199123456-1"], name="prøvenr"))
         warn_msg = ("WARNING:QATest:Incorrect organism for sample number(s) ['1199123456-1']."
@@ -135,7 +145,7 @@ class TestCheckEmuResults(unittest.TestCase):
     def test_multi_sample_mismatches(self):
         """Report on multiple issues with multiple samples."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
-                       / "RUN0001_bad_organism_main_emu-combined.xlsx")
+                       / "RUN0001_multi_fail_main_emu-combined.xlsx")
         expected_data = pd.DataFrame(data = {"expected": ["Propionibacterium acnes",
                                                           "Streptococcus agalactiae"],
                                              "found": ["Placeholderia bielefeldensis",
