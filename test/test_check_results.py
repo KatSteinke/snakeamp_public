@@ -58,7 +58,7 @@ class TestCheckEmuResults(unittest.TestCase):
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_header_emu-combined.xlsx")
         mismatch_header = pd.MultiIndex.from_arrays([["anatomi", "anatomi"],
-                                                     "expected", "found"])
+                                                     ["expected", "found"]])
         mismatch_index = pd.Index(["1199123456-1"], name="prøvenr")
         mismatched = pd.DataFrame(data=[["Svælg/tonsil", "Næse"]], index = mismatch_index,
                                   columns = mismatch_header)
@@ -106,9 +106,9 @@ class TestCheckEmuResults(unittest.TestCase):
         from what is expected (overview tab)."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_abundance_main_emu-combined.xlsx")
-        expected_data = pd.DataFrame(data = {"expected": [20.04],
-                                             "found": [25]},
-                                     index = pd.Index(["Salmonella enterica"], name = "prøvenr"))
+        expected_data = pd.DataFrame(data = {"expected": [0.2],
+                                             "found": [0.25]},
+                                     index = pd.Index(["Salmonella enterica"], name = "organism"))
         warn_msg = ("WARNING:QATest:Different abundance in positive control for "
                     "['Salmonella enterica']."
                     " Expected abundance:\n"
