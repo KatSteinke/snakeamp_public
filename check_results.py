@@ -14,6 +14,7 @@ console_log = logging.StreamHandler()
 console_log.setLevel(logging.INFO)
 logger.addHandler(console_log)
 
+
 # check whether emu file has been created to start with
 def check_files_present(output_dir: pathlib.Path) -> bool:
     """Check if all expected files are present in the output directory.
@@ -36,7 +37,6 @@ def check_files_present(output_dir: pathlib.Path) -> bool:
     return True
 
 
-
 # check whether emu report file contains everything that's needed:
 def check_emu_result_file(emu_report: pathlib.Path) -> bool:
     """Check if Emu report contains all data and if the results are correct.
@@ -48,10 +48,11 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         True if all results are correct, False otherwise.
     """
     num_samples = 5
-    expected_organisms = pd.DataFrame(data={"prøvenummer": ["F99123457", "F99123456", "F99123458"],
-                                            "organism": ["Staphylococcus agalactiae",
-                                                         "Cutibacterium acnes",
-                                                         "Lactococcus lactis"]})
+    expected_organisms = pd.DataFrame(data={"organism": ["Streptococcus agalactiae",
+                                                         "unassigned",
+                                                         "Lactococcus lactis"]},
+                                      index = pd.Index(["F99123457", "F99123456", "F99123458"],
+                                                       name = "prøvenr"))
     expected_positive_control = pd.DataFrame(data = {"organism": ['Bacillus subtilis',
                                                                   'Staphylococcus aureus',
                                                                   'Listeria monocytogenes',
@@ -155,8 +156,8 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                     })
             # are the headers correct? use MultiIndex.to_frame(index=False)
             # strip the "Unnamed" parts out
-            sheet_data = sheet_data.rename(columns = lambda colname: "" if "Unnamed" in colname
-                                                                       else colname)
+            sheet_data = sheet_data.rename(columns = lambda colname: "" if "Unnamed" in str(colname)
+                                                                     else colname)
             # no need to compare the last column though
             header_cols = sheet_data.columns.to_frame(index = False)[["run",
                                                                       "barcode",
@@ -172,11 +173,30 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                 logger.warning("Sample metadata differ from expected sample metadata in tab"
                                f" {sheet}:\n"
                                f"{compare_headers.to_string()}")
-
-
-
-    # get the first column for each barcode - this'll be abundance in the overview
-    # for the routine samples, is the highest scoring organism what we should expect?
+        if "overview" in sheets_in_report:  # TODO: handle more nicely - avoid having to reload
+            overview_sheet = pd.read_excel(report_sheet, sheet_name = "overview", index_col = 0,
+                                            header = [0, 1, 2, 3, 4, 5, 6])
+            # get the first column for each barcode - this'll be abundance in the overview
+            # TODO: can we handle the slicing more nicely?
+            amount_header_cols = overview_sheet.columns.nlevels - 1
+            header_col_slice = [slice(None)] * amount_header_cols
+            abundances = overview_sheet.loc[:,(*header_col_slice, "abundance_from_all")]
+            # we don't need the extra information now - just keep sample numbers
+            abundances.columns = abundances.columns.get_level_values("prøvenummer")
+            # for the routine samples, is the highest scoring organism what we should expect?
+            routine_orgs = abundances.loc[:, ["F99123457",
+                                              "F99123456",
+                                              "F99123458"]]
+            # get the index (=name) of the organism with the highest value
+            found_organisms = pd.DataFrame(data=routine_orgs.idxmax().rename("organism"))
+            found_organisms.index.names = ["prøvenr"]
+            compare_organisms = expected_organisms.compare(found_organisms,
+                                                           result_names = ("expected",
+                                                                           "found"))
+            if not compare_organisms.empty:
+                results_okay = False
+                logger.warning("Incorrect organism for one or more samples. Expected organism(s):\n"
+                               f"{compare_organisms.sort_index().to_string()}")
     # for the positive control, are the n highest what we would expect?
     # Is the abundance around where we'd expect it to be?
     return results_okay

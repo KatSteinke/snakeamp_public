@@ -74,14 +74,21 @@ class TestCheckEmuResults(unittest.TestCase):
         """Warn if one of the test samples isn't the organism we expect it to be (overview tab)."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_organism_main_emu-combined.xlsx")
-        expected_data = pd.DataFrame(data={"expected": ["Cutibacterium acnes"],
-                                           "found": ["Placeholderia bielefeldensis"]},
-                                     index = pd.Index(["1199123456-1"], name="prøvenr"))
-        warn_msg = ("WARNING:QATest:Incorrect organism for sample number(s) ['1199123456-1']."
+        mismatch_header = pd.MultiIndex.from_arrays([["organism", "organism"],
+                                                     ["expected", "found"]])
+        expected_data = pd.DataFrame(data=[["Streptococcus agalactiae",
+                                            "Placeholderia bielefeldensis"]],
+                                     index = pd.Index(["F99123457"], name="prøvenr"),
+                                     columns=mismatch_header)
+        print(expected_data)
+        print(expected_data.to_string())
+        warn_msg = ("WARNING:QATest:Incorrect organism for one or more samples."
                     " Expected organism(s):\n"
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
+            print(warn_msg)
+            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 
@@ -146,18 +153,22 @@ class TestCheckEmuResults(unittest.TestCase):
         """Report on multiple issues with multiple samples."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_multi_fail_main_emu-combined.xlsx")
-        expected_data = pd.DataFrame(data = {"expected": ["Propionibacterium acnes",
-                                                          "Streptococcus agalactiae"],
-                                             "found": ["Placeholderia bielefeldensis",
-                                                       "Placeholderia bielefeldensis"]},
-                                     index = pd.Index(["1199123456-1", "1199123457-1"],
-                                                      name = "prøvenr"))
-        warn_msg = ("WARNING:QATest:Incorrect organism for sample number(s) ['1199123456-1',"
-                    " '1199123457-1']."
+        mismatch_header = pd.MultiIndex.from_arrays([["organism", "organism"],
+                                                     ["expected", "found"]])
+        expected_data = pd.DataFrame(data = [["unassigned",
+                                              "Placeholderia bielefeldensis"],
+                                             ["Streptococcus agalactiae",
+                                              "Placeholderia bielefeldensis"]],
+                                     index = pd.Index(["F99123456", "F99123457"],
+                                                      name = "prøvenr"),
+                                     columns = mismatch_header)
+        warn_msg = ("WARNING:QATest:Incorrect organism for one or more samples."
                     " Expected organism(s):\n"
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
+            print(warn_msg)
+            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 
