@@ -6,8 +6,6 @@ import logging
 import math
 import pathlib
 
-from datetime import datetime
-
 import pandas as pd
 
 # start logging
