@@ -96,13 +96,25 @@ class TestCheckEmuResults(unittest.TestCase):
         """Warn if the positive control does not contain the expected species (overview tab)."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_positive_control_main_emu-combined.xlsx")
-        warn_msg = ("WARNING:QATest:Positive control should contain ['Bacillus subtilis',"
-                    " 'Staphylococcus aureus', 'Listeria monocytogenes', 'Salmonella enterica',"
-                    " 'Escherichia coli', 'Enterococcus faecalis', 'Pseudomonas aeruginosa'],"
-                    "contains ['Bacillus subtilis',"
-                    " 'Staphylococcus aureus', 'Listeria monocytogenes', 'Salmonella enterica',"
-                    " 'Escherichia coli', 'Enterococcus faecalis', 'Placeholderia bielefeldensis']"
-                    "(missing: {'Pseudomonas aeruginosa'}, extra: {'Placeholderia bielefeldensis'}")
+        warn_msg = ("WARNING:QATest:Positive control should contain "
+                    "['Bacillus subtilis', "
+                    "'Enterococcus faecalis', "
+                    "'Escherichia coli', "
+                    "'Limosilactobacillus fermentum', "
+                    "'Listeria monocytogenes', "
+                    "'Pseudomonas aeruginosa', "
+                    "'Salmonella enterica', "
+                    "'Staphylococcus aureus'], "
+                    "contains ['Bacillus subtilis', "
+                    "'Enterococcus faecalis', "
+                    "'Escherichia coli', "
+                    "'Limosilactobacillus fermentum', "
+                    "'Listeria monocytogenes', "
+                    "'Placeholderia bielefeldensis', "
+                    "'Salmonella enterica', "
+                    "'Staphylococcus aureus']"
+                    " (missing: {'Pseudomonas aeruginosa'}, "
+                    "extra: {'Placeholderia bielefeldensis'}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
             assert warn_msg in logged.output
