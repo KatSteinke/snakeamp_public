@@ -5,6 +5,8 @@ __author__ = "Kat Steinke"
 import logging
 import pathlib
 
+from datetime import datetime
+
 import pandas as pd
 
 # start logging
@@ -83,7 +85,8 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
                                        header = [0, 1, 2, 3, 4, 5, 6])
             # dynamically generate expected headers since some of them might be blank
-            expected_headers = pd.DataFrame(data = {"run": ["16S_Run0000-Y20230929-XYZ"] * len(sheet_data.columns),
+            expected_headers = pd.DataFrame(data = {"run":
+                                                        ["16S_Run0000-Y20230929-XYZ"] * len(sheet_data.columns),
                                                     "barcode": [*["RB31"] * int(
                                                             len(sheet_data.columns) / num_samples),
                                                                 *["RB51"] * int(
@@ -96,20 +99,6 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
 
                                                                 *["RB64"] * int(
                                                                         len(sheet_data.columns) / num_samples)],
-                                                    "prøvenummer": [*["F99123457"] * int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["F99123456"] * int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["F99123458"] * int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["NegK_Sanger"]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["PosK"] * int(
-                                                            len(sheet_data.columns) / num_samples)],
                                                     "modtagedato": [*["2021-01-02"] * int(
                                                             len(sheet_data.columns) / num_samples),
 
@@ -153,7 +142,21 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
 
                                                                 *[""]* int(
                                                             len(sheet_data.columns) / num_samples)]
-                                                    })
+                                                    }, index = pd.Index([*["F99123457"] * int(
+                                                            len(sheet_data.columns) / num_samples),
+
+                                                                    *["F99123456"] * int(
+                                                            len(sheet_data.columns) / num_samples),
+
+                                                                    *["F99123458"] * int(
+                                                            len(sheet_data.columns) / num_samples),
+
+                                                                    *["NegK_Sanger"]* int(
+                                                            len(sheet_data.columns) / num_samples),
+
+                                                                    *["PosK"] * int(
+                                                            len(sheet_data.columns) / num_samples)],
+                                                                        name="prøvenr"))
             # are the headers correct? use MultiIndex.to_frame(index=False)
             # strip the "Unnamed" parts out
             sheet_data = sheet_data.rename(columns = lambda colname: "" if "Unnamed" in str(colname)
@@ -165,22 +168,31 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                       "modtagedato",
                                                                       "prøvemateriale",
                                                                       "anatomi"]]
-
+            header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
+            header_cols = header_cols.set_index("prøvenr")
+            header_cols["modtagedato"] = pd.to_datetime(header_cols["modtagedato"]).apply(lambda x:
+                                                                                          x.strftime(
+                                                                                              "%Y-%m-%d")
+                                                                                          if pd.notnull(x)
+                                                                                          else "")
             compare_headers = expected_headers.compare(header_cols, result_names = ("expected",
                                                                                     "found"))
             if not compare_headers.empty:
                 results_okay = False
+                # for a "proper" header in the overview tab we'll have duplicated entries
+                # but we can't assume that so we only deduplicate now
+                compare_headers = compare_headers.drop_duplicates()
                 logger.warning("Sample metadata differ from expected sample metadata in tab"
                                f" {sheet}:\n"
                                f"{compare_headers.to_string()}")
         if "overview" in sheets_in_report:  # TODO: handle more nicely - avoid having to reload
             overview_sheet = pd.read_excel(report_sheet, sheet_name = "overview", index_col = 0,
-                                            header = [0, 1, 2, 3, 4, 5, 6])
+                                           header = [0, 1, 2, 3, 4, 5, 6])
             # get the first column for each barcode - this'll be abundance in the overview
             # TODO: can we handle the slicing more nicely?
             amount_header_cols = overview_sheet.columns.nlevels - 1
             header_col_slice = [slice(None)] * amount_header_cols
-            abundances = overview_sheet.loc[:,(*header_col_slice, "abundance_from_all")]
+            abundances = overview_sheet.loc[:, (*header_col_slice, "abundance_from_all")]
             # we don't need the extra information now - just keep sample numbers
             abundances.columns = abundances.columns.get_level_values("prøvenummer")
             # for the routine samples, is the highest scoring organism what we should expect?

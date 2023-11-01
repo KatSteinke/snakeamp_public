@@ -59,11 +59,11 @@ class TestCheckEmuResults(unittest.TestCase):
                        / "RUN0001_bad_header_emu-combined.xlsx")
         mismatch_header = pd.MultiIndex.from_arrays([["anatomi", "anatomi"],
                                                      ["expected", "found"]])
-        mismatch_index = pd.Index(["1199123456-1"], name="prøvenr")
+        mismatch_index = pd.Index(["F99123456"], name="prøvenr")
         mismatched = pd.DataFrame(data=[["Svælg/tonsil", "Næse"]], index = mismatch_index,
                                   columns = mismatch_header)
         warn_msg = ("WARNING:QATest:Sample metadata differ from expected sample metadata in tab"
-                    " 'overview':\n"
+                    " overview:\n"
                     f"{mismatched.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
