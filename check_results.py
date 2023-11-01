@@ -55,22 +55,23 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                          "Lactococcus lactis"]},
                                       index = pd.Index(["F99123457", "F99123456", "F99123458"],
                                                        name = "prøvenr"))
-    expected_positive_control = pd.DataFrame(data = {"organism": ['Bacillus subtilis',
-                                                                  'Staphylococcus aureus',
-                                                                  'Listeria monocytogenes',
-                                                                  'Salmonella enterica',
-                                                                  'Escherichia coli',
-                                                                  'Enterococcus faecalis',
-                                                                  'Limosilactobacillus fermentum',
-                                                                  'Pseudomonas aeruginosa'],
-                                                     "abundance": [0.148,
+    expected_positive_control = pd.DataFrame(data = {"abundance": [0.148,
                                                                    0.187,
                                                                    0.037,
                                                                    0.2,
                                                                    0.183,
                                                                    0.124,
                                                                    0.058,
-                                                                   0.033]})
+                                                                   0.033]},
+                                             index = pd.Index(['Bacillus subtilis',
+                                                               'Staphylococcus aureus',
+                                                               'Listeria monocytogenes',
+                                                               'Salmonella enterica',
+                                                               'Escherichia coli',
+                                                               'Enterococcus faecalis',
+                                                               'Limosilactobacillus fermentum',
+                                                               'Pseudomonas aeruginosa'],
+                                                              name = "organism"))
     results_okay = True
     # get list of tabs - do we have everything
     expected_tabs = {'overview', 'abundance', 'count'}
@@ -212,22 +213,23 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                 logger.warning("Incorrect organism for one or more samples. Expected organism(s):\n"
                                f"{compare_organisms.sort_index().to_string()}")
             # for the positive control, are the n highest what we would expect?
-            n_expected_species = len(expected_positive_control["organism"])
+            n_expected_species = len(expected_positive_control.index)
             species_found = abundances.loc[:,
                                            ["PosK"]].sort_values(by = "PosK",
                                                                  ascending = False)[:n_expected_species]
             species_found.index.names = ["organism"]
             species_found.columns.name = None
             species_found = species_found.rename(columns={"PosK": "abundance"})
-            missing_species = set(expected_positive_control["organism"]) - set(species_found.index)
-            extra_species = set(species_found.index) - set(expected_positive_control["organism"])
+            missing_species = set(expected_positive_control.index) - set(species_found.index)
+            extra_species = set(species_found.index) - set(expected_positive_control.index)
             if missing_species or extra_species:
                 results_okay = False
                 logger.warning("Positive control should contain"
-                               f" {sorted(expected_positive_control['organism'].tolist())}, "
+                               f" {sorted(expected_positive_control.index.tolist())}, "
                                f"contains {sorted(species_found.index.tolist())} "
                                f"(missing: {missing_species}, extra: {extra_species}")
             # Is the abundance around where we'd expect it to be?
+
     return results_okay
 
 
