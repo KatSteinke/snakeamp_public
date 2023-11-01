@@ -5,6 +5,9 @@ __author__ = "Kat Steinke"
 import logging
 import math
 import pathlib
+import sys
+
+from argparse import ArgumentParser
 
 import pandas as pd
 
@@ -252,4 +255,36 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                f"{abundance_diff.to_string()}")
     return results_okay
 
+if __name__ == "__main__":
+    arg_parser = ArgumentParser(description = "Check whether results of a test run match "
+                                              "expected results")
+    arg_parser.add_argument("result_dir", help="Directory containing test run results to evaluate")
+    arg_parser.add_argument("-l", "--logfile", help="File to write log to "
+                                                    "(default: logs/pipeline_qa.log in result dir)",
+                            default = None)
+    args = arg_parser.parse_args()
+    result_dir = pathlib.Path(args.result_dir)
+    if args.logfile:
+        logfile_path = pathlib.Path(args.logfile)
+    else:
+        logfile_path = result_dir / "logs" / "pipeline_qa.log"
+    # log to file
+    log_file = logging.FileHandler(logfile_path)
+    log_file.setLevel(logging.INFO)
+    logfile_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    log_file.setFormatter(logfile_formatter)
+    logger.addHandler(log_file)
+
+    # TODO: better way to log pass/fail?
+    qc_passes = []
+    files_present = check_files_present(result_dir)
+    qc_passes.append(files_present)
+    if files_present:
+        emu_file = list(result_dir.glob("*_emu-combined.xlsx"))[0]
+        check_emu = check_emu_result_file(emu_file)
+        qc_passes.append(check_emu)
+    if not all(qc_passes):
+        logger.error("One or more QC steps failed. Check log for details.")
+        sys.exit(1)
+    sys.exit(0)
 
