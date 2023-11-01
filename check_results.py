@@ -3,6 +3,7 @@
 __author__ = "Kat Steinke"
 
 import logging
+import math
 import pathlib
 
 from datetime import datetime
@@ -229,7 +230,28 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                f"contains {sorted(species_found.index.tolist())} "
                                f"(missing: {missing_species}, extra: {extra_species}")
             # Is the abundance around where we'd expect it to be?
-
+            abundances_to_compare = expected_positive_control.merge(species_found, how="inner",
+                                                                    left_index = True,
+                                                                    right_index = True,
+                                                                    suffixes=("_expected",
+                                                                              "_found"))
+            abundances_match = abundances_to_compare.apply(lambda df:
+                                                           math.isclose(df["abundance_expected"],
+                                                                        df["abundance_found"],
+                                                                        rel_tol = 0.001,
+                                                                        abs_tol = 0.001),
+                                                           axis=1)
+            if not all(abundances_match):
+                results_okay = False
+                abundance_diff = abundances_to_compare[~abundances_match]
+                abundance_diff = abundance_diff.rename(columns = lambda colname:
+                                                                 str.replace(colname,
+                                                                             "abundance_",
+                                                                             ""))
+                logger.warning("Different abundance in positive control for "
+                               f"{abundance_diff.index.tolist()}."
+                               " Expected abundance:\n"
+                               f"{abundance_diff.to_string()}")
     return results_okay
 
 

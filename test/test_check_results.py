@@ -141,20 +141,32 @@ class TestCheckEmuResults(unittest.TestCase):
         """Report on multiple issues with one samples."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_positive_control_abundance_main_emu-combined.xlsx")
-        wrong_organism = ("WARNING:QATest:Positive control should contain ['Bacillus subtilis',"
-                    " 'Staphylococcus aureus', 'Listeria monocytogenes', 'Salmonella enterica',"
-                    " 'Escherichia coli', 'Enterococcus faecalis', 'Pseudomonas aeruginosa'],"
-                    "contains ['Bacillus subtilis',"
-                    " 'Staphylococcus aureus', 'Listeria monocytogenes', 'Salmonella enterica',"
-                    " 'Escherichia coli', 'Enterococcus faecalis', 'Placeholderia bielefeldensis']"
-                    "(missing: {'Pseudomonas aeruginosa'}, extra: {'Placeholderia bielefeldensis'}")
-        expected_data = pd.DataFrame(data = {"expected": [20.04],
-                                             "found": [25]},
-                                     index = pd.Index(["Salmonella enterica"], name = "prøvenr"))
+        wrong_organism = ("WARNING:QATest:Positive control should contain "
+                          "['Bacillus subtilis', "
+                          "'Enterococcus faecalis', "
+                          "'Escherichia coli', "
+                          "'Limosilactobacillus fermentum', "
+                          "'Listeria monocytogenes', "
+                          "'Pseudomonas aeruginosa', "
+                          "'Salmonella enterica', "
+                          "'Staphylococcus aureus'], "
+                          "contains ['Bacillus subtilis', "
+                          "'Enterococcus faecalis', "
+                          "'Escherichia coli', "
+                          "'Limosilactobacillus fermentum', "
+                          "'Listeria monocytogenes', "
+                          "'Placeholderia bielefeldensis', "
+                          "'Salmonella enterica', "
+                          "'Staphylococcus aureus']"
+                          " (missing: {'Pseudomonas aeruginosa'}, "
+                          "extra: {'Placeholderia bielefeldensis'}")
+        expected_data = pd.DataFrame(data = {"expected": [0.2],
+                                             "found": [0.25]},
+                                     index = pd.Index(["Salmonella enterica"], name = "organism"))
         wrong_abundance = ("WARNING:QATest:Different abundance in positive control for "
-                    "['Salmonella enterica']."
-                    " Expected abundance:\n"
-                    f"{expected_data.to_string()}")
+                           "['Salmonella enterica']."
+                           " Expected abundance:\n"
+                           f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
             assert wrong_organism in logged.output
@@ -179,8 +191,6 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
-            print(warn_msg)
-            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 
