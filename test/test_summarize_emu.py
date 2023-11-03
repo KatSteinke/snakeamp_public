@@ -1101,9 +1101,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               / "fake_mads_material_blank.csv")}}
         sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_blank_material"
 
-        expected_values = [[0.2, 4.0, "", 0.2, 4.0, ""],
-                           [0.75, 15.0, "", 0.75, 15.0, ""],
-                           [0.05, 1.0, "", 0.05, 1.0, ""]]
+        expected_values = [[20.0, 4, "", 20.0, 4, ""],
+                           [75.0, 15, "", 75.0, 15, ""],
+                           [5.0, 1, "", 5.0, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -1144,9 +1144,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "",
                                                        ""
                                                        ],
-                                                      ["abundance_from_all", "estimated counts",
+                                                      ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
-                                                       "abundance_from_all", "estimated counts",
+                                                       "abundance_from_all [%]", "estimated counts",
                                                        "medtages"]],
                                                      names = ["run", "barcode", "prøvenummer",
                                                               "modtagedato",
@@ -1155,9 +1155,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
+        expected_merged = expected_merged.apply(lambda x: x.astype("Int64") if 'estimated counts'
+                                                                             in x.name else x)
+
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                          active_config = workflow_config)
-        print(expected_merged)
         pd.testing.assert_frame_equal(expected_merged, test_merged)
     def test_fail_no_files(self):
         """Ensure the function fails if no files matching the format are found."""
@@ -1314,10 +1316,10 @@ class TestWriteToSheets(unittest.TestCase):
 
     def test_handle_blank_anatomy(self):
         """Handle a blank non-sample field in the multiindex."""
-        expected_values = [[0.2, 4.0, "", np.nan, np.nan, np.nan],
-                           [0.75, 15.0, "", 0.8, 16.0, ""],
-                           [np.nan, np.nan, np.nan, 0.2, 4.0, ""],
-                           [0.05, 1.0, "", 0.00, 0.0, ""]]
+        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
+                           [75.00, 15, "", 80.00, 16, ""],
+                           [np.nan, np.nan, np.nan, 20.00, 4, ""],
+                           [5.00, 1, "", 0.00, 0, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
@@ -1334,27 +1336,27 @@ class TestWriteToSheets(unittest.TestCase):
                                                        "",
                                                        "",
                                                        ""],
-                                                      ["abundance_from_all", "estimated counts",
+                                                      ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
-                                                       "abundance_from_all", "estimated counts",
+                                                       "abundance_from_all [%]", "estimated counts",
                                                        "medtages"]])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        expected_abundance_values = [[0.2, np.nan],
-                                     [0.75, 0.8],
-                                     [np.nan, 0.2],
-                                     [0.05, 0.00]]
+        expected_abundance_values = [[20.00, np.nan],
+                                     [75.00, 80.00],
+                                     [np.nan, 20.00],
+                                     [5.00, 0.00]]
         expected_abundance_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
                                                               "barcode02_RB02"],
                                                              ["podning", ""],
-                                                             ["abundance_from_all",
-                                                              "abundance_from_all"]])
+                                                             ["abundance_from_all [%]",
+                                                              "abundance_from_all [%]"]])
         expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
                                           columns = expected_abundance_cols)
-        expected_count_values = [[4.0, np.nan],
-                                 [15.0, 16.0],
-                                 [np.nan, 4.0],
-                                 [1.0, 0.00]]
+        expected_count_values = [[4, np.nan],
+                                 [15, 16],
+                                 [np.nan, 4],
+                                 [1, 0]]
         expected_count_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
                                                           "barcode02_RB02"],
                                                          ["podning", ""],
