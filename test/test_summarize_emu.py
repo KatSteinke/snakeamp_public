@@ -124,11 +124,32 @@ class TestExtractCounts(unittest.TestCase):
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode01_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data={"abundance_from_all": [0.75, 0.2, 0.05],
-                                              "estimated counts": [15.0, 4.0, 1.0],
+        expected_results = pd.DataFrame(data={"abundance_from_all": [0.2, 0.75, 0.05],
+                                              "estimated counts": [4.0, 15.0, 1.0],
                                               "medtages": ["", "", ""]},
-                                        index = pd.Index(data = ["Placeholderia fakeorum",
-                                                                 "Placeholderia bielefeldensis",
+                                        index = pd.Index(data = [ "Placeholderia bielefeldensis",
+                                                                  "Placeholderia fakeorum",
+                                                                 "unassigned"], name = "species"))
+        run_header = ["RUN0001"] * len(expected_results.columns)
+        name_header = ["barcode01"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header,
+                                                              name_header,
+                                                              expected_results.columns],
+                                                             names=["run", "barcode", "prøvenummer",
+                                                                    None])
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_handle_duplicate_orgs_success(self):
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" /"duplicate_orgs" / "RUN0001_barcode01_RB01_rel-abundance.tsv"
+        expected_results = pd.DataFrame(data={"abundance_from_all": [0.2, 0.75, 0.05],
+                                              "estimated counts": [4.0, 15.0, 1.0],
+                                              "medtages": ["", "", ""]},
+                                        index = pd.Index(data = [ "Placeholderia bielefeldensis",
+                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
@@ -152,11 +173,11 @@ class TestExtractCounts(unittest.TestCase):
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "RUN0001_F99123456-0_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
-                                                "estimated counts": [15.0, 4.0, 1.0],
-                                                "medtages": ["", "", ""]},
-                                        index = pd.Index(data = ["Placeholderia fakeorum",
-                                                                 "Placeholderia bielefeldensis",
+        expected_results = pd.DataFrame(data={"abundance_from_all": [0.2, 0.75, 0.05],
+                                              "estimated counts": [4.0, 15.0, 1.0],
+                                              "medtages": ["", "", ""]},
+                                        index = pd.Index(data = [ "Placeholderia bielefeldensis",
+                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456-0"] * len(expected_results.columns)
@@ -191,11 +212,11 @@ class TestExtractCounts(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_F99123456-0_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
-                                                "estimated counts": [15.0, 4.0, 1.0],
-                                                "medtages": ["", "", ""]},
-                                        index = pd.Index(data = ["Placeholderia fakeorum",
-                                                                 "Placeholderia bielefeldensis",
+        expected_results = pd.DataFrame(data={"abundance_from_all": [0.2, 0.75, 0.05],
+                                              "estimated counts": [4.0, 15.0, 1.0],
+                                              "medtages": ["", "", ""]},
+                                        index = pd.Index(data = [ "Placeholderia bielefeldensis",
+                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456"] * len(expected_results.columns)
@@ -242,11 +263,11 @@ class TestExtractCounts(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_1199123456-0_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
-                                                "estimated counts": [15.0, 4.0, 1.0],
-                                                "medtages": ["", "", ""]},
-                                        index = pd.Index(data = ["Placeholderia fakeorum",
-                                                                 "Placeholderia bielefeldensis",
+        expected_results = pd.DataFrame(data={"abundance_from_all": [0.2, 0.75, 0.05],
+                                              "estimated counts": [4.0, 15.0, 1.0],
+                                              "medtages": ["", "", ""]},
+                                        index = pd.Index(data = [ "Placeholderia bielefeldensis",
+                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456"] * len(expected_results.columns)
@@ -293,11 +314,11 @@ class TestExtractCounts(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
-                                                "estimated counts": [15.0, 4.0, 1.0],
-                                                "medtages": ["", "", ""]},
-                                        index = pd.Index(data = ["Placeholderia fakeorum",
-                                                                 "Placeholderia bielefeldensis",
+        expected_results = pd.DataFrame(data={"abundance_from_all": [0.2, 0.75, 0.05],
+                                              "estimated counts": [4.0, 15.0, 1.0],
+                                              "medtages": ["", "", ""]},
+                                        index = pd.Index(data = [ "Placeholderia bielefeldensis",
+                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["NegK"] * len(expected_results.columns)
@@ -333,11 +354,11 @@ class TestExtractCounts(unittest.TestCase):
                        "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
-                                                "estimated counts": [15.0, 4.0, 1.0],
-                                                "medtages": ["", "", ""]},
-                                        index = pd.Index(data = ["Placeholderia fakeorum",
-                                                                 "Placeholderia bielefeldensis",
+        expected_results = pd.DataFrame(data={"abundance_from_all": [0.2, 0.75, 0.05],
+                                              "estimated counts": [4.0, 15.0, 1.0],
+                                              "medtages": ["", "", ""]},
+                                        index = pd.Index(data = [ "Placeholderia bielefeldensis",
+                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["NegK"] * len(expected_results.columns)
@@ -362,11 +383,11 @@ class TestExtractCounts(unittest.TestCase):
                        "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_PosK_RB03_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
-                                                "estimated counts": [15.0, 4.0, 1.0],
-                                                "medtages": ["", "", ""]},
-                                        index = pd.Index(data = ["Placeholderia fakeorum",
-                                                                 "Placeholderia bielefeldensis",
+        expected_results = pd.DataFrame(data={"abundance_from_all": [0.2, 0.75, 0.05],
+                                              "estimated counts": [4.0, 15.0, 1.0],
+                                              "medtages": ["", "", ""]},
+                                        index = pd.Index(data = [ "Placeholderia bielefeldensis",
+                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["PosK"] * len(expected_results.columns)
@@ -702,11 +723,11 @@ class TestMergeEmuDir(unittest.TestCase):
         """Test if a single file is parsed and returned properly."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "single_sample"
-        expected_results = pd.DataFrame(data = {"abundance_from_all": [0.75, 0.2, 0.05],
-                                                "estimated counts": [15.0, 4.0, 1.0],
-                                                "medtages": ["", "", ""]},
-                                        index = pd.Index(data = ["Placeholderia fakeorum",
-                                                                 "Placeholderia bielefeldensis",
+        expected_results = pd.DataFrame(data={"abundance_from_all": [0.2, 0.75, 0.05],
+                                              "estimated counts": [4.0, 15.0, 1.0],
+                                              "medtages": ["", "", ""]},
+                                        index = pd.Index(data = [ "Placeholderia bielefeldensis",
+                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
@@ -911,11 +932,11 @@ class TestMergeEmuDir(unittest.TestCase):
                        "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_different_format"
 
-        expected_values = [[0.75, 15.0, "", 0.75, 15.0, ""],
-                           [0.2, 4.0, "", 0.2, 4.0, ""],
+        expected_values = [[0.2, 4.0, "", 0.2, 4.0, ""],
+                           [0.75, 15.0, "", 0.75, 15.0, ""],
                            [0.05, 1.0, "", 0.05, 1.0, ""]]
-        expected_index = pd.Index(data = ["Placeholderia fakeorum",
-                                          "Placeholderia bielefeldensis",
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -970,11 +991,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_different_format"
 
-        expected_values = [[0.75, 15.0, "", 0.75, 15.0, ""],
-                           [0.2, 4.0, "", 0.2, 4.0, ""],
+        expected_values = [[0.2, 4.0, "", 0.2, 4.0, ""],
+                           [0.75, 15.0, "", 0.75, 15.0, ""],
                            [0.05, 1.0, "", 0.05, 1.0, ""]]
-        expected_index = pd.Index(data = ["Placeholderia fakeorum",
-                                          "Placeholderia bielefeldensis",
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1051,11 +1072,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               / "fake_mads_material_blank.csv")}}
         sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_blank_material"
 
-        expected_values = [[0.75, 15.0, "", 0.75, 15.0, ""],
-                           [0.2, 4.0, "", 0.2, 4.0, ""],
+        expected_values = [[0.2, 4.0, "", 0.2, 4.0, ""],
+                           [0.75, 15.0, "", 0.75, 15.0, ""],
                            [0.05, 1.0, "", 0.05, 1.0, ""]]
-        expected_index = pd.Index(data = ["Placeholderia fakeorum",
-                                          "Placeholderia bielefeldensis",
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",

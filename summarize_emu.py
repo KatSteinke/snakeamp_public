@@ -166,8 +166,10 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     emu_read_counts = emu_read_counts.reindex(columns = cols_for_report, fill_value = "")
     # "unassigned" is only noted on the taxid level - fill it in on the species level
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
-    # reindex so the species stays outside the multiindexed columns
-    emu_read_counts = emu_read_counts.set_index("species", drop = True)
+    # deduplicate species names
+    # this also sets species as index so we keep it out of the multiindexed columns
+    emu_read_counts = emu_read_counts.groupby(by="species").sum()
+
     # note down relevant information
     run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
     barcode_header = [sample_name_components.barcode] * len(emu_read_counts.columns)
