@@ -152,6 +152,7 @@ class TestExtractCounts(unittest.TestCase):
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
+        expected_results = expected_results.astype({"estimated counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
@@ -266,7 +267,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_1199123456-0_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance_from_all [%]": [20.00, 75.00, 0.05],
+        expected_results = pd.DataFrame(data = {"abundance_from_all [%]": [20.00, 75.00, 5.00],
                                               "estimated counts": [4, 15, 1],
                                               "medtages": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
