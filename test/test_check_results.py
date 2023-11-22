@@ -125,8 +125,8 @@ class TestCheckEmuResults(unittest.TestCase):
         from what is expected (overview tab)."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_abundance_main_emu-combined.xlsx")
-        expected_data = pd.DataFrame(data = {"expected": [0.2],
-                                             "found": [0.25]},
+        expected_data = pd.DataFrame(data = {"expected": [20.0],
+                                             "found": [25.00]},
                                      index = pd.Index(["Salmonella enterica"], name = "organism"))
         warn_msg = ("WARNING:QATest:Different abundance in positive control for "
                     "['Salmonella enterica']."
@@ -134,6 +134,8 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
+            print(warn_msg)
+            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 
@@ -160,8 +162,8 @@ class TestCheckEmuResults(unittest.TestCase):
                           "'Staphylococcus aureus']"
                           " (missing: {'Pseudomonas aeruginosa'}, "
                           "extra: {'Placeholderia bielefeldensis'}")
-        expected_data = pd.DataFrame(data = {"expected": [0.2],
-                                             "found": [0.25]},
+        expected_data = pd.DataFrame(data = {"expected": [20.0],
+                                             "found": [25.00]},
                                      index = pd.Index(["Salmonella enterica"], name = "organism"))
         wrong_abundance = ("WARNING:QATest:Different abundance in positive control for "
                            "['Salmonella enterica']."
@@ -191,6 +193,8 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
+            print(warn_msg)
+            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 

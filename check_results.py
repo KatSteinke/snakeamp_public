@@ -57,14 +57,14 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                          "Lactococcus lactis"]},
                                       index = pd.Index(["F99123457", "F99123456", "F99123458"],
                                                        name = "prøvenr"))
-    expected_positive_control = pd.DataFrame(data = {"abundance": [0.148,
-                                                                   0.187,
-                                                                   0.037,
-                                                                   0.2,
-                                                                   0.183,
-                                                                   0.124,
-                                                                   0.058,
-                                                                   0.033]},
+    expected_positive_control = pd.DataFrame(data = {"abundance": [14.80,
+                                                                   18.70,
+                                                                   3.70,
+                                                                   20.00,
+                                                                   18.30,
+                                                                   12.40,
+                                                                   5.80,
+                                                                   3.30]},
                                              index = pd.Index(['Bacillus subtilis',
                                                                'Staphylococcus aureus',
                                                                'Listeria monocytogenes',
@@ -197,7 +197,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
             # TODO: can we handle the slicing more nicely?
             amount_header_cols = overview_sheet.columns.nlevels - 1
             header_col_slice = [slice(None)] * amount_header_cols
-            abundances = overview_sheet.loc[:, (*header_col_slice, "abundance_from_all")]
+            abundances = overview_sheet.loc[:, (*header_col_slice, "abundance_from_all [%]")]
             # we don't need the extra information now - just keep sample numbers
             abundances.columns = abundances.columns.get_level_values("prøvenummer")
             # for the routine samples, is the highest scoring organism what we should expect?
@@ -240,7 +240,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                            math.isclose(df["abundance_expected"],
                                                                         df["abundance_found"],
                                                                         rel_tol = 0.001,
-                                                                        abs_tol = 0.001),
+                                                                        abs_tol = 0.1),
                                                            axis=1)
             if not all(abundances_match):
                 results_okay = False

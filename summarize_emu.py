@@ -155,14 +155,18 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     emu_read_counts = pd.read_csv(emu_counts, sep = "\t")
     # check if something is wrong with the abundance as is
     if not math.isclose(sum(emu_read_counts['abundance'].dropna()), 1):
-        raise ValueError("Relative abundance does not sum to 1. "
+        raise ValueError("Relative abundance does not sum to 100%. "
                          "This suggests the result file is broken (missing/extra lines).")
     # recalculate percentage to include unassigned reads
     total_reads = sum(emu_read_counts['estimated counts'])
-    emu_read_counts['abundance_from_all'] = emu_read_counts['estimated counts'] / total_reads
-
+    # output as percent
+    emu_read_counts['abundance_from_all [%]'] = ((emu_read_counts['estimated counts'] / total_reads)
+                                                 * 100)
+    # round for easier legibility
+    emu_read_counts = emu_read_counts.round({"estimated counts": 0, "abundance_from_all [%]": 2})
+    emu_read_counts = emu_read_counts.astype({"estimated counts": "Int64"})
     # cut down to required columns and add approval column
-    cols_for_report = ["species", "abundance_from_all", "estimated counts", "medtages"]
+    cols_for_report = ["species", "abundance_from_all [%]", "estimated counts", "medtages"]
     emu_read_counts = emu_read_counts.reindex(columns = cols_for_report, fill_value = "")
     # "unassigned" is only noted on the taxid level - fill it in on the species level
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
@@ -237,7 +241,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
         raise FileNotFoundError(f"No Emu reports found in {emu_dir}.")
     all_reports = []
     # set up fallbacks - sample number is easiest to set up only when we have it..
-    fallback_cols = [["abundance_from_all",
+    fallback_cols = [["abundance_from_all [%]",
                       "estimated counts",
                       "medtages"]]
     fallback_names = [None]
@@ -294,7 +298,7 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
         amount_header_cols = merged_report.columns.nlevels - 1
         header_col_slice = [slice(None)] * amount_header_cols
         merged_report.loc[:, (*header_col_slice,
-                              "abundance_from_all")].to_excel(outfile_writer,
+                              "abundance_from_all [%]")].to_excel(outfile_writer,
                                                               sheet_name = "abundance")
         merged_report.loc[:, (*header_col_slice,
                               "estimated counts")].to_excel(outfile_writer,
