@@ -33,7 +33,7 @@ wildcard_constraints:
 
 sheet_data = pd.read_excel(config["runsheet"],usecols = "A:C",skiprows = 3,
                                dtype = {"KMA nr": str, "Barkode": str})
-sheet_data = sheet_data.dropna()
+sheet_data = sheet_data.dropna(subset=["KMA nr", "Barkode"])
 if config["sample_number_settings"]["date_settings"]["splice_in_date"]:
     sheet_data = helpers.add_years_in_sheet(sheet_data, active_config=config)
 else:
