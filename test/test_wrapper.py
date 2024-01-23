@@ -37,7 +37,7 @@ class TestFindRundir(unittest.TestCase):
     def test_fail_path(self):
         test_path = pathlib.Path("test3")
         minion_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "miniondir"
-        error_msg = "{} or {} does not exist \nAborting ARTIC pipeline...".format(str(test_path),
+        error_msg = "{} or {} does not exist \nAborting pipeline...".format(str(test_path),
                                                                                   str(minion_path
                                                                                       / "test3"))
         with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
@@ -49,7 +49,7 @@ class TestFindRundir(unittest.TestCase):
         error_msg = """fastq_pass folder(s) not found in expected location:
 {}/rawdata/*/fastq_pass
 Ensure correct directory and/or directory structure is used.
-Aborting ARTIC pipeline...""".format(str(test_path))
+Aborting pipeline...""".format(str(test_path))
         with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
             snake_wrapper.find_rundir(test_path, minion_path)
 
