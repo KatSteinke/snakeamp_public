@@ -58,7 +58,7 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
     Raises:
         ValueError: if samples aren't found in the LIS report
     """
-    runsheet_filtered = sheet_data[sheet_data["KMA nr"].str.startswith(sheet_prefix)].copy()
+    runsheet_filtered = sheet_data[sheet_data["Prøvenummer"].str.startswith(sheet_prefix)].copy()
     # check if this leaves us with any data
     if runsheet_filtered.empty:
         raise ValueError(f"No samples with prefix {sheet_prefix} found in runsheet.")
@@ -70,7 +70,7 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
      positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
                                                               active_config["sample_number_settings"]["positive_control"])
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
-    runsheet_filtered["proevenr_kort"] = runsheet_filtered["KMA nr"].apply(lambda x:
+    runsheet_filtered["proevenr_kort"] = runsheet_filtered["Prøvenummer"].apply(lambda x:
                                                                            extract_sample_number_part(x,
                                                                                                       "sample_number",
                                                                                                       sample_format_sheet,
@@ -94,7 +94,7 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
                          "Get a new MADS report with the correct start date.")
     # check if there are mismatches between runsheet and MADS data
     missing_from_mads = runsheet_filtered[~runsheet_filtered["proevenr_kort"].isin(lab_data_filtered["proevenr_kort"])][
-        "KMA nr"].dropna().tolist()
+        "Prøvenummer"].dropna().tolist()
     if missing_from_mads:
         raise ValueError(
             f"Samples {missing_from_mads} were not found in MADS report. "
@@ -139,11 +139,11 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     if active_config["sample_number_settings"]["date_settings"]["splice_in_date"]:
         sheet_data = helpers.add_years_in_sheet(sheet_data, active_config=active_config)
     else:
-        sheet_data["prøvenr"] = sheet_data["KMA nr"]
+        sheet_data["prøvenr"] = sheet_data["Prøvenummer"]
     # match only sample type and replace as needed
     # remove all controls
-    non_controls = sheet_data[~(sheet_data["KMA nr"].str.fullmatch(positive_control_pattern)
-                              | sheet_data["KMA nr"].str.fullmatch(negative_control_pattern))]
+    non_controls = sheet_data[~(sheet_data["Prøvenummer"].str.fullmatch(positive_control_pattern)
+                              | sheet_data["Prøvenummer"].str.fullmatch(negative_control_pattern))]
     # get the order of components in the LIS and rearrange accordingly - TODO: can we handle this elsewhere?
     sample_format_lis = re.compile(active_config[
                                           "sample_number_settings"][
@@ -192,7 +192,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     data_missing = False
     # set up record of issues so they can all be printed at once - TODO: separate data check function?
     fail_record = "The following issue(s) were detected with the runsheet:"
-    no_sample_ids = sheet_data["KMA nr"].isna().all()
+    no_sample_ids = sheet_data["Prøvenummer"].isna().all()
     if no_sample_ids:
         fail_record += "\nNo sample IDs found."
         data_missing = True
@@ -207,7 +207,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     if check_barcodes:  # TODO - avoid double check?
         # now we can be sure there are sample IDs and barcodes, we can check them
         # start by checking if we have the same amount of sample IDs and barcodes
-        amount_sample_ids = sheet_data["KMA nr"].dropna().size
+        amount_sample_ids = sheet_data["Prøvenummer"].dropna().size
         amount_barcodes = sheet_data["Barkode"].dropna().size
         if amount_sample_ids != amount_barcodes:
             sheet_issues = True
@@ -232,8 +232,8 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
             duplicated_barcodes = sheet_data["Barkode"][sheet_data["Barkode"].duplicated()].dropna().unique()
             fail_record += f"\nBarcode(s) {duplicated_barcodes} are duplicated."
     # check duplicates early - this only needs to warn, not break
-    if any(sheet_data["KMA nr"].dropna().duplicated()):
-        duplicated_ids = sheet_data["KMA nr"][sheet_data["KMA nr"].duplicated()].dropna().unique()
+    if any(sheet_data["Prøvenummer"].dropna().duplicated()):
+        duplicated_ids = sheet_data["Prøvenummer"][sheet_data["Prøvenummer"].duplicated()].dropna().unique()
         logger.warning(f"Sample number(s) {duplicated_ids} are duplicated. "
                        "If you are sure you want to sequence the same sample twice, "
                        "you can ignore this warning.")
@@ -241,14 +241,14 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     if active_config["sample_number_settings"]["positive_control"]:
         positive_control_pattern = "|".join(active_config["sample_number_settings"][
                                                 "positive_control"].keys())
-        positive_controls_in_sheet = sheet_data["KMA nr"].str.fullmatch(positive_control_pattern,
+        positive_controls_in_sheet = sheet_data["Prøvenummer"].str.fullmatch(positive_control_pattern,
                                                                         na = False)
         if not positive_controls_in_sheet.any():
             sheet_issues = True
             fail_record += f"\nNo positive controls given in runsheet."
     if active_config["sample_number_settings"]["negative_control"]:
         # for negative controls: see if there is anything matching negative control pattern
-        negative_controls_in_sheet = sheet_data["KMA nr"].str.fullmatch(
+        negative_controls_in_sheet = sheet_data["Prøvenummer"].str.fullmatch(
             active_config["sample_number_settings"]["negative_control"],
             na = False)
         if not negative_controls_in_sheet.any():
@@ -260,7 +260,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         negative_control = active_config["sample_number_settings"]["negative_control"],
         positive_control = active_config["sample_number_settings"]["positive_control"])
     id_pattern = re.compile(f"^{id_pattern.pattern}$")
-    fail_ids = sheet_data["KMA nr"][~sheet_data["KMA nr"].apply(str).str.match(id_pattern,
+    fail_ids = sheet_data["Prøvenummer"][~sheet_data["Prøvenummer"].apply(str).str.match(id_pattern,
                                                                                na=False)].dropna().tolist()
     if active_config['sample_number_settings']['sample_numbers_in'] == "number":
         allowed_start = active_config['sample_number_settings']['number_to_letter'].keys()
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     print("Loading runsheet...\n")
     # TODO: handle this part in a function?
     runsheet_data = pd.read_excel(run_sheet, usecols = "A", skiprows = 3,  # don't check CP for now
-                                  dtype = {"KMA nr": str})
+                                  dtype = {"Prøvenummer": str})
     runsheet_data = runsheet_data.dropna()
     print("Checking runsheet format....\n")
     # simple error handling, suppressing tracebacks

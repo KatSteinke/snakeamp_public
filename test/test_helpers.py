@@ -471,10 +471,10 @@ class TestAddYearsInSheet(unittest.TestCase):
 
     def test_success_add_year(self):
         """Ensure year is added to properly formatted sample numbers."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+        test_input = pd.DataFrame(data = {"Prøvenummer": ["11123456", "11123456"],
                                           "årstal": ["99", "99"],
                                           "Barkode": ["RB01", "RB02"]})
-        expected_df = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+        expected_df = pd.DataFrame(data = {"Prøvenummer": ["11123456", "11123456"],
                                            "årstal": ["99", "99"],
                                            "Barkode": ["RB01", "RB02"],
                                            "prøvenr": ["1199123456", "1199123456"]})
@@ -483,7 +483,7 @@ class TestAddYearsInSheet(unittest.TestCase):
 
     def test_complain_no_year_col(self):
         """Ensure an error is raised if there is no column for the sample year."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+        test_input = pd.DataFrame(data = {"Prøvenummer": ["11123456", "11123456"],
                                           "Barkode": ["RB01", "RB02"]})
         error_msg = "No year column found. " \
                     "The pipeline needs a column named 'årstal' to add year to sample number."
@@ -492,10 +492,10 @@ class TestAddYearsInSheet(unittest.TestCase):
 
     def test_complain_wrong_year_format(self):
         """Ensure an error is raised if the year is given in the wrong format."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+        test_input = pd.DataFrame(data = {"Prøvenummer": ["11123456", "11123456"],
                                           "årstal": ["99", "2099"],
                                           "Barkode": ["RB01", "RB02"]})
-        bad_years = pd.DataFrame(data={"KMA nr": ["11123456"],
+        bad_years = pd.DataFrame(data={"Prøvenummer": ["11123456"],
                                        "årstal": ["2099"],
                                        "Barkode": ["RB02"]})
         error_msg = "Invalid year values detected. Year must be given as YY only." \
@@ -506,10 +506,10 @@ class TestAddYearsInSheet(unittest.TestCase):
 
     def test_complain_blank_year_column(self):
         """Ensure an error is raised if no year is given for a sample."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
+        test_input = pd.DataFrame(data = {"Prøvenummer": ["11123456", "11123456"],
                                           "årstal": ["99", pd.NA],
                                           "Barkode": ["RB01", "RB02"]})
-        bad_years = pd.DataFrame(data = {"KMA nr": ["11123456"],
+        bad_years = pd.DataFrame(data = {"Prøvenummer": ["11123456"],
                                          "årstal": [pd.NA],
                                          "Barkode": ["RB02"]})
         error_msg = "No year given for one or more samples. Please add a year to these samples." \
@@ -520,10 +520,10 @@ class TestAddYearsInSheet(unittest.TestCase):
 
     def test_handle_controls(self):
         """Ensure positive and negative controls are processed unaltered."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456", "PosK", "NegK"],
+        test_input = pd.DataFrame(data = {"Prøvenummer": ["11123456", "11123456", "PosK", "NegK"],
                                           "årstal": ["99", "99", "", ""],
                                           "Barkode": ["RB01", "RB02", "RB03", "RB04"]})
-        expected_df = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456", "PosK", "NegK"],
+        expected_df = pd.DataFrame(data = {"Prøvenummer": ["11123456", "11123456", "PosK", "NegK"],
                                            "årstal": ["99", "99", "", ""],
                                            "Barkode": ["RB01", "RB02", "RB03", "RB04"],
                                            "prøvenr": ["1199123456", "1199123456", "PosK", "NegK"]})
@@ -592,7 +592,7 @@ class TestExtractNanoporeRun(unittest.TestCase):
     def test_get_run_name(self):
         test_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                      / "test_nanopore_runsheet.xlsx"
-        true_run_name = "ONT_RUN0000_Y20990101_XYZ"
+        true_run_name = "NANO_Amplicon_Y20990101_RUN0001_XYZ"
         test_run_name = helpers.extract_nanopore_run_name(test_sheet)
         assert test_run_name == true_run_name
 
