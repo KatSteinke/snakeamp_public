@@ -244,6 +244,7 @@ def rearrange_sample_number(old_sample_number: str, pattern_in: re.Pattern,
 
 
     """
+    print(old_sample_number)
     # sanity check if we have everything
     extra_components = set(order_out.values()) - set(pattern_in.groupindex.keys())
     if extra_components:
@@ -263,7 +264,7 @@ def rearrange_sample_number(old_sample_number: str, pattern_in: re.Pattern,
     component_order = dict(sorted(order_out.items()))
     for component in component_order.values():
         sample_reordered.append(sample_components.group(component))
-
+    print(sample_reordered)
     # combine components
     new_sample_number = "".join(sample_reordered)
     return new_sample_number
@@ -337,10 +338,10 @@ def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) ->
      positive_control_pattern) = get_control_patterns(
         active_config["sample_number_settings"]["negative_control"],
         active_config["sample_number_settings"]["positive_control"])
-    positive_controls = runsheet[runsheet["KMA nr"].str.fullmatch(positive_control_pattern)]
-    negative_controls = runsheet[runsheet["KMA nr"].str.fullmatch(negative_control_pattern)]
-    non_controls = runsheet[~(runsheet["KMA nr"].str.fullmatch(positive_control_pattern)
-                            | runsheet["KMA nr"].str.fullmatch(negative_control_pattern))]
+    positive_controls = runsheet[runsheet["Prøvenummer"].str.fullmatch(positive_control_pattern)]
+    negative_controls = runsheet[runsheet["Prøvenummer"].str.fullmatch(negative_control_pattern)]
+    non_controls = runsheet[~(runsheet["Prøvenummer"].str.fullmatch(positive_control_pattern)
+                            | runsheet["Prøvenummer"].str.fullmatch(negative_control_pattern))]
     # check that year number has been given correctly
     missing_year = non_controls[sample_year_colname].isna()
     if missing_year.any():
@@ -358,22 +359,22 @@ def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) ->
                          f"{samples_bad_year.to_string()}"
         raise ValueError(bad_year_error)
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
-    non_controls["prøvenr"] = non_controls["KMA nr"].apply(lambda x:
+    non_controls["prøvenr"] = non_controls["Prøvenummer"].apply(lambda x:
                                                    extract_sample_number_part(x,
                                                                               "sample_type",
                                                                               sample_format_sheet,
                                                                               negative_control_pattern,
                                                                               positive_control_pattern)) \
                           + non_controls["årstal"] \
-                          + non_controls["KMA nr"].apply(lambda x:
+                          + non_controls["Prøvenummer"].apply(lambda x:
                                                      extract_sample_number_part(x,
                                                                                 "sample_number",
                                                                                 sample_format_sheet,
                                                                                 negative_control_pattern,
                                                                                 positive_control_pattern))
     # sample numbers stay unchanged for controls
-    positive_controls["prøvenr"] = positive_controls["KMA nr"]
-    negative_controls["prøvenr"] = negative_controls["KMA nr"]
+    positive_controls["prøvenr"] = positive_controls["Prøvenummer"]
+    negative_controls["prøvenr"] = negative_controls["Prøvenummer"]
     all_samples = pd.concat([non_controls,
                              positive_controls,
                              negative_controls]).sort_values(by = "Barkode")
@@ -422,7 +423,7 @@ def extract_nanopore_run_name(runsheet: pathlib.Path) -> str:
         ValueError: if the experiment name contains chars that can break something
                     (reserved chars, whitespace, slashes)
     """
-    experiment_sheet = pd.read_excel(runsheet, sheet_name = "Runsheet_Nanopore",
+    experiment_sheet = pd.read_excel(runsheet, sheet_name = "Runsheet",
                                    usecols = "A:D", skiprows = 1, nrows=2)
     experiment_name = experiment_sheet.at[0, "RUNxxxx-INI"]
     # the experiment name is used as file names for a lot of things, so catch if it breaks something

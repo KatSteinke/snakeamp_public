@@ -91,7 +91,8 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                        header = [0, 1, 2, 3, 4, 5, 6])
             # dynamically generate expected headers since some of them might be blank
             expected_headers = pd.DataFrame(data = {"run":
-                                                        ["16S_Run0000-Y20230929-XYZ"] * len(sheet_data.columns),
+                                                        ["NANO_Amplicon_Y20990101_RUN0001_XYZ"]
+                                                        * len(sheet_data.columns),
                                                     "barcode": [*["RB31"] * int(
                                                             len(sheet_data.columns) / num_samples),
                                                                 *["RB51"] * int(

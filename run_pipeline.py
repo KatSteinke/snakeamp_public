@@ -62,14 +62,14 @@ def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.
         else:
             raise FileNotFoundError(f"{str(run_dir)} or {str(minion_basedir / run_dir)} "
                                     f"does not exist \n"
-                                    f"Aborting ARTIC pipeline...")
+                                    f"Aborting pipeline...")
     # Check if fastq_pass folder exist
     check_fastq_pass = list(run_dir.glob("rawdata/*/fastq_pass"))
     if not check_fastq_pass:
         raise FileNotFoundError(f"fastq_pass folder(s) not found in expected location:\n"
                                 f"{str(run_dir)}/rawdata/*/fastq_pass\n"
                                 f"Ensure correct directory and/or directory structure is used.\n"
-                                f"Aborting ARTIC pipeline...")
+                                f"Aborting pipeline...")
 
     logger.info(f"Data is retrieved from following folders: \n "
                 f"{str([str(fastq_dir) for fastq_dir in check_fastq_pass])}")
@@ -250,8 +250,8 @@ if __name__ == "__main__":
 
     # check runsheet
     runsheet_data = pd.read_excel(runsheet, usecols = "A:C", skiprows = 3,  # don't check CP for now
-                                  dtype = {"KMA nr": str})
-    runsheet_data = runsheet_data.dropna(subset="KMA nr")
+                                  dtype = {"Prøvenummer": str})
+    runsheet_data = runsheet_data.dropna(subset="Prøvenummer")
     check_runsheet.check_sheet_format(runsheet_data, check_barcodes = True,
                                       active_config = workflow_config)
     # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?

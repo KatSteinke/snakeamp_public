@@ -32,12 +32,12 @@ wildcard_constraints:
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
 
 sheet_data = pd.read_excel(config["runsheet"],usecols = "A:C",skiprows = 3,
-                               dtype = {"KMA nr": str, "Barkode": str})
-sheet_data = sheet_data.dropna(subset=["KMA nr", "Barkode"])
+                               dtype = {"Prøvenummer": str, "Barkode": str})
+sheet_data = sheet_data.dropna(subset=["Prøvenummer", "Barkode"])
 if config["sample_number_settings"]["date_settings"]["splice_in_date"]:
     sheet_data = helpers.add_years_in_sheet(sheet_data, active_config=config)
 else:
-    sheet_data["prøvenr"] = sheet_data["KMA nr"]
+    sheet_data["prøvenr"] = sheet_data["Prøvenummer"]
 
 BARCODE_PREFIX = config["barcode_prefix"]
 ALL_IDS = list(sheet_data["prøvenr"])
