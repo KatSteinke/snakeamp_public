@@ -474,11 +474,11 @@ class TestMergeEmu(unittest.TestCase):
 
         barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
                                                        barcode_2.columns])
-        expected_values = [[75.00, 15, "", 80.00, 16, ""],
-                           [20.00, 4, "", 20.00, 4, ""],
+        expected_values = [[20.00, 4, "", 20.00, 4, ""],
+                           [75.00, 15, "", 80.00, 16, ""],
                            [5.00, 1, "", 0.00, 0, ""]]
-        expected_index = pd.Index(data = ["Placeholderia fakeorum",
-                                          "Placeholderia bielefeldensis",
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RB01",
                                                        "RB01",
@@ -529,11 +529,11 @@ class TestMergeEmu(unittest.TestCase):
         barcode_2_header = ["RB02"] * len(barcode_2.columns)
         barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
                                                        barcode_2.columns])
-        expected_values = [[75.00, 15, "", 80.00, 16, ""],
-                           [20.00, 4, "", 20.00, 4, ""],
+        expected_values = [[20.00, 4, "", 20.00, 4, ""],
+                           [75.00, 15, "", 80.00, 16, ""],
                            [5.00, 1, "", 0.00, 0, ""]]
-        expected_index = pd.Index(data = ["Placeholderia fakeorum",
-                                          "Placeholderia bielefeldensis",
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RB01",
                                                        "RB01",
