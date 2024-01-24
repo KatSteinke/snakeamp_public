@@ -136,10 +136,7 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     # extract prefix: numbers or letters
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
     # add date if needed
-    if active_config["sample_number_settings"]["date_settings"]["splice_in_date"]:
-        sheet_data = helpers.add_years_in_sheet(sheet_data, active_config=active_config)
-    else:
-        sheet_data["prøvenr"] = sheet_data["Prøvenummer"]
+    sheet_data["prøvenr"] = sheet_data["Prøvenummer"]
     # match only sample type and replace as needed
     # remove all controls
     non_controls = sheet_data[~(sheet_data["Prøvenummer"].str.fullmatch(positive_control_pattern)
