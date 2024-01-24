@@ -244,7 +244,6 @@ def rearrange_sample_number(old_sample_number: str, pattern_in: re.Pattern,
 
 
     """
-    print(old_sample_number)
     # sanity check if we have everything
     extra_components = set(order_out.values()) - set(pattern_in.groupindex.keys())
     if extra_components:
@@ -264,22 +263,25 @@ def rearrange_sample_number(old_sample_number: str, pattern_in: re.Pattern,
     component_order = dict(sorted(order_out.items()))
     for component in component_order.values():
         sample_reordered.append(sample_components.group(component))
-    print(sample_reordered)
     # combine components
     new_sample_number = "".join(sample_reordered)
     return new_sample_number
 
 
 def translate_sample_number(sample_number: str, pattern_in: re.Pattern, pattern_out: re.Pattern,
-                            prefix_mapping: Dict[str, str]) -> str:
+                            prefix_mapping: Dict[str, str],
+                            positive_controls: re.Pattern,
+                            negative_controls: re.Pattern) -> str:
     """Translate a sample number by rearranging it to match a desired output pattern and
     optionally substituting prefixes.
 
     Arguments:
-        sample_number:  the original sample number
-        pattern_in:     a pattern describing the original format
-        pattern_out:    a pattern describing the desired format
-        prefix_mapping: a mapping of what prefix to translate to what
+        sample_number:      the original sample number
+        pattern_in:         a pattern describing the original format
+        pattern_out:        a pattern describing the desired format
+        prefix_mapping:     a mapping of what prefix to translate to what
+        positive_controls:  format used for positive controls, if any
+        negative_controls:  format used for negative controls, if any
 
     Returns:
         The rearranged and translated sample number.
@@ -288,7 +290,12 @@ def translate_sample_number(sample_number: str, pattern_in: re.Pattern, pattern_
         KeyError:   if the sample number's prefix is not found in the mapping
         ValueError: if the original sample number does not match the input pattern
                     or the translated sample number does not match the desired output
+
     """
+    # skip controls
+    control_patterns = re.compile(f"({positive_controls.pattern})|({negative_controls.pattern})")
+    if re.match(control_patterns, sample_number):
+        return sample_number
     original_format_match = re.match(pattern_in, sample_number)
     if not original_format_match:
         error_msg = f"Sample number {sample_number} does not match specified input format."

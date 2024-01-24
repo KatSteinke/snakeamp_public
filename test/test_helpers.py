@@ -162,7 +162,7 @@ class TestFindRundir(unittest.TestCase):
             helpers.get_fastq_pass_dir(test_path)
 
 
-class TestTranslateSampleNumbers(unittest.TestCase):
+class TestTranslateSampleType(unittest.TestCase):
     number_to_letter = {"40": "H", "70": "P"}
 
     def test_wrong_sample_in(self):
@@ -370,7 +370,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "F99123456-1"
         error_msg = "Sample number F99123456-1 does not match specified input format."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping,
+                                            re.compile("PosK"), re.compile('NegK[a-zA-Z0-9_-]*'))
 
     def test_fail_missing_prefix(self):
         """Complain if the sample number's prefix is not contained in the prefix mapping."""
@@ -382,7 +383,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "F99123456-1"
         error_msg = "Prefix B not found (allowed prefixes are ['70', '30', '10', '50'])."
         with pytest.raises(KeyError, match = re.escape(error_msg)):
-            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping,
+                                            re.compile("PosK"), re.compile('NegK[a-zA-Z0-9_-]*'))
 
     def test_fail_no_match_after_translate(self):
         """Complain if the sample number does not match the desired format after translation."""
@@ -395,7 +397,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         error_msg = ("Translated sample number F99123456-1 (was 1199123456-1)"
                      " does not match desired output format.")
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping,
+                                            re.compile("PosK"), re.compile('NegK[a-zA-Z0-9_-]*'))
 
     def test_translate_no_change(self):
         """Pass the sample number through without any changes if none are needed."""
@@ -405,7 +408,9 @@ class TestTranslateSampleNumber(unittest.TestCase):
             '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
         prefix_mapping = {"P": "P", "B": "B", "D": "D", "T": "T"}
         sample_number = "F99123456-1"
-        test_number = helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+        test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
+                                                      prefix_mapping, re.compile("PosK"),
+                                                      re.compile('NegK[a-zA-Z0-9_-]*'))
         assert sample_number == test_number
 
     def test_translate_prefix_only(self):
@@ -418,7 +423,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "1199123456-1"
         expected_number = "F99123456-1"
         test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
-                                                      prefix_mapping)
+                                                      prefix_mapping, re.compile("PosK"),
+                                                      re.compile('NegK[a-zA-Z0-9_-]*'))
         assert expected_number == test_number
 
     def test_rearrange_only(self):
@@ -431,7 +437,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "F99123456-1"
         expected_number = "F99123456"
         test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
-                                                      prefix_mapping)
+                                                      prefix_mapping, re.compile("PosK"),
+                                                      re.compile('NegK[a-zA-Z0-9_-]*'))
         assert expected_number == test_number
 
     def test_translate_and_rearrange(self):
@@ -444,8 +451,30 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "1199123456-1"
         expected_number = "F99123456"
         test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
-                                                      prefix_mapping)
+                                                      prefix_mapping, re.compile("PosK"),
+                                                      re.compile('NegK[a-zA-Z0-9_-]*'))
         assert expected_number == test_number
+
+    def test_handle_controls(self):
+        """Don't translate positive or negative controls"""
+        format_in = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})')
+        prefix_mapping = {"70": "P", "30": "B", "10": "D", "50": "T"}
+        negative_control = "NegK"
+        test_negative_control = helpers.translate_sample_number(negative_control, format_in,
+                                                                format_out,
+                                                                prefix_mapping, re.compile("PosK"),
+                                                                re.compile('NegK[a-zA-Z0-9_-]*'))
+        assert negative_control == test_negative_control
+        positive_control = "PosK"
+        test_positive_control = helpers.translate_sample_number(positive_control, format_in,
+                                                                format_out, prefix_mapping,
+                                                                re.compile("PosK"),
+                                                                re.compile('NegK[a-zA-Z0-9_-]*'))
+        assert positive_control == test_positive_control
+
 
 class TestAddYearsInSheet(unittest.TestCase):
     test_config = {"sample_number_settings": {"sample_number_format":

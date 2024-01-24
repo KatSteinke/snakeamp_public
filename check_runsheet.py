@@ -157,10 +157,11 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
                     f"Cannot check if {list(extra_components)} component(s) are correct.")
     non_controls["prøvenr_translate"] = non_controls["prøvenr"].apply(lambda x:
                                                                       helpers.translate_sample_number(
-                                                                          x,
-                                                                          sample_format_sheet,
+                                                                          x, sample_format_sheet,
                                                                           sample_format_lis,
-                                                                          prefix_mapping))
+                                                                          prefix_mapping,
+                                                                          positive_control_pattern,
+                                                                          negative_control_pattern))
 
     # left join the rest on the LIS report
     samples_in_lis = non_controls.merge(lab_info_data, how = "left",

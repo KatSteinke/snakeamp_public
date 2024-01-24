@@ -69,8 +69,9 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
         sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
         # start by translating the sample number
         name_translate = helpers.translate_sample_number(sample_number, sample_format_sheet,
-                                                         sample_format_lis,
-                                                         prefix_mapping)
+                                                         sample_format_lis, prefix_mapping,
+                                                         positive_control_pattern,
+                                                         negative_control_pattern)
         if name_translate not in lis_report["prøvenr"].tolist():
             error_msg = (f"Sample number {name_translate} (original number: {sample_number}) "
                          "not found in LIS report.")
