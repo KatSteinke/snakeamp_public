@@ -16,9 +16,9 @@ class TestFindRundir(unittest.TestCase):
         minion_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "miniondir"
         true_path = test_path.resolve()
         pass_dirs = list(true_path.glob("rawdata/*/fastq_pass"))
-        log_msg = "INFO:16S_nanopore:Data is retrieved from following folders: \n " \
+        log_msg = "INFO:amplicon_nanopore:Data is retrieved from following folders: \n " \
                   f"{str([str(fastq_dir) for fastq_dir in pass_dirs])}"
-        with self.assertLogs("16S_nanopore", level = "INFO") as logged:
+        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
             checked_path = snake_wrapper.find_rundir(test_path, minion_path)
             assert log_msg in logged.output
         assert checked_path == true_path
@@ -28,9 +28,9 @@ class TestFindRundir(unittest.TestCase):
         minion_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "miniondir"
         true_path = pathlib.Path(__file__).parent / "data" / "utilities_test" /"miniondir" / "test1"
         pass_dirs = list(true_path.glob("rawdata/*/fastq_pass"))
-        log_msg = "INFO:16S_nanopore:Data is retrieved from following folders: \n " \
+        log_msg = "INFO:amplicon_nanopore:Data is retrieved from following folders: \n " \
                   f"{str([str(fastq_dir) for fastq_dir in pass_dirs])}"
-        with self.assertLogs("16S_nanopore", level = "INFO") as logged:
+        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
             checked_path = snake_wrapper.find_rundir(test_path, minion_path)
             assert log_msg in logged.output
         assert checked_path == true_path
