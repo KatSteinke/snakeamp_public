@@ -89,90 +89,61 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         for sheet in tabs_found:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
                                        header = [0, 1, 2, 3, 4, 5, 6])
+            # we're not going to compare everything in the PhHV column
+            # so don't count this when generating expected data
+            amount_compared_cols = len(sheet_data.columns) - 1
+            cols_per_sample = int(amount_compared_cols / num_samples)
             # dynamically generate expected headers since some of them might be blank
             expected_headers = pd.DataFrame(data = {"run":
-                                                        ["16S_Run0000-Y20230929-XYZ"] * len(sheet_data.columns),
-                                                    "barcode": [*["RB31"] * int(
-                                                            len(sheet_data.columns) / num_samples),
-                                                                *["RB51"] * int(
-                                                                        len(sheet_data.columns) / num_samples),
-                                                                *["RB60"] * int(
-                                                                        len(sheet_data.columns) / num_samples),
-
-                                                                *["RB62"] * int(
-                                                                        len(sheet_data.columns) / num_samples),
-
-                                                                *["RB64"] * int(
-                                                                        len(sheet_data.columns) / num_samples)],
-                                                    "modtagedato": [*["2021-01-02"] * int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["2021-01-02"]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["2021-01-02"]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                   *[""]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *[""]* int(
-                                                            len(sheet_data.columns) / num_samples)],
+                                                    ["16S_Run0000-Y20230929-XYZ"] * amount_compared_cols,
+                                                    "barcode": [*["RB31"] * cols_per_sample,
+                                                                *["RB51"] * cols_per_sample,
+                                                                *["RB60"] * cols_per_sample,
+                                                                *["RB62"] * cols_per_sample,
+                                                                *["RB64"] * cols_per_sample],
+                                                    "modtagedato": [*["2021-01-02"] * cols_per_sample,
+                                                                    *["2021-01-02"] * cols_per_sample,
+                                                                    *["2021-01-02"] * cols_per_sample,
+                                                                    *[""] * cols_per_sample,
+                                                                    *[""] * cols_per_sample],
                                                     "prøvemateriale": [
-                                                        *["Hjerneventrikelvæske <liquor>"]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                        *["Podning"]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                        *["Spinalvæske"]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                        *[""]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                        *[""]* int(
-                                                            len(sheet_data.columns) / num_samples)],
-                                                    "anatomi": [*["Shunt (hjerneventrikel)"]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                *["Svælg/tonsil"]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                *[""]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                *[""]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                *[""]* int(
-                                                            len(sheet_data.columns) / num_samples)]
-                                                    }, index = pd.Index([*["F99123457"] * int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["F99123456"] * int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["F99123458"] * int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["NegK_Sanger"]* int(
-                                                            len(sheet_data.columns) / num_samples),
-
-                                                                    *["PosK"] * int(
-                                                            len(sheet_data.columns) / num_samples)],
+                                                        *["Hjerneventrikelvæske <liquor>"] * cols_per_sample,
+                                                        *["Podning"] * cols_per_sample,
+                                                        *["Spinalvæske"] *cols_per_sample,
+                                                        *[""] * cols_per_sample,
+                                                        *[""] * cols_per_sample],
+                                                    "anatomi": [*["Shunt (hjerneventrikel)"] * cols_per_sample,
+                                                                *["Svælg/tonsil"] * cols_per_sample,
+                                                                *[""] * cols_per_sample,
+                                                                *[""] * cols_per_sample,
+                                                                *[""] * cols_per_sample]
+                                                    }, index = pd.Index([*["F99123457"] * cols_per_sample,
+                                                                    *["F99123456"] * cols_per_sample,
+                                                                    *["F99123458"] * cols_per_sample,
+                                                                    *["NegK_Sanger"] * cols_per_sample,
+                                                                    *["PosK"] * cols_per_sample],
                                                                         name="prøvenr"))
             # are the headers correct? use MultiIndex.to_frame(index=False)
             # strip the "Unnamed" parts out
             sheet_data = sheet_data.rename(columns = lambda colname: "" if "Unnamed" in str(colname)
                                                                      else colname)
-            # no need to compare the last column though
+            # PhHV gets read as the "barcode" value in the last column
+            control_header = sheet_data.columns.values[-1][1]
+            if control_header != "PhHV":
+                results_okay = False
+                logger.warning("Missing PhHV column")
+
+            # we don't need to compare approval
             header_cols = sheet_data.columns.to_frame(index = False)[["run",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "modtagedato",
                                                                       "prøvemateriale",
                                                                       "anatomi"]]
+            # we've already checked the presence of the PhHV column (absence messes with labeling)
+            # so remove the last row
+            print(header_cols.iloc[:-1])
+            header_cols = header_cols.iloc[:-1]
             header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
             header_cols = header_cols.set_index("prøvenr")
             header_cols["modtagedato"] = pd.to_datetime(header_cols["modtagedato"]).apply(lambda x:
