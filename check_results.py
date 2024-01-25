@@ -89,9 +89,11 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         for sheet in tabs_found:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
                                        header = [0, 1, 2, 3, 4, 5, 6])
+            # if it's the overview sheet it'll have a PhHV column, the others don't need one
             # we're not going to compare everything in the PhHV column
             # so don't count this when generating expected data
-            amount_compared_cols = len(sheet_data.columns) - 1
+            amount_compared_cols = len(sheet_data.columns) - 1 if sheet == 'overview' \
+                                   else len(sheet_data.columns)
             cols_per_sample = int(amount_compared_cols / num_samples)
             # dynamically generate expected headers since some of them might be blank
             expected_headers = pd.DataFrame(data = {"run":
@@ -127,11 +129,6 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
             # strip the "Unnamed" parts out
             sheet_data = sheet_data.rename(columns = lambda colname: "" if "Unnamed" in str(colname)
                                                                      else colname)
-            # PhHV gets read as the "barcode" value in the last column
-            control_header = sheet_data.columns.values[-1][1]
-            if control_header != "PhHV":
-                results_okay = False
-                logger.warning("Missing PhHV column")
 
             # we don't need to compare approval
             header_cols = sheet_data.columns.to_frame(index = False)[["run",
@@ -140,10 +137,14 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                       "modtagedato",
                                                                       "prøvemateriale",
                                                                       "anatomi"]]
-            # we've already checked the presence of the PhHV column (absence messes with labeling)
-            # so remove the last row
-            print(header_cols.iloc[:-1])
-            header_cols = header_cols.iloc[:-1]
+            if sheet == "overview":
+                # PhHV gets read as the "barcode" value in the last column of the overview
+                control_header = sheet_data.columns.values[-1][1]
+                if control_header != "PhHV":
+                    results_okay = False
+                    logger.warning("Missing PhHV column")
+                # now we've checked it we can remove the row
+                header_cols = header_cols.iloc[:-1]
             header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
             header_cols = header_cols.set_index("prøvenr")
             header_cols["modtagedato"] = pd.to_datetime(header_cols["modtagedato"]).apply(lambda x:
@@ -161,69 +162,68 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                 logger.warning("Sample metadata differ from expected sample metadata in tab"
                                f" {sheet}:\n"
                                f"{compare_headers.to_string()}")
-        if "overview" in sheets_in_report:  # TODO: handle more nicely - avoid having to reload
-            overview_sheet = pd.read_excel(report_sheet, sheet_name = "overview", index_col = 0,
-                                           header = [0, 1, 2, 3, 4, 5, 6])
-            # get the first column for each barcode - this'll be abundance in the overview
-            # TODO: can we handle the slicing more nicely?
-            amount_header_cols = overview_sheet.columns.nlevels - 1
-            header_col_slice = [slice(None)] * amount_header_cols
-            abundances = overview_sheet.loc[:, (*header_col_slice, "abundance_from_all [%]")]
-            # we don't need the extra information now - just keep sample numbers
-            abundances.columns = abundances.columns.get_level_values("prøvenummer")
-            # for the routine samples, is the highest scoring organism what we should expect?
-            routine_orgs = abundances.loc[:, ["F99123457",
-                                              "F99123456",
-                                              "F99123458"]]
-            # get the index (=name) of the organism with the highest value
-            found_organisms = pd.DataFrame(data=routine_orgs.idxmax().rename("organism"))
-            found_organisms.index.names = ["prøvenr"]
-            compare_organisms = expected_organisms.compare(found_organisms,
-                                                           result_names = ("expected",
-                                                                           "found"))
-            if not compare_organisms.empty:
-                results_okay = False
-                logger.warning("Incorrect organism for one or more samples. Expected organism(s):\n"
-                               f"{compare_organisms.sort_index().to_string()}")
-            # for the positive control, are the n highest what we would expect?
-            n_expected_species = len(expected_positive_control.index)
-            species_found = abundances.loc[:,
-                                           ["PosK"]].sort_values(by = "PosK",
-                                                                 ascending = False)[:n_expected_species]
-            species_found.index.names = ["organism"]
-            species_found.columns.name = None
-            species_found = species_found.rename(columns={"PosK": "abundance"})
-            missing_species = set(expected_positive_control.index) - set(species_found.index)
-            extra_species = set(species_found.index) - set(expected_positive_control.index)
-            if missing_species or extra_species:
-                results_okay = False
-                logger.warning("Positive control should contain"
-                               f" {sorted(expected_positive_control.index.tolist())}, "
-                               f"contains {sorted(species_found.index.tolist())} "
-                               f"(missing: {missing_species}, extra: {extra_species}")
-            # Is the abundance around where we'd expect it to be?
-            abundances_to_compare = expected_positive_control.merge(species_found, how="inner",
-                                                                    left_index = True,
-                                                                    right_index = True,
-                                                                    suffixes=("_expected",
-                                                                              "_found"))
-            abundances_match = abundances_to_compare.apply(lambda df:
-                                                           math.isclose(df["abundance_expected"],
-                                                                        df["abundance_found"],
-                                                                        rel_tol = 0.001,
-                                                                        abs_tol = 0.1),
-                                                           axis=1)
-            if not all(abundances_match):
-                results_okay = False
-                abundance_diff = abundances_to_compare[~abundances_match]
-                abundance_diff = abundance_diff.rename(columns = lambda colname:
-                                                                 str.replace(colname,
-                                                                             "abundance_",
-                                                                             ""))
-                logger.warning("Different abundance in positive control for "
-                               f"{abundance_diff.index.tolist()}."
-                               " Expected abundance:\n"
-                               f"{abundance_diff.to_string()}")
+            # run extra checks on the overview sheet - TODO: can we avoid checking twice?
+            if sheet == "overview":
+                # get the first column for each barcode - this'll be abundance in the overview
+                # TODO: can we handle the slicing more nicely?
+                amount_header_cols = sheet_data.columns.nlevels - 1
+                header_col_slice = [slice(None)] * amount_header_cols
+                abundances = sheet_data.loc[:, (*header_col_slice, "abundance_from_all [%]")]
+                # we don't need the extra information now - just keep sample numbers
+                abundances.columns = abundances.columns.get_level_values("prøvenummer")
+                # for the routine samples, is the highest scoring organism what we should expect?
+                routine_orgs = abundances.loc[:, ["F99123457",
+                                                  "F99123456",
+                                                  "F99123458"]]
+                # get the index (=name) of the organism with the highest value
+                found_organisms = pd.DataFrame(data=routine_orgs.idxmax().rename("organism"))
+                found_organisms.index.names = ["prøvenr"]
+                compare_organisms = expected_organisms.compare(found_organisms,
+                                                               result_names = ("expected",
+                                                                               "found"))
+                if not compare_organisms.empty:
+                    results_okay = False
+                    logger.warning("Incorrect organism for one or more samples. Expected organism(s):\n"
+                                   f"{compare_organisms.sort_index().to_string()}")
+                # for the positive control, are the n highest what we would expect?
+                n_expected_species = len(expected_positive_control.index)
+                species_found = abundances.loc[:,
+                                               ["PosK"]].sort_values(by = "PosK",
+                                                                     ascending = False)[:n_expected_species]
+                species_found.index.names = ["organism"]
+                species_found.columns.name = None
+                species_found = species_found.rename(columns={"PosK": "abundance"})
+                missing_species = set(expected_positive_control.index) - set(species_found.index)
+                extra_species = set(species_found.index) - set(expected_positive_control.index)
+                if missing_species or extra_species:
+                    results_okay = False
+                    logger.warning("Positive control should contain"
+                                   f" {sorted(expected_positive_control.index.tolist())}, "
+                                   f"contains {sorted(species_found.index.tolist())} "
+                                   f"(missing: {missing_species}, extra: {extra_species}")
+                # Is the abundance around where we'd expect it to be?
+                abundances_to_compare = expected_positive_control.merge(species_found, how="inner",
+                                                                        left_index = True,
+                                                                        right_index = True,
+                                                                        suffixes=("_expected",
+                                                                                  "_found"))
+                abundances_match = abundances_to_compare.apply(lambda df:
+                                                               math.isclose(df["abundance_expected"],
+                                                                            df["abundance_found"],
+                                                                            rel_tol = 0.001,
+                                                                            abs_tol = 0.1),
+                                                               axis=1)
+                if not all(abundances_match):
+                    results_okay = False
+                    abundance_diff = abundances_to_compare[~abundances_match]
+                    abundance_diff = abundance_diff.rename(columns = lambda colname:
+                                                                     str.replace(colname,
+                                                                                 "abundance_",
+                                                                                 ""))
+                    logger.warning("Different abundance in positive control for "
+                                   f"{abundance_diff.index.tolist()}."
+                                   " Expected abundance:\n"
+                                   f"{abundance_diff.to_string()}")
     return results_okay
 
 
