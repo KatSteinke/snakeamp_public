@@ -89,8 +89,6 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         for sheet in tabs_found:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
                                        header = [0, 1, 2, 3, 4, 5, 6])
-            print(sheet_data)
-            print(sheet_data.columns)
             # we're not going to compare everything in the PhHV column
             # so don't count this when generating expected data
             amount_compared_cols = len(sheet_data.columns) - 1
