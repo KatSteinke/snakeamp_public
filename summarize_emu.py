@@ -61,16 +61,17 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
             active_config["sample_number_settings"][
                 "number_to_letter"],
             active_config["sample_number_settings"][
-                "sample_numbers_in"],
+                "sample_numbers_output"],
             active_config["sample_number_settings"][
                 "sample_numbers_out"])
 
-        sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
+        sample_format_results = re.compile(active_config["sample_number_settings"]["format_output"])
         sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
         # start by translating the sample number
-        name_translate = helpers.translate_sample_number(sample_number, sample_format_sheet,
-                                                         sample_format_lis,
-                                                         prefix_mapping)
+        name_translate = helpers.translate_sample_number(sample_number, sample_format_results,
+                                                         sample_format_lis, prefix_mapping,
+                                                         positive_control_pattern,
+                                                         negative_control_pattern)
         if name_translate not in lis_report["prøvenr"].tolist():
             error_msg = (f"Sample number {name_translate} (original number: {sample_number}) "
                          "not found in LIS report.")
@@ -87,6 +88,7 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
                                                                                         "%d%m%Y").strftime("%Y-%m-%d"))
         sample_information = sample_information.fillna("").reset_index(drop=True)
     return sample_information
+
 
 class SampleNameComponents(NamedTuple):
     """Run, sample/isolate number and barcode for a given sample."""

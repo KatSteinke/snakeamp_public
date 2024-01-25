@@ -5,12 +5,14 @@ debug: True
 sample_number_settings:
   # specify the format for sample numbers used in the input runsheet as a regex
   sample_number_format: '([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d' # TODO: what is the format for sample numbers - probably numbers?
-  format_in_sheet: '(?P<sample_type>[BDFT]|[1357]0|11)(?P<sample_year>\d{2})?(?P<sample_number>\d{6})(?P<isolate>-\d)'
+  format_in_sheet: '(?P<sample_type>[BDFT]|[1357]0|11)(?P<sample_number>\d{6})(?P<sample_year>\d{2})?(?P<bact_number>-\d)?'
   format_in_lis: '(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})'
+  format_output: '(?P<sample_type>[BDFT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?'
   # optional conversion between sample numbers starting with numbers vs letters (allowed values: number, letter)
   # if your sample numbers don't need conversion, set _in and _out to be the same - TODO: extra logic on switching
   sample_numbers_in: number
   sample_numbers_out: letter
+  sample_numbers_output: number
   # mapping between sample number/letter if needed
   number_to_letter: { "70": "P", "30": "B", "10": "D", "11": "F", "50": "T"}
   date_settings:  # TODO: do we need this separately?

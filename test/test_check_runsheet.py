@@ -155,37 +155,6 @@ class TestCheckRunsheet(unittest.TestCase):
             check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
             assert success_msg in logged.output
 
-    def test_success_splice_year(self):
-        """Splice in year as required"""
-        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet_year.xlsx"
-        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
-        sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"Prøvenummer": str, "årstal": str})
-        sheet_data = sheet_data.dropna()
-        success_msg = "INFO:check_runsheet:The runsheet is correct."
-        test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
-                                                  "sample_numbers_in": "number",
-                                                  "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})?(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "number_to_letter": {"70": "P",
-                                                                       "30": "B",
-                                                                       "10": "D",
-                                                                       "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": True,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
-                                                  "negative_control": '',
-                                                  "positive_control": {}},
-                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
-                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
-                       }
-        with self.assertLogs("check_runsheet") as logged:
-            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
-            assert success_msg in logged.output
-
     def test_success_controls(self):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"

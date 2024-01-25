@@ -244,7 +244,6 @@ def rearrange_sample_number(old_sample_number: str, pattern_in: re.Pattern,
 
 
     """
-    print(old_sample_number)
     # sanity check if we have everything
     extra_components = set(order_out.values()) - set(pattern_in.groupindex.keys())
     if extra_components:
@@ -264,22 +263,25 @@ def rearrange_sample_number(old_sample_number: str, pattern_in: re.Pattern,
     component_order = dict(sorted(order_out.items()))
     for component in component_order.values():
         sample_reordered.append(sample_components.group(component))
-    print(sample_reordered)
     # combine components
     new_sample_number = "".join(sample_reordered)
     return new_sample_number
 
 
 def translate_sample_number(sample_number: str, pattern_in: re.Pattern, pattern_out: re.Pattern,
-                            prefix_mapping: Dict[str, str]) -> str:
+                            prefix_mapping: Dict[str, str],
+                            positive_controls: re.Pattern,
+                            negative_controls: re.Pattern) -> str:
     """Translate a sample number by rearranging it to match a desired output pattern and
     optionally substituting prefixes.
 
     Arguments:
-        sample_number:  the original sample number
-        pattern_in:     a pattern describing the original format
-        pattern_out:    a pattern describing the desired format
-        prefix_mapping: a mapping of what prefix to translate to what
+        sample_number:      the original sample number
+        pattern_in:         a pattern describing the original format
+        pattern_out:        a pattern describing the desired format
+        prefix_mapping:     a mapping of what prefix to translate to what
+        positive_controls:  format used for positive controls, if any
+        negative_controls:  format used for negative controls, if any
 
     Returns:
         The rearranged and translated sample number.
@@ -288,7 +290,12 @@ def translate_sample_number(sample_number: str, pattern_in: re.Pattern, pattern_
         KeyError:   if the sample number's prefix is not found in the mapping
         ValueError: if the original sample number does not match the input pattern
                     or the translated sample number does not match the desired output
+
     """
+    # skip controls
+    control_patterns = re.compile(f"({positive_controls.pattern})|({negative_controls.pattern})")
+    if re.match(control_patterns, sample_number):
+        return sample_number
     original_format_match = re.match(pattern_in, sample_number)
     if not original_format_match:
         error_msg = f"Sample number {sample_number} does not match specified input format."
@@ -311,74 +318,6 @@ def translate_sample_number(sample_number: str, pattern_in: re.Pattern, pattern_
                      " does not match desired output format.")
         raise ValueError(error_msg)
     return name_translate
-
-
-def add_years_in_sheet(runsheet: pd.DataFrame, active_config=workflow_config) -> pd.DataFrame:
-    """Add year to sample number from sample year column.
-
-    Arguments:
-        runsheet:       the runsheet for the run, containing sample numbers without years
-                        and a separate column for the year (as YY).
-        active_config:  the configuration to use
-
-    Returns:
-        A copy of the runsheet in which years have been added to sample numbers.
-
-    Raises:
-        KeyError:   if the sample year column is missing
-        ValueError: if the sample year column is blank or contains malformed data
-    """
-    sample_year_colname = "årstal"
-    # sanity check: do we have the column?
-    if sample_year_colname not in runsheet.columns:
-        raise KeyError("No year column found. "
-                       "The pipeline needs a column named 'årstal' to add year to sample number.")
-    # establish what is what # TODO: we can replace the ID pattern thing
-    (negative_control_pattern,
-     positive_control_pattern) = get_control_patterns(
-        active_config["sample_number_settings"]["negative_control"],
-        active_config["sample_number_settings"]["positive_control"])
-    positive_controls = runsheet[runsheet["Prøvenummer"].str.fullmatch(positive_control_pattern)]
-    negative_controls = runsheet[runsheet["Prøvenummer"].str.fullmatch(negative_control_pattern)]
-    non_controls = runsheet[~(runsheet["Prøvenummer"].str.fullmatch(positive_control_pattern)
-                            | runsheet["Prøvenummer"].str.fullmatch(negative_control_pattern))]
-    # check that year number has been given correctly
-    missing_year = non_controls[sample_year_colname].isna()
-    if missing_year.any():
-        samples_without_year = non_controls[non_controls[sample_year_colname].isna()].reset_index(drop = True)
-        missing_year_error = "No year given for one or more samples." \
-                             " Please add a year to these samples." \
-                             " Affected samples:\n" \
-                             f"{samples_without_year.to_string()}"
-        raise ValueError(missing_year_error)
-    good_year = non_controls[sample_year_colname].str.fullmatch(r"\d{2}")
-    if not good_year.all():
-        samples_bad_year = non_controls[~non_controls[sample_year_colname].str.fullmatch(r"\d{2}")].reset_index(drop=True)
-        bad_year_error = "Invalid year values detected. Year must be given as YY only." \
-                         " Affected samples:\n" \
-                         f"{samples_bad_year.to_string()}"
-        raise ValueError(bad_year_error)
-    sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
-    non_controls["prøvenr"] = non_controls["Prøvenummer"].apply(lambda x:
-                                                   extract_sample_number_part(x,
-                                                                              "sample_type",
-                                                                              sample_format_sheet,
-                                                                              negative_control_pattern,
-                                                                              positive_control_pattern)) \
-                          + non_controls["årstal"] \
-                          + non_controls["Prøvenummer"].apply(lambda x:
-                                                     extract_sample_number_part(x,
-                                                                                "sample_number",
-                                                                                sample_format_sheet,
-                                                                                negative_control_pattern,
-                                                                                positive_control_pattern))
-    # sample numbers stay unchanged for controls
-    positive_controls["prøvenr"] = positive_controls["Prøvenummer"]
-    negative_controls["prøvenr"] = negative_controls["Prøvenummer"]
-    all_samples = pd.concat([non_controls,
-                             positive_controls,
-                             negative_controls]).sort_values(by = "Barkode")
-    return all_samples
 
 
 def check_experiment_name_problems(experiment_name: str) -> None:
