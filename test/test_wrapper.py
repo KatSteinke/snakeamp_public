@@ -4,6 +4,7 @@ import unittest
 
 from unittest import mock
 
+import pandas as pd
 import pytest
 
 import run_pipeline as snake_wrapper
@@ -158,6 +159,100 @@ class TestGetExperimentName(unittest.TestCase):
         error_msg = "No column giving the run name found in the runsheet."
         with pytest.raises(KeyError, match = re.escape(error_msg)):
             snake_wrapper.get_run_name(runsheet)
+
+
+class TestProcessRunsheet(unittest.TestCase):
+    def test_catch_no_samples_for_analysis(self):
+        """Fail if no samples have the amplicon type specified in the config."""
+        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test"\
+                   / "test_nanopore_runsheet.xlsx"
+        active_config = {"sample_number_settings": {"sample_number_format":
+                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                              "sample_numbers_in": "letter",
+                                              "sample_numbers_out": "letter",
+                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "number_to_letter": {"70": "P",
+                                                                   "30": "B",
+                                                                   "10": "D",
+                                                                   "50": "T"},
+                                              "date_settings":
+                                                  {"splice_in_date": False,
+                                                   "length_without_date": 8,
+                                                   "splice_after": 2},
+                                              "negative_control": 'NegK[a-zA-Z0-9]*',
+                                              "positive_control": {}},
+                   "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                   "barcode_prefix": "RB",
+                   "amplicon_type": "ITS"}
+        error_msg = "No samples with amplicon type ITS found in runsheet"
+        with pytest.raises(KeyError, match=re.escape(error_msg)):
+            snake_wrapper.process_runsheet(runsheet, active_config)
+
+    def test_filter_all_one_analysis(self):
+        """Filter and check a runsheet in which all samples have the desired amplicon type."""
+        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                   / "test_nanopore_runsheet_16s_only.xlsx"
+        active_config = {"sample_number_settings": {"sample_number_format":
+                                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                                  "sample_numbers_in": "letter",
+                                                                  "sample_numbers_out": "letter",
+                                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                                  "number_to_letter": {"70": "P",
+                                                                                       "30": "B",
+                                                                                       "10": "D",
+                                                                                       "50": "T"},
+                                                                  "date_settings":
+                                                                      {"splice_in_date": False,
+                                                                       "length_without_date": 8,
+                                                                       "splice_after": 2},
+                                                                  "negative_control": 'NegK[a-zA-Z0-9]*',
+                                                                  "positive_control": {}},
+                                       "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
+                                       "barcode_prefix": "NB",
+                                       "amplicon_type": "16S"}
+        expected_runsheet = pd.DataFrame(data={"Prøvenummer": ["F99123456-1",
+                                                               "F99123456-2",
+                                                               "NegK16S"],
+                                               "Barkode": ["NB01", "NB42", "NB02"],
+                                               "Eluat nr.": ["1", "2", "3"],
+                                               "Analyse": ["16S", "16S", "16S"]})
+        test_runsheet = snake_wrapper.process_runsheet(runsheet, active_config)
+        pd.testing.assert_frame_equal(test_runsheet, expected_runsheet)
+
+    def test_filter_multiple_types(self):
+        """Filter and check a runsheet in which only some samples have the desired amplicon type."""
+        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                   / "test_nanopore_runsheet.xlsx"
+        active_config = {"sample_number_settings": {"sample_number_format":
+                                                        '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                    "sample_numbers_in": "letter",
+                                                    "sample_numbers_out": "letter",
+                                                    "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                    "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                    "number_to_letter": {"70": "P",
+                                                                         "30": "B",
+                                                                         "10": "D",
+                                                                         "50": "T"},
+                                                    "date_settings":
+                                                        {"splice_in_date": False,
+                                                         "length_without_date": 8,
+                                                         "splice_after": 2},
+                                                    "negative_control": 'NegK[a-zA-Z0-9]*',
+                                                    "positive_control": {}},
+                         "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
+                         "barcode_prefix": "NB",
+                         "amplicon_type": "16S"}
+        expected_runsheet = pd.DataFrame(data = {"Prøvenummer": ["F99123456-1",
+                                                                 "F99123456-2",
+                                                                 "NegK16S"],
+                                                 "Barkode": ["NB01", "NB42", "NB02"],
+                                                 "Eluat nr.": ["1", "2", "3"],
+                                                 "Analyse": ["16S", "16S", "16S"]})
+        test_runsheet = snake_wrapper.process_runsheet(runsheet, active_config)
+        pd.testing.assert_frame_equal(test_runsheet, expected_runsheet)
+
 
 
 class TestGetNomadCommand(unittest.TestCase):
