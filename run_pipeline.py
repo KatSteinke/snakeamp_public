@@ -98,6 +98,32 @@ def get_run_name(runsheet: pathlib.Path) -> str:
     return run_name
 
 # read runsheet
+def process_runsheet(runsheet_path: pathlib.Path,
+                     active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
+    """Read a runsheet, filter it down to the samples for which the analysis specified in config
+    should be performed and check the format.
+
+    Arguments:
+        runsheet_path:  the path to the runsheet to process
+        active_config:  the config in use
+
+    Returns:
+        The filtered, checked runsheet.
+
+    Raises:
+        KeyError:   if there are no samples for which the analysis should be performed
+    """
+    run_data = pd.read_excel(runsheet_path, usecols = "A:D", skiprows = 3,  # don't check CP for now
+                  dtype = {"Prøvenummer": str, "Eluat nr.": str})
+    run_data = run_data.dropna(subset = "Prøvenummer")
+    # filter down to correct analysis
+    run_data = run_data[run_data["Analyse"] == active_config["amplicon_type"]]
+    if run_data.empty:
+        raise KeyError(f"No samples with amplicon type {active_config['amplicon_type']} "
+                       "found in runsheet")
+    check_runsheet.check_sheet_format(run_data, check_barcodes = True,
+                                      active_config = active_config)
+    return run_data
 
 # check runsheet against LIS
 # complain if a sample isn't in the LIS report and not a recorded control
@@ -249,11 +275,7 @@ if __name__ == "__main__":
         rundir = pathlib.Path(args.rundir).resolve()
 
     # check runsheet
-    runsheet_data = pd.read_excel(runsheet, usecols = "A:C", skiprows = 3,  # don't check CP for now
-                                  dtype = {"Prøvenummer": str})
-    runsheet_data = runsheet_data.dropna(subset="Prøvenummer")
-    check_runsheet.check_sheet_format(runsheet_data, check_barcodes = True,
-                                      active_config = workflow_config)
+    runsheet_data = process_runsheet(runsheet, workflow_config)
     # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?
     if workflow_config["lab_info_system"]["use_lis_features"]:
         lis_report = workflow_config["lab_info_system"]["lis_report"]
