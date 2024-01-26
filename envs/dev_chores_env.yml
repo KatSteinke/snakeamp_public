@@ -9,7 +9,8 @@ dependencies:
   - coverage
   - numpy>=1.22.2
   - openpyxl
-  - pandas
+  - pandas<3.*
+  - pyarrow
   - pyflakes
   - pylint
   - pytest
