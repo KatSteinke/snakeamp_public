@@ -162,7 +162,7 @@ class TestFindRundir(unittest.TestCase):
             helpers.get_fastq_pass_dir(test_path)
 
 
-class TestTranslateSampleNumbers(unittest.TestCase):
+class TestTranslateSampleType(unittest.TestCase):
     number_to_letter = {"40": "H", "70": "P"}
 
     def test_wrong_sample_in(self):
@@ -370,7 +370,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "F99123456-1"
         error_msg = "Sample number F99123456-1 does not match specified input format."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping,
+                                            re.compile("PosK"), re.compile('NegK[a-zA-Z0-9_-]*'))
 
     def test_fail_missing_prefix(self):
         """Complain if the sample number's prefix is not contained in the prefix mapping."""
@@ -382,7 +383,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "F99123456-1"
         error_msg = "Prefix B not found (allowed prefixes are ['70', '30', '10', '50'])."
         with pytest.raises(KeyError, match = re.escape(error_msg)):
-            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping,
+                                            re.compile("PosK"), re.compile('NegK[a-zA-Z0-9_-]*'))
 
     def test_fail_no_match_after_translate(self):
         """Complain if the sample number does not match the desired format after translation."""
@@ -395,7 +397,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         error_msg = ("Translated sample number F99123456-1 (was 1199123456-1)"
                      " does not match desired output format.")
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+            helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping,
+                                            re.compile("PosK"), re.compile('NegK[a-zA-Z0-9_-]*'))
 
     def test_translate_no_change(self):
         """Pass the sample number through without any changes if none are needed."""
@@ -405,7 +408,9 @@ class TestTranslateSampleNumber(unittest.TestCase):
             '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
         prefix_mapping = {"P": "P", "B": "B", "D": "D", "T": "T"}
         sample_number = "F99123456-1"
-        test_number = helpers.translate_sample_number(sample_number, format_in, format_out, prefix_mapping)
+        test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
+                                                      prefix_mapping, re.compile("PosK"),
+                                                      re.compile('NegK[a-zA-Z0-9_-]*'))
         assert sample_number == test_number
 
     def test_translate_prefix_only(self):
@@ -418,7 +423,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "1199123456-1"
         expected_number = "F99123456-1"
         test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
-                                                      prefix_mapping)
+                                                      prefix_mapping, re.compile("PosK"),
+                                                      re.compile('NegK[a-zA-Z0-9_-]*'))
         assert expected_number == test_number
 
     def test_rearrange_only(self):
@@ -431,7 +437,8 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "F99123456-1"
         expected_number = "F99123456"
         test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
-                                                      prefix_mapping)
+                                                      prefix_mapping, re.compile("PosK"),
+                                                      re.compile('NegK[a-zA-Z0-9_-]*'))
         assert expected_number == test_number
 
     def test_translate_and_rearrange(self):
@@ -444,110 +451,29 @@ class TestTranslateSampleNumber(unittest.TestCase):
         sample_number = "1199123456-1"
         expected_number = "F99123456"
         test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
-                                                      prefix_mapping)
+                                                      prefix_mapping, re.compile("PosK"),
+                                                      re.compile('NegK[a-zA-Z0-9_-]*'))
         assert expected_number == test_number
 
-class TestAddYearsInSheet(unittest.TestCase):
-    test_config = {"sample_number_settings": {"sample_number_format":
-                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
-                                              "sample_numbers_in": "number",
-                                              "sample_numbers_out": "letter",
-                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
-                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                              "number_to_letter": {"70": "P",
-                                                                   "30": "B",
-                                                                   "10": "D",
-                                                                   "50": "T"},
-                                              "date_settings":
-                                                  {"splice_in_date": True,
-                                                   "length_without_date": 8,
-                                                   "splice_after": 2},
-                                              "negative_control": '',
-                                              "positive_control": {}},
-                   "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
-                   "barcode_prefix": "RB"
-                   # barcode prefix as letter (for transferring original fastqs by barcode)
-                   }
-
-    def test_success_add_year(self):
-        """Ensure year is added to properly formatted sample numbers."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
-                                          "årstal": ["99", "99"],
-                                          "Barkode": ["RB01", "RB02"]})
-        expected_df = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
-                                           "årstal": ["99", "99"],
-                                           "Barkode": ["RB01", "RB02"],
-                                           "prøvenr": ["1199123456", "1199123456"]})
-        test_df = helpers.add_years_in_sheet(test_input, active_config = self.test_config)
-        pd.testing.assert_frame_equal(expected_df, test_df)
-
-    def test_complain_no_year_col(self):
-        """Ensure an error is raised if there is no column for the sample year."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
-                                          "Barkode": ["RB01", "RB02"]})
-        error_msg = "No year column found. " \
-                    "The pipeline needs a column named 'årstal' to add year to sample number."
-        with pytest.raises(KeyError, match=re.escape(error_msg)):
-            helpers.add_years_in_sheet(test_input, active_config = self.test_config)
-
-    def test_complain_wrong_year_format(self):
-        """Ensure an error is raised if the year is given in the wrong format."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
-                                          "årstal": ["99", "2099"],
-                                          "Barkode": ["RB01", "RB02"]})
-        bad_years = pd.DataFrame(data={"KMA nr": ["11123456"],
-                                       "årstal": ["2099"],
-                                       "Barkode": ["RB02"]})
-        error_msg = "Invalid year values detected. Year must be given as YY only." \
-                    " Affected samples:\n" \
-                    f"{bad_years.to_string()}"
-        with pytest.raises(ValueError, match = re.escape(error_msg)):
-            helpers.add_years_in_sheet(test_input, active_config = self.test_config)
-
-    def test_complain_blank_year_column(self):
-        """Ensure an error is raised if no year is given for a sample."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456"],
-                                          "årstal": ["99", pd.NA],
-                                          "Barkode": ["RB01", "RB02"]})
-        bad_years = pd.DataFrame(data = {"KMA nr": ["11123456"],
-                                         "årstal": [pd.NA],
-                                         "Barkode": ["RB02"]})
-        error_msg = "No year given for one or more samples. Please add a year to these samples." \
-                    " Affected samples:\n" \
-                    f"{bad_years.to_string()}"
-        with pytest.raises(ValueError, match = re.escape(error_msg)):
-            helpers.add_years_in_sheet(test_input, active_config = self.test_config)
-
     def test_handle_controls(self):
-        """Ensure positive and negative controls are processed unaltered."""
-        test_input = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456", "PosK", "NegK"],
-                                          "årstal": ["99", "99", "", ""],
-                                          "Barkode": ["RB01", "RB02", "RB03", "RB04"]})
-        expected_df = pd.DataFrame(data = {"KMA nr": ["11123456", "11123456", "PosK", "NegK"],
-                                           "årstal": ["99", "99", "", ""],
-                                           "Barkode": ["RB01", "RB02", "RB03", "RB04"],
-                                           "prøvenr": ["1199123456", "1199123456", "PosK", "NegK"]})
-        test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
-                                                  "sample_numbers_in": "number",
-                                                  "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "number_to_letter": {"70": "P",
-                                                                       "30": "B",
-                                                                       "10": "D",
-                                                                       "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": True,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
-                                                  "negative_control": 'NegK',
-                                                  "positive_control": {"PosK": "Placeholderia"}},
-                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
-                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
-                       }
-        test_df = helpers.add_years_in_sheet(test_input, active_config = test_config)
-        pd.testing.assert_frame_equal(expected_df, test_df)
+        """Don't translate positive or negative controls"""
+        format_in = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile(
+            '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})')
+        prefix_mapping = {"70": "P", "30": "B", "10": "D", "50": "T"}
+        negative_control = "NegK"
+        test_negative_control = helpers.translate_sample_number(negative_control, format_in,
+                                                                format_out,
+                                                                prefix_mapping, re.compile("PosK"),
+                                                                re.compile('NegK[a-zA-Z0-9_-]*'))
+        assert negative_control == test_negative_control
+        positive_control = "PosK"
+        test_positive_control = helpers.translate_sample_number(positive_control, format_in,
+                                                                format_out, prefix_mapping,
+                                                                re.compile("PosK"),
+                                                                re.compile('NegK[a-zA-Z0-9_-]*'))
+        assert positive_control == test_positive_control
 
 
 class TestCheckExperimentName(unittest.TestCase):
@@ -592,7 +518,7 @@ class TestExtractNanoporeRun(unittest.TestCase):
     def test_get_run_name(self):
         test_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                      / "test_nanopore_runsheet.xlsx"
-        true_run_name = "ONT_RUN0000_Y20990101_XYZ"
+        true_run_name = "NANO_Amplicon_Y20990101_RUN0001_XYZ"
         test_run_name = helpers.extract_nanopore_run_name(test_sheet)
         assert test_run_name == true_run_name
 

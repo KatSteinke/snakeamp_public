@@ -25,6 +25,14 @@ sample_number_pattern = helpers.get_id_pattern(config["sample_number_settings"][
         negative_control = config["sample_number_settings"]["negative_control"],
         positive_control = config["sample_number_settings"]["positive_control"])
 sample_number_pattern = re.compile(f"^{sample_number_pattern.pattern}$")
+input_format = re.compile(config["sample_number_settings"]["format_in_sheet"])
+output_format = re.compile(config["sample_number_settings"]["format_output"])
+prefix_translate = helpers.get_number_letter_combination(config["sample_number_settings"]["number_to_letter"],
+                                                         config["sample_number_settings"]["sample_numbers_in"],
+                                                         config["sample_number_settings"]["sample_numbers_output"])
+(positive_control,
+ negative_control) = helpers.get_control_patterns(config["sample_number_settings"]["negative_control"],
+                                                  config["sample_number_settings"]["positive_control"])
 wildcard_constraints:
     barcode_number = r"\d{2}",
     barcode = config["barcode_format"],
@@ -32,12 +40,15 @@ wildcard_constraints:
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
 
 sheet_data = pd.read_excel(config["runsheet"],usecols = "A:C",skiprows = 3,
-                               dtype = {"KMA nr": str, "Barkode": str})
-sheet_data = sheet_data.dropna(subset=["KMA nr", "Barkode"])
-if config["sample_number_settings"]["date_settings"]["splice_in_date"]:
-    sheet_data = helpers.add_years_in_sheet(sheet_data, active_config=config)
-else:
-    sheet_data["prøvenr"] = sheet_data["KMA nr"]
+                               dtype = {"Prøvenummer": str, "Barkode": str})
+sheet_data = sheet_data.dropna(subset=["Prøvenummer", "Barkode"])
+sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
+                                                       helpers.translate_sample_number(sample_number,
+                                                                                       input_format,
+                                                                                       output_format,
+                                                                                       prefix_translate,
+                                                                                       positive_control,
+                                                                                       negative_control))
 
 BARCODE_PREFIX = config["barcode_prefix"]
 ALL_IDS = list(sheet_data["prøvenr"])

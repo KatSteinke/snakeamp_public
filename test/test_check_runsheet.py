@@ -12,7 +12,7 @@ class TestCheckSinglePrefix(unittest.TestCase):
     test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
     fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
     sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
-                               dtype = {"KMA nr": str})
+                               dtype = {"Prøvenummer": str})
     sheet_data = sheet_data.dropna()
 
     lab_info_data = pd.read_csv(fake_mads, encoding="latin1", dtype={"afsendt": str, "cprnr.": str,
@@ -21,7 +21,7 @@ class TestCheckSinglePrefix(unittest.TestCase):
                                                   '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
                                               "sample_numbers_in": "number",
                                               "sample_numbers_out": "letter",
-                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                               "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                               "number_to_letter": {"70": "P",
                                                                    "30": "B",
@@ -46,9 +46,9 @@ class TestCheckSinglePrefix(unittest.TestCase):
         fail_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test"\
                         / "test_notinmads_runsheet.xlsx"
         fail_data = pd.read_excel(fail_runsheet, usecols="A:C", skiprows=3,
-                                  dtype={"KMA nr": str, "Barkode": str})
+                                  dtype={"Prøvenummer": str, "Barkode": str})
         fail_data = fail_data.dropna()
-        error_msg = "Samples ['11410000'] were not found in MADS report. " \
+        error_msg = "Samples ['1121410000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_by_prefix(fail_data, self.lab_info_data, "30", "B",
@@ -70,7 +70,7 @@ class TestCheckSinglePrefix(unittest.TestCase):
     def test_success(self):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
-                                   dtype = {"KMA nr": str})
+                                   dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         success_msg = "DEBUG:check_runsheet:All samples with prefix 30 found in LIS."
         with self.assertLogs("check_runsheet", level="DEBUG") as logged:
@@ -84,7 +84,7 @@ class TestCheckSinglePrefix(unittest.TestCase):
                                                       '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
@@ -101,7 +101,7 @@ class TestCheckSinglePrefix(unittest.TestCase):
                        }
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
-                                   dtype = {"KMA nr": str})
+                                   dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         success_msg = "DEBUG:check_runsheet:All samples with prefix 30 found in LIS."
         with self.assertLogs("check_runsheet", level = "DEBUG") as logged:
@@ -123,7 +123,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                    "10": "D",
                                                                    "50": "T"},
                                               "date_settings":
-                                                  {"splice_in_date": True,
+                                                  {"splice_in_date": False,
                                                    "length_without_date": 8,
                                                    "splice_after": 2},
                                               "negative_control": '',
@@ -136,7 +136,7 @@ class TestCheckRunsheet(unittest.TestCase):
         fail_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_notinmads_runsheet.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
         sheet_data = pd.read_excel(fail_runsheet, usecols="A:C", skiprows=3,
-                                   dtype = {"KMA nr": str, "årstal": str})
+                                   dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         error_msg = "Samples ['1121410000', '1121400000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
@@ -148,48 +148,18 @@ class TestCheckRunsheet(unittest.TestCase):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"KMA nr": str, "årstal": str})
+                                   dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         with self.assertLogs("check_runsheet") as logged:
             check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
             assert success_msg in logged.output
 
-    def test_success_no_splice_year(self):
-        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet_year.xlsx"
-        fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
-        sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"KMA nr": str, "årstal": str})
-        sheet_data = sheet_data.dropna()
-        success_msg = "INFO:check_runsheet:The runsheet is correct."
-        test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
-                                                  "sample_numbers_in": "number",
-                                                  "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "number_to_letter": {"70": "P",
-                                                                       "30": "B",
-                                                                       "10": "D",
-                                                                       "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
-                                                  "negative_control": '',
-                                                  "positive_control": {}},
-                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
-                       "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
-                       }
-        with self.assertLogs("check_runsheet") as logged:
-            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
-            assert success_msg in logged.output
-
     def test_success_controls(self):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"KMA nr": str, "årstal": str})
+                                   dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
@@ -203,7 +173,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "50": "T"},
                                                   "date_settings":
-                                                      {"splice_in_date": True,
+                                                      {"splice_in_date": False,
                                                        "length_without_date": 8,
                                                        "splice_after": 2},
                                                   "negative_control": 'NegK',
@@ -216,10 +186,10 @@ class TestCheckRunsheet(unittest.TestCase):
             assert success_msg in logged.output
 
     def test_success_rearrange(self):
-        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet_year.xlsx"
+        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet_rearrange.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data_move_year.csv"
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"KMA nr": str, "årstal": str})
+                                   dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
@@ -251,7 +221,7 @@ class TestCheckRunsheet(unittest.TestCase):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet_isolate.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"KMA nr": str, "årstal": str})
+                                   dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         dropped_component_msg = ("INFO:check_runsheet:Comparing only"
                                  " ['sample_type', 'sample_year', 'sample_number'] to LIS report. "
@@ -310,7 +280,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     " (six if leaving out year). " \
                     "Please correct sample IDs in runsheet."
         sheet_data = pd.read_excel(id_fail_sheet, usecols="A:B", skiprows=3,
-                                   dtype={"KMA nr": str})
+                                   dtype={"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
@@ -319,7 +289,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
         id_fail_sheet = pathlib.Path(__file__).parent /"data"/ "utilities_test" \
                         / "runsheet-letters.xlsx"
         sheet_data = pd.read_excel(id_fail_sheet, usecols="A:B", skiprows=3,
-                                   dtype={"KMA nr": str})
+                                   dtype={"Prøvenummer": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nSample IDs ['1199123456'] are not valid." \
                     " Sample IDs must start with P or B or D or T followed by eight numbers" \
@@ -349,7 +319,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
         fail_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                         / "runsheet-id-fail-negk.xlsx"
         sheet_data = pd.read_excel(fail_id_sheet, usecols = "A:B", skiprows = 3,
-                                   dtype = {"KMA nr": str})
+                                   dtype = {"Prøvenummer": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nSample IDs ['123'] are not valid." \
                     " Sample IDs must start with 70 or 30 or 10 or 50 followed by eight numbers" \
@@ -381,7 +351,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
     def test_fail_no_ids(self):
         no_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-id.xlsx"
         sheet_data = pd.read_excel(no_id_sheet, usecols = "A:B", skiprows = 3,
-                                   dtype = {"KMA nr": str})
+                                   dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "No sample IDs found."
@@ -391,7 +361,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
     def test_fail_no_positive_control(self):
         no_positive_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-posk.xlsx"
         sheet_data = pd.read_excel(no_positive_sheet, usecols="A:B", skiprows=3,
-                                   dtype={"KMA nr": str})
+                                   dtype={"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "No positive controls given in runsheet."
@@ -420,7 +390,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
     def test_fail_no_negative_control(self):
         no_negative_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-negk.xlsx"
         sheet_data = pd.read_excel(no_negative_sheet, usecols="A:B", skiprows=3,
-                                   dtype={"KMA nr": str})
+                                   dtype={"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         error_msg = "No negative controls given in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
@@ -448,7 +418,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
     def test_warn_duplicated_ids(self):
         duplicated_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-duplication.xlsx"
         sheet_data = pd.read_excel(duplicated_id_sheet, usecols="A:B", skiprows=3,
-                                   dtype={"KMA nr": str})
+                                   dtype={"Prøvenummer": str})
         with self.assertLogs("check_runsheet") as logged:
             check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
             duplicated_warning = "WARNING:check_runsheet:Sample number(s) ['1123456789'] are duplicated." \
@@ -459,7 +429,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
     def test_fail_barcodes(self):
         barcode_fail_sheet = pathlib.Path(__file__).parent /"data" /"utilities_test" / "runsheet-barcode-fail.xlsx"
         sheet_data = pd.read_excel(barcode_fail_sheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"KMA nr": str})
+                                   dtype = {"Prøvenummer": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nBarcodes ['RB3'] are not valid barcodes. " \
                     "Barcodes must consist of RB + a number between 01 and 96."
@@ -470,7 +440,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
     def test_fail_no_barcodes(self):
         no_barcode_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-barcode.xlsx"
         sheet_data = pd.read_excel(no_barcode_sheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"KMA nr": str})
+                                   dtype = {"Prøvenummer": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nNo barcodes found."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
@@ -480,7 +450,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
     def test_fail_more_barcodes(self):
         more_barcodes_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-more-barcodes.xlsx"
         sheet_data = pd.read_excel(more_barcodes_sheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"KMA nr": str})
+                                   dtype = {"Prøvenummer": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nAmount of sample IDs and barcodes don't match. " \
                     "There are 2 sample IDs but 3 barcodes."
@@ -492,7 +462,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
         duplicated_barcodes_sheet = pathlib.Path(
             __file__).parent / "data" / "utilities_test" / "runsheet-barcode-duplication.xlsx"
         sheet_data = pd.read_excel(duplicated_barcodes_sheet, usecols = "A:C", skiprows = 3,
-                                   dtype = {"KMA nr": str})
+                                   dtype = {"Prøvenummer": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nBarcode(s) ['RB02'] are duplicated."
         with pytest.raises(ValueError, match = re.escape(error_msg)):

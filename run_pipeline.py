@@ -27,7 +27,7 @@ default_config_file = pipeline_config.default_config_file
 workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 # start logging
-logger = logging.getLogger("16S_nanopore")
+logger = logging.getLogger("amplicon_nanopore")
 logger.setLevel(logging.INFO)
 console_log = logging.StreamHandler()
 console_log.setLevel(logging.INFO)
@@ -62,14 +62,14 @@ def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.
         else:
             raise FileNotFoundError(f"{str(run_dir)} or {str(minion_basedir / run_dir)} "
                                     f"does not exist \n"
-                                    f"Aborting ARTIC pipeline...")
+                                    f"Aborting pipeline...")
     # Check if fastq_pass folder exist
     check_fastq_pass = list(run_dir.glob("rawdata/*/fastq_pass"))
     if not check_fastq_pass:
         raise FileNotFoundError(f"fastq_pass folder(s) not found in expected location:\n"
                                 f"{str(run_dir)}/rawdata/*/fastq_pass\n"
                                 f"Ensure correct directory and/or directory structure is used.\n"
-                                f"Aborting ARTIC pipeline...")
+                                f"Aborting pipeline...")
 
     logger.info(f"Data is retrieved from following folders: \n "
                 f"{str([str(fastq_dir) for fastq_dir in check_fastq_pass])}")
@@ -98,6 +98,32 @@ def get_run_name(runsheet: pathlib.Path) -> str:
     return run_name
 
 # read runsheet
+def process_runsheet(runsheet_path: pathlib.Path,
+                     active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
+    """Read a runsheet, filter it down to the samples for which the analysis specified in config
+    should be performed and check the format.
+
+    Arguments:
+        runsheet_path:  the path to the runsheet to process
+        active_config:  the config in use
+
+    Returns:
+        The filtered, checked runsheet.
+
+    Raises:
+        KeyError:   if there are no samples for which the analysis should be performed
+    """
+    run_data = pd.read_excel(runsheet_path, usecols = "A:D", skiprows = 3,  # don't check CP for now
+                  dtype = {"Prøvenummer": str, "Eluat nr.": str})
+    run_data = run_data.dropna(subset = "Prøvenummer")
+    # filter down to correct analysis
+    run_data = run_data[run_data["Analyse"] == active_config["amplicon_type"]]
+    if run_data.empty:
+        raise KeyError(f"No samples with amplicon type {active_config['amplicon_type']} "
+                       "found in runsheet")
+    check_runsheet.check_sheet_format(run_data, check_barcodes = True,
+                                      active_config = active_config)
+    return run_data
 
 # check runsheet against LIS
 # complain if a sample isn't in the LIS report and not a recorded control
@@ -197,7 +223,7 @@ def get_pipeline_command(indir: pathlib.Path, outdir: pathlib.Path, runsheet: pa
 
 
 if __name__ == "__main__":
-    arg_parser = ArgumentParser(description = "Run the Nanopore 16S analysis pipeline")
+    arg_parser = ArgumentParser(description = "Run the Nanopore amplicon analysis pipeline")
     arg_parser.add_argument("--rundir", help="Full path or name of sequencing folder")
     arg_parser.add_argument("--runsheet", help="Path to runsheet")
     arg_parser.add_argument("--outdir",
@@ -216,12 +242,6 @@ if __name__ == "__main__":
     manual_mode = False
     if len(sys.argv) == 1:
         manual_mode = True
-        # lots of typing, so  allow tab completion of paths
-        readline.set_completer_delims('\t\n=')
-        readline.parse_and_bind("tab: complete")
-        # ...and greet the user nicely
-        print("### Nanopore 16S analysis")
-        print("# Setup analysis -------------------------------")
     # otherwise set up terminal mode
     else:
         # load config if present - we need to do this early since it contains mode information
@@ -229,16 +249,25 @@ if __name__ == "__main__":
             default_config_file = pathlib.Path(args.workflow_config_file).resolve()
             with open(default_config_file, "r", encoding = "utf-8") as config_file:
                 workflow_config = yaml.safe_load(config_file)
+            # if this is the *only* argument we also change over into manual mode
+            # -> three arguments: script name, flag, path
+            if len(sys.argv) == 3:
+                manual_mode = True
     # load debug settings from config (either the one we loaded or the default)
     debug_run = workflow_config["debug"]
     if manual_mode:
+        # lots of typing, so  allow tab completion of paths
+        readline.set_completer_delims('\t\n=')
+        readline.parse_and_bind("tab: complete")
+        # ...and greet the user nicely
+        print(f"### Nanopore {workflow_config['amplicon_type']} analysis")
+        print("# Setup analysis -------------------------------")
         rundir = pathlib.Path(input("Type full path or name of Nanopore "
                                     "sequencing folder and press enter: ").strip().strip("'"))
 
         runsheet = pathlib.Path(input("Output directory will be based on experiment name."
                                       "\n"
-                                      "Enter path to runsheet: ").strip().strip(
-            "'")).resolve()
+                                      "Enter path to runsheet: ").strip().strip("'")).resolve()
     else:
         # if you're entering this from the commandline you should specify these
         if not args.runsheet:
@@ -249,11 +278,7 @@ if __name__ == "__main__":
         rundir = pathlib.Path(args.rundir).resolve()
 
     # check runsheet
-    runsheet_data = pd.read_excel(runsheet, usecols = "A:C", skiprows = 3,  # don't check CP for now
-                                  dtype = {"KMA nr": str})
-    runsheet_data = runsheet_data.dropna(subset="KMA nr")
-    check_runsheet.check_sheet_format(runsheet_data, check_barcodes = True,
-                                      active_config = workflow_config)
+    runsheet_data = process_runsheet(runsheet, workflow_config)
     # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?
     if workflow_config["lab_info_system"]["use_lis_features"]:
         lis_report = workflow_config["lab_info_system"]["lis_report"]
