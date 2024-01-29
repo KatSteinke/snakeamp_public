@@ -27,7 +27,7 @@ default_config_file = pipeline_config.default_config_file
 workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 # start logging
-logger = logging.getLogger("16S_nanopore")
+logger = logging.getLogger("amplicon_nanopore")
 logger.setLevel(logging.INFO)
 console_log = logging.StreamHandler()
 console_log.setLevel(logging.INFO)
@@ -223,7 +223,7 @@ def get_pipeline_command(indir: pathlib.Path, outdir: pathlib.Path, runsheet: pa
 
 
 if __name__ == "__main__":
-    arg_parser = ArgumentParser(description = "Run the Nanopore 16S analysis pipeline")
+    arg_parser = ArgumentParser(description = "Run the Nanopore amplicon analysis pipeline")
     arg_parser.add_argument("--rundir", help="Full path or name of sequencing folder")
     arg_parser.add_argument("--runsheet", help="Path to runsheet")
     arg_parser.add_argument("--outdir",
@@ -242,12 +242,6 @@ if __name__ == "__main__":
     manual_mode = False
     if len(sys.argv) == 1:
         manual_mode = True
-        # lots of typing, so  allow tab completion of paths
-        readline.set_completer_delims('\t\n=')
-        readline.parse_and_bind("tab: complete")
-        # ...and greet the user nicely
-        print("### Nanopore 16S analysis")
-        print("# Setup analysis -------------------------------")
     # otherwise set up terminal mode
     else:
         # load config if present - we need to do this early since it contains mode information
@@ -255,16 +249,25 @@ if __name__ == "__main__":
             default_config_file = pathlib.Path(args.workflow_config_file).resolve()
             with open(default_config_file, "r", encoding = "utf-8") as config_file:
                 workflow_config = yaml.safe_load(config_file)
+            # if this is the *only* argument we also change over into manual mode
+            # -> three arguments: script name, flag, path
+            if len(sys.argv) == 3:
+                manual_mode = True
     # load debug settings from config (either the one we loaded or the default)
     debug_run = workflow_config["debug"]
     if manual_mode:
+        # lots of typing, so  allow tab completion of paths
+        readline.set_completer_delims('\t\n=')
+        readline.parse_and_bind("tab: complete")
+        # ...and greet the user nicely
+        print(f"### Nanopore {workflow_config['amplicon_type']} analysis")
+        print("# Setup analysis -------------------------------")
         rundir = pathlib.Path(input("Type full path or name of Nanopore "
                                     "sequencing folder and press enter: ").strip().strip("'"))
 
         runsheet = pathlib.Path(input("Output directory will be based on experiment name."
                                       "\n"
-                                      "Enter path to runsheet: ").strip().strip(
-            "'")).resolve()
+                                      "Enter path to runsheet: ").strip().strip("'")).resolve()
     else:
         # if you're entering this from the commandline you should specify these
         if not args.runsheet:
