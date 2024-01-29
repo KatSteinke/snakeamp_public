@@ -39,9 +39,10 @@ wildcard_constraints:
     #sample_number = sample_number_pattern
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
 
-sheet_data = pd.read_excel(config["runsheet"],usecols = "A:C",skiprows = 3,
-                               dtype = {"Prøvenummer": str, "Barkode": str})
+sheet_data = pd.read_excel(config["runsheet"],usecols = "A:D",skiprows = 3,
+                           dtype = {"Prøvenummer": str, "Eluat nr.": str})
 sheet_data = sheet_data.dropna(subset=["Prøvenummer", "Barkode"])
+sheet_data = sheet_data[sheet_data["Analyse"] == config["amplicon_type"]]
 sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
                                                        helpers.translate_sample_number(sample_number,
                                                                                        input_format,
