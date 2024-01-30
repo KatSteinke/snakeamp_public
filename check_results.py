@@ -88,12 +88,11 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         # for each sheet:
         for sheet in tabs_found:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
-                                       header = [0, 1, 2, 3, 4, 5, 6])
+                                       header = [0, 1, 2, 3, 4, 5, 6, 7])
             # if it's the overview sheet it'll have a PhHV column, the others don't need one
             # we're not going to compare everything in the PhHV column
             # so don't count this when generating expected data
-            amount_compared_cols = len(sheet_data.columns) - 1 if sheet == 'overview' \
-                                   else len(sheet_data.columns)
+            amount_compared_cols = len(sheet_data.columns)
             cols_per_sample = int(amount_compared_cols / num_samples)
             # dynamically generate expected headers since some of them might be blank
             expected_headers = pd.DataFrame(data = {"run":
@@ -138,14 +137,6 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                       "modtagedato",
                                                                       "prøvemateriale",
                                                                       "anatomi"]]
-            if sheet == "overview":
-                # PhHV gets read as the "barcode" value in the last column of the overview
-                control_header = sheet_data.columns.values[-1][1]
-                if control_header != "PhHV":
-                    results_okay = False
-                    logger.warning("Missing PhHV column")
-                # now we've checked it we can remove the row
-                header_cols = header_cols.iloc[:-1]
             header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
             header_cols = header_cols.set_index("prøvenr")
             header_cols["modtagedato"] = pd.to_datetime(header_cols["modtagedato"]).apply(lambda x:
