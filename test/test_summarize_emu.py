@@ -41,7 +41,6 @@ class TestGetLISData(unittest.TestCase):
         with pytest.raises(KeyError, match=re.escape(error_msg)):
             summarize_emu.get_lis_information(sample_number, self.lis_data, self.workflow_config)
 
-
     def test_get_data_success(self):
         """Correctly retrieve and convert data from LIS report."""
         expected_result = pd.DataFrame(data={"prøvenr": ["F99123456"],
@@ -65,7 +64,6 @@ class TestGetLISData(unittest.TestCase):
                                encoding = "latin1", dtype = {"modtaget": str})
         test_result = summarize_emu.get_lis_information(sample_number, lis_data,
                                                         self.workflow_config)
-        print(test_result)
         pd.testing.assert_frame_equal(expected_result, test_result)
 
     def test_handle_control(self):
@@ -116,6 +114,7 @@ class TestGetNameComponents(unittest.TestCase):
         assert expected_name == test_components.sample_name
         assert expected_barcode == test_components.barcode
 
+
 class TestExtractCounts(unittest.TestCase):
     workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
@@ -136,11 +135,16 @@ class TestExtractCounts(unittest.TestCase):
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header,
                                                               name_header,
+                                                              phhv_header,
                                                               expected_results.columns],
-                                                             names=["run", "barcode", "prøvenummer",
+                                                             names=["run", 
+                                                                    "barcode",
+                                                                    "prøvenummer",
+                                                                    "PhHV",
                                                                     None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
@@ -158,11 +162,16 @@ class TestExtractCounts(unittest.TestCase):
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header,
                                                               name_header,
+                                                              phhv_header,
                                                               expected_results.columns],
-                                                             names=["run", "barcode", "prøvenummer",
+                                                             names=["run", 
+                                                                    "barcode",
+                                                                    "prøvenummer",
+                                                                    "PhHV",
                                                                     None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
@@ -187,10 +196,15 @@ class TestExtractCounts(unittest.TestCase):
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456-0"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header, name_header,
+                                                              phhv_header,
                                                               expected_results.columns],
-                                                             names=["run", "barcode","prøvenummer",
+                                                             names=["run",
+                                                                    "barcode",
+                                                                    "prøvenummer",
+                                                                    "PhHV",
                                                                     None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
@@ -233,11 +247,14 @@ class TestExtractCounts(unittest.TestCase):
         date_header = ["2021-01-02"] * len(expected_results.columns)
         material_header = ["Podning"] * len(expected_results.columns)
         anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
-                                                              barcode_header, name_header,
+                                                              barcode_header,
+                                                              name_header,
                                                               date_header,
                                                               material_header,
                                                               anatomy_header,
+                                                              phhv_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
@@ -245,6 +262,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "modtagedato",
                                                                       "prøvemateriale",
                                                                       "anatomi",
+                                                                      "PhHV",
                                                                       None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
@@ -288,11 +306,13 @@ class TestExtractCounts(unittest.TestCase):
         date_header = ["2021-01-02"] * len(expected_results.columns)
         material_header = ["Podning"] * len(expected_results.columns)
         anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header, name_header,
                                                               date_header,
                                                               material_header,
                                                               anatomy_header,
+                                                              phhv_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
@@ -300,6 +320,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "modtagedato",
                                                                       "prøvemateriale",
                                                                       "anatomi",
+                                                                      "PhHV",
                                                                       None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
@@ -341,15 +362,16 @@ class TestExtractCounts(unittest.TestCase):
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["NegK"] * len(expected_results.columns)
         barcode_header = ["RB02"] * len(expected_results.columns)
-
         date_header = [""] * len(expected_results.columns)
         material_header = [""] * len(expected_results.columns)
         anatomy_header = [""] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header, name_header,
                                                               date_header,
                                                               material_header,
                                                               anatomy_header,
+                                                              phhv_header,
                                                               expected_results.columns],
                                                              names=["run",
                                                                     "barcode",
@@ -357,6 +379,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                     "modtagedato",
                                                                     "prøvemateriale",
                                                                     "anatomi",
+                                                                    "PhHV",
                                                                     None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
@@ -383,11 +406,17 @@ class TestExtractCounts(unittest.TestCase):
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["NegK"] * len(expected_results.columns)
         barcode_header = ["RB02"] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
-                                                              barcode_header, name_header,
+                                                              barcode_header, 
+                                                              name_header,
+                                                              phhv_header,
                                                               expected_results.columns],
                                                              names = ["run",
-                                                                      "barcode","prøvenummer", None]
+                                                                      "barcode",
+                                                                      "prøvenummer",
+                                                                      "PhHV",
+                                                                      None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
@@ -414,11 +443,16 @@ class TestExtractCounts(unittest.TestCase):
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["PosK"] * len(expected_results.columns)
         barcode_header = ["RB03"] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header, name_header,
+                                                              phhv_header,
                                                               expected_results.columns],
                                                              names=["run",
-                                                                    "barcode", "prøvenummer", None])
+                                                                    "barcode",
+                                                                    "prøvenummer",
+                                                                    "PhHV",
+                                                                    None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -469,8 +503,11 @@ class TestMergeEmu(unittest.TestCase):
 
         name_1_header = ["barcode01"] * len(barcode_1.columns)
         barcode_1_header = ["RB01"] * len(barcode_1.columns)
+        phhv_header_1 = [""] * len(barcode_1.columns)
 
-        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header, name_1_header,
+        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header,
+                                                       name_1_header,
+                                                       phhv_header_1,
                                                        barcode_1.columns])
         barcode_2 = pd.DataFrame(data = {"abundance_from_all [%]": [80.00, 20.00, 0.00],
                                          "estimated counts": [16, 4, 0],
@@ -482,8 +519,12 @@ class TestMergeEmu(unittest.TestCase):
 
         name_2_header = ["barcode02"] * len(barcode_2.columns)
         barcode_2_header = ["RB02"] * len(barcode_2.columns)
+        phhv_header_2 = [""] * len(barcode_2.columns)
 
-        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
+
+        barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header,
+                                                       name_2_header,
+                                                       phhv_header_2,
                                                        barcode_2.columns])
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 80.00, 16, ""],
@@ -503,6 +544,7 @@ class TestMergeEmu(unittest.TestCase):
                                                        "barcode02",
                                                        "barcode02",
                                                        "barcode02"],
+                                                      ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
@@ -526,7 +568,9 @@ class TestMergeEmu(unittest.TestCase):
 
         name_1_header = ["barcode01"] * len(barcode_1.columns)
         barcode_1_header = ["RB01"] * len(barcode_1.columns)
-        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header, name_1_header,
+        phhv_header_1 = [""] * len(barcode_1.columns)
+        barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header, name_1_header, 
+                                                       phhv_header_1,
                                                        barcode_1.columns])
         barcode_2 = pd.DataFrame(data = {"abundance_from_all [%]": [80.00, 20.00, 0.00],
                                          "estimated counts": [16, 4, 0],
@@ -538,7 +582,9 @@ class TestMergeEmu(unittest.TestCase):
 
         name_2_header = ["barcode02"] * len(barcode_2.columns)
         barcode_2_header = ["RB02"] * len(barcode_2.columns)
+        phhv_header_2 = [""] * len(barcode_2.columns)
         barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
+                                                       phhv_header_2,
                                                        barcode_2.columns])
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 80.00, 16, ""],
@@ -558,6 +604,7 @@ class TestMergeEmu(unittest.TestCase):
                                                        "barcode02",
                                                        "barcode02",
                                                        "barcode02"],
+                                                      ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
@@ -581,8 +628,9 @@ class TestMergeEmu(unittest.TestCase):
 
         name_1_header = ["barcode01"] * len(barcode_1.columns)
         barcode_1_header = ["RB01"] * len(barcode_1.columns)
-
+        phhv_header_1 = [""] * len(barcode_1.columns)
         barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header, name_1_header,
+                                                       phhv_header_1,
                                                        barcode_1.columns])
         barcode_2 = pd.DataFrame(data = {"abundance_from_all [%]": [80.00, 20.00, 0.00],
                                          "estimated counts": [16, 4, 0],
@@ -594,7 +642,9 @@ class TestMergeEmu(unittest.TestCase):
 
         name_2_header = ["barcode02"] * len(barcode_2.columns)
         barcode_2_header = ["RB02"] * len(barcode_2.columns)
+        phhv_header_2 = [""] * len(barcode_2.columns)
         barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
+                                                       phhv_header_2,
                                                        barcode_2.columns])
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", 80.00, 16, ""],
@@ -616,6 +666,7 @@ class TestMergeEmu(unittest.TestCase):
                                                        "barcode02",
                                                        "barcode02",
                                                        "barcode02"],
+                                                      ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
@@ -639,8 +690,9 @@ class TestMergeEmu(unittest.TestCase):
 
         name_1_header = ["barcode01"] * len(barcode_1.columns)
         barcode_1_header = ["RB01"] * len(barcode_1.columns)
-
+        phhv_header_1 = [""] * len(barcode_1.columns)
         barcode_1.columns = pd.MultiIndex.from_arrays([barcode_1_header, name_1_header,
+                                                       phhv_header_1,
                                                        barcode_1.columns])
         barcode_2 = pd.DataFrame(data = {"abundance_from_all [%]": [80.00, 20.00, 0.00],
                                          "estimated counts": [16, 4, 0],
@@ -652,7 +704,9 @@ class TestMergeEmu(unittest.TestCase):
 
         name_2_header = ["barcode02"] * len(barcode_2.columns)
         barcode_2_header = ["RB02"] * len(barcode_2.columns)
+        phhv_header_2 = [""] * len(barcode_2.columns)
         barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header, name_2_header,
+                                                       phhv_header_2,
                                                        barcode_2.columns])
         barcode_3 = pd.DataFrame(data = {"abundance_from_all [%]": [75.00, 20.00, 5.00],
                                               "estimated counts": [15, 4, 1],
@@ -664,7 +718,9 @@ class TestMergeEmu(unittest.TestCase):
 
         name_3_header = ["barcode03"] * len(barcode_3.columns)
         barcode_3_header = ["RB03"] * len(barcode_3.columns)
+        phhv_header_3 = [""] * len(barcode_3.columns)
         barcode_3.columns = pd.MultiIndex.from_arrays([barcode_3_header, name_3_header,
+                                                       phhv_header_3,
                                                        barcode_3.columns])
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, 20.00, 4, ""],
                            [75.00, 15, "", 80.00, 16, "", 75.00, 15, ""],
@@ -692,6 +748,9 @@ class TestMergeEmu(unittest.TestCase):
                                                        "barcode03",
                                                        "barcode03",
                                                        "barcode03"],
+                                                      ["", "", "",
+                                                       "", "", "",
+                                                       "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
@@ -716,16 +775,15 @@ class TestMergeEmuDir(unittest.TestCase):
         """Test if multiple files are merged successfully."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "success_merge_dir"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, ""],
-                           [75.00, 15, "", 80.00, 16, "", ""],
-                           [np.nan, np.nan, np.nan, 20.00, 4, "", ""],
-                           [5.00, 1, "", 0.00, 0, "", ""]]
+        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
+                           [75.00, 15, "", 80.00, 16, ""],
+                           [np.nan, np.nan, np.nan, 20.00, 4, ""],
+                           [5.00, 1, "", 0.00, 0, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
-                                                       "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
@@ -736,23 +794,23 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RB01",
                                                        "RB02",
                                                        "RB02",
-                                                       "RB02",
-                                                       "PhHV"],
+                                                       "RB02"],
                                                       ["barcode01",
                                                        "barcode01",
                                                        "barcode01",
                                                        "barcode02",
                                                        "barcode02",
-                                                       "barcode02",
-                                                       "PhHV"],
+                                                       "barcode02"],
+                                                      ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "godkendt"]],
+                                                       "medtages"]],
                                                      names = ["run",
                                                               "barcode",
-                                                              "prøvenummer", None])
+                                                              "prøvenummer",
+                                                              "PhHV",
+                                                              None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
@@ -767,24 +825,24 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "single_sample"
         expected_results = pd.DataFrame(data = {"abundance_from_all [%]": [20.00, 75.00, 5.00],
                                                 "estimated counts": [4, 15, 1],
-                                                "medtages": ["", "", ""],
-                                                "godkendt": ["", "", ""]},
+                                                "medtages": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"estimated counts": "Int64"})
-        run_header = ["RUN0001"] * (len(expected_results.columns) - 1)
-        name_header = ["barcode01"] * (len(expected_results.columns) - 1)
-        barcode_header = ["RB01"] * (len(expected_results.columns) - 1)
-        run_header.append("RUN0001")
-        name_header.append("PhHV")
-        barcode_header.append("PhHV")
+        run_header = ["RUN0001"] * len(expected_results.columns)
+        name_header = ["barcode01"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header, name_header,
+                                                              phhv_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
-                                                                      "prøvenummer", None])
+                                                                      "prøvenummer",
+                                                                      "PhHV",
+                                                                      None])
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                          active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_merged)
@@ -793,14 +851,13 @@ class TestMergeEmuDir(unittest.TestCase):
         """Ensure that an invalid file is handled properly (log error and return fake empty df)"""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "one_broken"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, ""],
-                           [75.00, 15, "",np.nan, np.nan, np.nan, ""],
-                           [5.00, 1, "", np.nan, np.nan, "", ""]]
+        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
+                           [75.00, 15, "",np.nan, np.nan, np.nan],
+                           [5.00, 1, "", np.nan, np.nan, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
-                                                       "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
@@ -811,22 +868,20 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RB01",
                                                        "RB03",
                                                        "RB03",
-                                                       "RB03",
-                                                       "PhHV"],
+                                                       "RB03"],
                                                       ["barcode01",
                                                        "barcode01",
                                                        "barcode01",
                                                        "barcode03",
                                                        "barcode03",
-                                                       "barcode03",
-                                                       "PhHV"],
+                                                       "barcode03"],
+                                                      ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "godkendt"]],
+                                                       "medtages"]],
                                                      names = ["run", "barcode",
-                                                              "prøvenummer", None])
+                                                              "prøvenummer", "PhHV", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         with self.assertLogs("summarize_emu") as logged:
@@ -845,36 +900,35 @@ class TestMergeEmuDir(unittest.TestCase):
         """Warn when a directory contains data from multiple runs."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "multi_run"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, ""],
-                           [75.00, 15, "", 80.00, 16, "", ""],
-                           [np.nan, np.nan, np.nan, 20.00, 4, "", ""],
-                           [5.00, 1, "", 0.00, 0, "", ""]]
+        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
+                           [75.00, 15, "", 80.00, 16, ""],
+                           [np.nan, np.nan, np.nan, 20.00, 4, ""],
+                           [5.00, 1, "", 0.00, 0, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001", "RUN0001", "RUN0001",
-                                                       "RUN0002", "RUN0002", "RUN0002", ""],
+                                                       "RUN0002", "RUN0002", "RUN0002"],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
                                                        "RB02",
                                                        "RB02",
-                                                       "RB02",
-                                                       "PhHV"],
+                                                       "RB02"],
                                                       ["barcode01",
                                                        "barcode01",
                                                        "barcode01",
                                                        "barcode02",
                                                        "barcode02",
-                                                       "barcode02",
-                                                       "PhHV"],
+                                                       "barcode02"],
+                                                      ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "godkendt"]],
+                                                       "medtages"]],
                                                      names = ["run", "barcode", "prøvenummer",
+                                                              "PhHV",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
@@ -912,14 +966,13 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "one_broken_lis"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, ""],
-                           [75.00, 15, "",np.nan, np.nan, np.nan, ""],
-                           [5.00, 1, "", np.nan, np.nan, "", ""]]
+        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
+                           [75.00, 15, "",np.nan, np.nan, np.nan],
+                           [5.00, 1, "", np.nan, np.nan, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
-                                                       "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
@@ -930,46 +983,42 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RB01",
                                                        "RB02",
                                                        "RB02",
-                                                       "RB02",
-                                                       "PhHV"],
+                                                       "RB02"],
                                                       ["F99123456",
                                                        "F99123456",
                                                        "F99123456",
                                                        "F99654321-0",
                                                        "F99654321-0",
-                                                       "F99654321-0",
-                                                       "PhHV"],
+                                                       "F99654321-0"],
                                                       ["2021-01-02",
                                                        "2021-01-02",
                                                        "2021-01-02",
                                                        "",
                                                        "",
-                                                       "",
-                                                       "PhHV"],
+                                                       ""],
                                                       ["Podning",
                                                        "Podning",
                                                        "Podning",
                                                        "",
                                                        "",
-                                                       "",
-                                                       "PhHV"],
+                                                       ""],
                                                       ["Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "",
                                                        "",
-                                                       "",
-                                                       "PhHV"],
+                                                       ""],
+                                                      ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "godkendt"]],
+                                                       "medtages"]],
                                                      names = ["run", "barcode",
                                                               "prøvenummer",
                                                               "modtagedato",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "PhHV",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
@@ -995,14 +1044,13 @@ class TestMergeEmuDir(unittest.TestCase):
                        "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_different_format"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, "", ""],
-                           [75.00, 15, "",75.00, 15, "", ""],
-                           [5.00, 1, "", 5.00, 1, "", ""]]
+        expected_values = [[20.00, 4, "", 20.00, 4, ""],
+                           [75.00, 15, "",75.00, 15, ""],
+                           [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
-                                                       "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
@@ -1013,22 +1061,20 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RB01",
                                                        "RB02",
                                                        "RB02",
-                                                       "RB02",
-                                                       "PhHV"],
+                                                       "RB02"],
                                                       ["F99123456-0",
                                                        "F99123456-0",
                                                        "F99123456-0",
                                                        "NegK",
                                                        "NegK",
-                                                       "NegK",
-                                                       "PhHV"],
+                                                       "NegK"],
+                                                      ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "godkendt"]],
+                                                       "medtages"]],
                                                      names = ["run", "barcode",
-                                                              "prøvenummer", None])
+                                                              "prøvenummer", "PhHV", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
@@ -1061,14 +1107,13 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_different_format"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, "", ""],
-                           [75.00, 15, "",75.00, 15, "", ""],
-                           [5.00, 1, "", 5.00, 1, "", ""]]
+        expected_values = [[20.00, 4, "", 20.00, 4, ""],
+                           [75.00, 15, "",75.00, 15, ""],
+                           [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
-                                                       "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001",
@@ -1079,45 +1124,41 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RB01",
                                                        "RB02",
                                                        "RB02",
-                                                       "RB02",
-                                                       "PhHV"],
+                                                       "RB02"],
                                                       ["F99123456",
                                                        "F99123456",
                                                        "F99123456",
                                                        "NegK",
                                                        "NegK",
-                                                       "NegK",
-                                                       "PhHV"],
+                                                       "NegK"],
                                                       ["2021-01-02",
                                                        "2021-01-02",
                                                        "2021-01-02",
                                                        "",
                                                        "",
-                                                       "",
-                                                       "PhHV"],
+                                                       ""],
                                                       ["Podning",
                                                        "Podning",
                                                        "Podning",
                                                        "",
                                                        "",
-                                                       "",
-                                                       "PhHV"],
+                                                       ""],
                                                       ["Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "",
                                                        "",
-                                                       "",
-                                                       "PhHV"],
+                                                       ""],
+                                                      ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "godkendt"]],
+                                                       "medtages"]],
                                                      names = ["run", "barcode", "prøvenummer",
                                                               "modtagedato",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "PhHV",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)

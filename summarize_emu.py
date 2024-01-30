@@ -198,6 +198,9 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
         for lis_header in lis_headers:  # TODO: there has to be a prettier solution
             report_headers.append(lis_header)
         header_names.extend(lis_data_cols)
+    # add blank PhHV header row
+    header_names.append("PhHV")
+    report_headers.append([""] * len(emu_read_counts.columns))
     report_headers.append(emu_read_counts.columns)
     header_names += [None]
     emu_read_counts.columns = pd.MultiIndex.from_arrays(report_headers, names = header_names)
@@ -243,17 +246,18 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
         raise FileNotFoundError(f"No Emu reports found in {emu_dir}.")
     all_reports = []
     # set up fallbacks - sample number is easiest to set up only when we have it..
-    fallback_cols = [["abundance_from_all [%]",
+    fallback_cols = [["", "", ""],
+                     ["abundance_from_all [%]",
                       "estimated counts",
                       "medtages"]]
-    fallback_names = [None]
+    fallback_names = ["PhHV", None]
     # ... but we don't want to have to check whether we're using LIS features for every sample
     if active_config["lab_info_system"]["use_lis_features"]:
         fallback_cols = [["", "", ""],
                          ["", "", ""],
                          ["", "", ""]] + fallback_cols
         fallback_names = ["modtagedato", "prøvemateriale", "anatomi"] + fallback_names
-    for emu_report in sorted(emu_reports, key = lambda report: report.name):
+    for emu_report in sorted(emu_reports, key = lambda reportfile: reportfile.name):
         try:
             emu_data = report_species_per_barcode(emu_report, active_config)
         except ValueError as value_err:
@@ -276,28 +280,10 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
         all_reports.append(emu_data)
 
     all_merged = merge_emu(all_reports)
-    # set up an extra column index for PhHV, without run name for now,
-    # and with the last line being "godkendt"
-    phhv_header = [["PhHV"] for x in range(0, all_merged.columns.nlevels - 2)]
-    phhv_header.append(["godkendt"])
     run_names = all_merged.columns.get_level_values("run").unique().tolist()
     if len(run_names) > 1:
         log_msg = f"Data appear to be from multiple runs ({run_names})."
         logger.warning(log_msg)
-        # prepend blank run name for PhHV
-        phhv_header.insert(0, [""])
-    # else prepend proper run name for PhHV
-    else:
-        phhv_header.insert(0, [run_names[0]])
-    # add all_merged's index; blank data
-    phhv_data = pd.DataFrame(columns = pd.MultiIndex.from_arrays(phhv_header,
-                                                                 names = all_merged.columns.names))
-    phhv_data = phhv_data.reindex(index = all_merged.index, fill_value = "")
-    # merge PhHV to all_merged
-    all_merged = pd.merge(all_merged, phhv_data,
-                          how = "outer",
-                          left_index = True,
-                          right_index = True)
     return all_merged
 
 
