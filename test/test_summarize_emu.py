@@ -1178,6 +1178,30 @@ class TestMergeEmuDir(unittest.TestCase):
 
 
 class TestWriteToSheets(unittest.TestCase):
+    test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                  / "test_results_sheet.xlsx")
+    expected_values = [[20, 4, "", np.nan, np.nan, np.nan],
+                       [75, 15, "", 80, 16, ""],
+                       [np.nan, np.nan, np.nan, 20, 4, ""],
+                       [5, 1, "", 0, 0, ""]]
+    expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                      "Placeholderia fakeorum",
+                                      "Placeholderia testfacei",
+                                      "unassigned"], name = "species")
+    expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
+                                                   "barcode01_RB01",
+                                                   "barcode01_RB01",
+                                                   "barcode02_RB02",
+                                                   "barcode02_RB02",
+                                                   "barcode02_RB02"],
+                                                  ["abundance_from_all [%]", "estimated counts",
+                                                   "medtages",
+                                                   "abundance_from_all [%]", "estimated counts",
+                                                   "medtages"]],
+                                                 names = ["prøvenummer", None])
+    expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                   columns = expected_columns)
+    print(expected_merged.columns.names)
     @classmethod
     def tearDownClass(cls) -> None:
         # remove test sheet
@@ -1188,27 +1212,25 @@ class TestWriteToSheets(unittest.TestCase):
         (pathlib.Path(__file__).parent / "data" / "summarize_emu"
          / "test_results_mads_blank.xlsx").unlink()
 
+    def test_check_all_sheets_present(self):
+        """Ensure that all sheets are present."""
+        expected_sheet_names = ["overview", "abundance", "count", "notes"]
+        summarize_emu.write_to_sheets(self.expected_merged, self.test_sheet)
+        with pd.ExcelFile(self.test_sheet) as test_sheet_data:
+            assert test_sheet_data.sheet_names == expected_sheet_names
+
+
+    def test_add_notes_sheet(self):
+        """Check that the notes sheet (with sample numbers as index) is created correctly."""
+        summarize_emu.write_to_sheets(self.expected_merged, self.test_sheet)
+        expected_notes = pd.DataFrame(index = pd.Index(data=["barcode01_RB01", "barcode02_RB02"],
+                                                       name="Prøvenummer"),
+                                      columns = ["notes"])
+        test_notes = pd.read_excel(self.test_sheet, sheet_name = "notes", index_col = 0)
+        pd.testing.assert_frame_equal(expected_notes, test_notes, check_dtype = False)
+
+
     def test_write_success(self):
-        expected_values = [[20, 4, "", np.nan, np.nan, np.nan],
-                           [75, 15, "", 80, 16, ""],
-                           [np.nan, np.nan, np.nan, 20, 4, ""],
-                           [5, 1, "", 0, 0, ""]]
-        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
-                                          "Placeholderia fakeorum",
-                                          "Placeholderia testfacei",
-                                          "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02"],
-                                                      ["abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "abundance_from_all [%]", "estimated counts",
-                                                       "medtages"]])
-        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
-                                       columns = expected_columns)
         expected_abundance_values = [[20.00, np.nan],
                                      [75.00, 80.00],
                                      [np.nan, 20.00],
@@ -1216,8 +1238,10 @@ class TestWriteToSheets(unittest.TestCase):
         expected_abundance_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
                                                               "barcode02_RB02"],
                                                              ["abundance_from_all [%]",
-                                                              "abundance_from_all [%]"]])
-        expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
+                                                              "abundance_from_all [%]"]],
+                                                            names = ["prøvenummer", None])
+        expected_abundance = pd.DataFrame(data = expected_abundance_values,
+                                          index = self.expected_index,
                                           columns = expected_abundance_cols)
         expected_count_values = [[4, np.nan],
                                  [15, 16],
@@ -1226,13 +1250,14 @@ class TestWriteToSheets(unittest.TestCase):
         expected_count_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
                                                           "barcode02_RB02"],
                                                          ["estimated counts",
-                                                          "estimated counts"]])
-        expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
+                                                          "estimated counts"]],
+                                                            names = ["prøvenummer", None])
+        expected_count = pd.DataFrame(data = expected_count_values,
+                                      index = self.expected_index,
                                       columns = expected_count_cols)
-        test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
-         / "test_results_sheet.xlsx")
-        summarize_emu.write_to_sheets(expected_merged, test_sheet)
-        test_merged = pd.read_excel(test_sheet, sheet_name = "overview", index_col = 0,
+
+        summarize_emu.write_to_sheets(self.expected_merged, self.test_sheet)
+        test_merged = pd.read_excel(self.test_sheet, sheet_name = "overview", index_col = 0,
                                     header = [0, 1])
         test_merged.loc[["Placeholderia bielefeldensis",
                          "Placeholderia fakeorum",
@@ -1242,11 +1267,11 @@ class TestWriteToSheets(unittest.TestCase):
                          "Placeholderia testfacei",
                          "unassigned"], pd.IndexSlice[["barcode02_RB02"],
                                                       ["medtages"]]] = ""
-        test_abundance = pd.read_excel(test_sheet, sheet_name = "abundance", index_col = 0,
+        test_abundance = pd.read_excel(self.test_sheet, sheet_name = "abundance", index_col = 0,
                                        header = [0, 1])
-        test_count = pd.read_excel(test_sheet, sheet_name = "count", index_col = 0,
+        test_count = pd.read_excel(self.test_sheet, sheet_name = "count", index_col = 0,
                                    header = [0, 1])
-        pd.testing.assert_frame_equal(test_merged, expected_merged, check_dtype = False)
+        pd.testing.assert_frame_equal(test_merged, self.expected_merged, check_dtype = False)
         pd.testing.assert_frame_equal(test_abundance, expected_abundance, check_dtype = False)
         pd.testing.assert_frame_equal(test_count, expected_count, check_dtype = False)
 
@@ -1275,7 +1300,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages"]])
+                                                       "medtages"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         expected_abundance_values = [[20.00, np.nan],
@@ -1286,7 +1313,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                               "barcode02_RB02"],
                                                              ["podning", "Væv"],
                                                              ["abundance_from_all [%]",
-                                                              "abundance_from_all [%]"]])
+                                                              "abundance_from_all [%]"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
                                           columns = expected_abundance_cols)
         expected_count_values = [[4, np.nan],
@@ -1297,7 +1326,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                           "barcode02_RB02"],
                                                          ["podning", "Væv"],
                                                          ["estimated counts",
-                                                          "estimated counts"]])
+                                                          "estimated counts"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
                                       columns = expected_count_cols)
         test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
@@ -1346,7 +1377,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages"]])
+                                                       "medtages"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         expected_abundance_values = [[20.00, np.nan],
@@ -1357,7 +1390,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                               "barcode02_RB02"],
                                                              ["podning", ""],
                                                              ["abundance_from_all [%]",
-                                                              "abundance_from_all [%]"]])
+                                                              "abundance_from_all [%]"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
                                           columns = expected_abundance_cols)
         expected_count_values = [[4, np.nan],
@@ -1368,7 +1403,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                           "barcode02_RB02"],
                                                          ["podning", ""],
                                                          ["estimated counts",
-                                                          "estimated counts"]])
+                                                          "estimated counts"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
                                       columns = expected_count_cols)
         test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"

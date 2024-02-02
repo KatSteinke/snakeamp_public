@@ -309,6 +309,10 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
         merged_report.loc[:, (*header_col_slice,
                               "estimated counts")].to_excel(outfile_writer,
                                                             sheet_name = "count")
+        notes = pd.DataFrame(index=pd.Index(merged_report.columns.get_level_values("prøvenummer").unique(),
+                                            name="Prøvenummer"),
+                             columns = ["notes"])
+        notes.to_excel(outfile_writer, sheet_name = "notes")
 
 
 if __name__ == "__main__":
