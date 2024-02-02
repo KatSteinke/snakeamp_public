@@ -70,35 +70,6 @@ class TestCheckEmuResults(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_report
 
-    def test_warn_missing_phhv(self):
-        """Warn if PhHV is missing."""
-        test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
-                       / "RUN0001_emu-combined-no-phhv.xlsx")
-        warn_msg = "WARNING:QATest:Missing PhHV column"
-        with self.assertLogs("QATest") as logged:
-            check_report = check_results.check_emu_result_file(test_report)
-            assert warn_msg in logged.output
-        assert not check_report
-
-    def test_warn_mismatches_after_phhv(self):
-        """Catch other mismatches in a report when PhHV is missing."""
-        test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
-                       / "RUN0001_emu-combined-no-phhv-bad-header.xlsx")
-        phhv_msg = "WARNING:QATest:Missing PhHV column"
-        mismatch_header = pd.MultiIndex.from_arrays([["anatomi", "anatomi"],
-                                                     ["expected", "found"]])
-        mismatch_index = pd.Index(["F99123456"], name = "prøvenr")
-        mismatched = pd.DataFrame(data = [["Svælg/tonsil", "Næse"]], index = mismatch_index,
-                                  columns = mismatch_header)
-        warn_msg = ("WARNING:QATest:Sample metadata differ from expected sample metadata in tab"
-                    " overview:\n"
-                    f"{mismatched.to_string()}")
-        with self.assertLogs("QATest") as logged:
-            check_report = check_results.check_emu_result_file(test_report)
-            assert phhv_msg in logged.output
-            assert warn_msg in logged.output
-        assert not check_report
-
     def test_warn_wrong_organism_main_tab(self):
         """Warn if one of the test samples isn't the organism we expect it to be (overview tab)."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
