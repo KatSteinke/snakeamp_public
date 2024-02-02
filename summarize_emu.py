@@ -317,6 +317,9 @@ if __name__ == "__main__":
     arg_parser.add_argument("--outfile",
                             help = "File to write Emu results to (default: emu_summarized.xlsx)",
                             default = "emu_summarized.xlsx")
+    arg_parser.add_argument("--outfile_raw",
+                            help="File to write raw Emu results to (default: emu_summarized.tsv)",
+                            default = "emu_summarized.tsv")
     arg_parser.add_argument("--workflow_config_file",
                             help="Config file for run (overrides default config given in script, "
                                  "can be overridden by commandline options)")
@@ -327,5 +330,7 @@ if __name__ == "__main__":
             workflow_config = yaml.safe_load(config_file)
     input_dir = pathlib.Path(args.indir)
     output_file = pathlib.Path(args.outfile)
+    output_file_raw = pathlib.Path(args.outfile_raw)
     merged_emu = merge_all_in_emu_dir(input_dir, active_config = workflow_config)
     write_to_sheets(merged_emu, output_file)
+    merged_emu.to_csv(output_file_raw, sep="\t")
