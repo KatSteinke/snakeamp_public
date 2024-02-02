@@ -173,7 +173,8 @@ rule combine_emu:
                                         zip,
                                         sample_number=ALL_IDS, barcode=ALL_BARCODES)
     output:
-        counts_combined = f"{EXPERIMENT_NAME}_emu-combined.xlsx"
+        counts_combined = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
+        counts_raw = f"{EXPERIMENT_NAME}_emu-combined.tsv"
     params:
         emu_dir = "emu",
         basedir = workflow.current_basedir,
@@ -184,6 +185,7 @@ rule combine_emu:
         """
         python3 {params.basedir}/summarize_emu.py "{params.emu_dir}" \
          --outfile "{output.counts_combined}" \
+         --outfile_raw "{output.counts_raw}" \
          --workflow_config_file "{params.configfile}" &> "{log}"
         """
 

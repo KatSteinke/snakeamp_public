@@ -23,6 +23,16 @@ class TestCheckFilePresence(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_files
 
+    def test_missing_raw_backup(self):
+        """Alert when the backup file is missing."""
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "emu_dir_no_backup"
+        warn_msg = "WARNING:QATest:Raw TSV backup of Emu report is missing."
+        with self.assertLogs("QATest") as logged:
+            check_files = check_results.check_files_present(test_dir)
+            assert warn_msg in logged.output
+        assert not check_files
+
+
     def test_too_many_emus(self):
         """Alert when there are multiple Emu reports"""
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "multiple_emus"

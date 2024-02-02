@@ -38,6 +38,10 @@ def check_files_present(output_dir: pathlib.Path) -> bool:
         logger.warning("Multiple Emu summaries found, need only one. "
                        "Cannot evaluate Emu results.")
         return False
+    emu_raw = list(output_dir.glob("*_emu-combined.tsv"))
+    if not emu_raw:
+        logger.warning("Raw TSV backup of Emu report is missing.")
+        return False
     return True
 
 
