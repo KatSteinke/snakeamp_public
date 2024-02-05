@@ -223,6 +223,27 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
     return results_okay
 
 
+def check_all_qc(results_dir: pathlib.Path) -> bool:
+    """Run all QC checks on a result directory and report success/failure.
+
+    Arguments:
+        results_dir: Directory containing test run results to evaluate
+
+    Returns:
+        True if all QC checks pass, False otherwise
+    """
+    files_present = check_files_present(results_dir)
+    if not files_present:
+        return False
+    emu_file = list(results_dir.glob("*_emu-combined.xlsx"))[0]
+    check_emu = check_emu_result_file(emu_file)
+    if not check_emu:
+        return False
+    logger.info("All QC checks passed")
+    return True
+
+
+
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description = "Check whether results of a test run match "
                                               "expected results")
@@ -242,16 +263,8 @@ if __name__ == "__main__":
     logfile_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     log_file.setFormatter(logfile_formatter)
     logger.addHandler(log_file)
-
-    # TODO: better way to log pass/fail?
-    qc_passes = []
-    files_present = check_files_present(result_dir)
-    qc_passes.append(files_present)
-    if files_present:
-        emu_file = list(result_dir.glob("*_emu-combined.xlsx"))[0]
-        check_emu = check_emu_result_file(emu_file)
-        qc_passes.append(check_emu)
-    if not all(qc_passes):
+    check_qc = check_all_qc(result_dir)
+    if not check_qc:
         logger.error("One or more QC steps failed. Check log for details.")
         sys.exit(1)
     sys.exit(0)

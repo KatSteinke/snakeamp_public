@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 import check_results
+import version
 
 
 class TestCheckFilePresence(unittest.TestCase):
@@ -144,8 +145,6 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
-            print(warn_msg)
-            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 
@@ -203,8 +202,40 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
-            print(warn_msg)
-            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 
+
+class TestCheckAllQC(unittest.TestCase):
+    def test_warn_missing_files(self):
+        """Warn if there are missing files."""
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "empty_dir"
+        warn_msg = "WARNING:QATest:Emu report is missing. Cannot evaluate Emu results."
+        with self.assertLogs("QATest") as logged:
+            check_files = check_results.check_all_qc(test_dir)
+            assert warn_msg in logged.output
+        assert not check_files
+
+    def test_warn_wrong_results(self):
+        """Warn if any results differ from the expected results."""
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "bad_emu_dir"
+        expected_data = pd.DataFrame(data = {"expected": [20.0],
+                                             "found": [25.00]},
+                                     index = pd.Index(["Salmonella enterica"], name = "organism"))
+        warn_msg = ("WARNING:QATest:Different abundance in positive control for "
+                    "['Salmonella enterica']."
+                    " Expected abundance:\n"
+                    f"{expected_data.to_string()}")
+        with self.assertLogs("QATest") as logged:
+            check_report = check_results.check_all_qc(test_dir)
+            assert warn_msg in logged.output
+        assert not check_report
+
+    def test_success(self):
+        """Report success if all checks pass."""
+        test_dir = pathlib.Path(__file__).parent / "data"/"check_results"/"success_emu_dir"
+        success_msg = "INFO:QATest:All QC checks passed"
+        with self.assertLogs("QATest") as logged:
+            check_files = check_results.check_all_qc(test_dir)
+            assert success_msg in logged.output
+        assert check_files
