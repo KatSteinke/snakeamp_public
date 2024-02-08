@@ -251,11 +251,6 @@ def sort_report_samples(emu_report: pd.DataFrame,
                                    for sample_nr in sample_numbers
                                    if re.search(negative_control, sample_nr)
                                    or re.search(positive_control, sample_nr)}))
-    # get their positions to start with
-    control_columns_pos = [position for sample_nr in control_columns
-                             for (position, colname) in
-                             enumerate(sample_numbers)
-                             if colname == sample_nr]
     # non-controls need to be sorted by barcode
     # find all sample numbers not matching control format - predefined slice since it's a lot of writing
     non_control_slice = ~sample_numbers.str.match(controls)
