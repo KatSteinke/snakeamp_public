@@ -148,16 +148,25 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                                               "%Y-%m-%d")
                                                                                           if pd.notnull(x)
                                                                                           else "")
-            compare_headers = expected_headers.compare(header_cols, result_names = ("expected",
-                                                                                    "found"))
-            if not compare_headers.empty:
+            try:
+                compare_headers = expected_headers.compare(header_cols, result_names = ("expected",
+                                                                                        "found"))
+                if not compare_headers.empty:
+                    results_okay = False
+                    # for a "proper" header in the overview tab we'll have duplicated entries
+                    # but we can't assume that so we only deduplicate now
+                    compare_headers = compare_headers.drop_duplicates()
+                    logger.warning("Sample metadata differ from expected sample metadata in tab"
+                                   f" {sheet}:\n"
+                                   f"{compare_headers.to_string()}")
+            except ValueError:
                 results_okay = False
-                # for a "proper" header in the overview tab we'll have duplicated entries
-                # but we can't assume that so we only deduplicate now
-                compare_headers = compare_headers.drop_duplicates()
-                logger.warning("Sample metadata differ from expected sample metadata in tab"
-                               f" {sheet}:\n"
-                               f"{compare_headers.to_string()}")
+                logger.warning("Sample metadata labels differ from expected sample metadata"
+                               " - could not compare. \n"
+                               f"Expected index: {expected_headers.index}\n"
+                               f"Found index: {header_cols.index}\n"
+                               f"Expected columns: {expected_headers.columns}\n"
+                               f"Found columns: {header_cols.columns}")
             # run extra checks on the overview sheet - TODO: can we avoid checking twice?
             if sheet == "overview":
                 # get the first column for each barcode - this'll be abundance in the overview
