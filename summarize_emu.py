@@ -226,6 +226,63 @@ def merge_emu(emu_reports: List[pd.DataFrame]) -> pd.DataFrame:
     return combined_report
 
 
+def sort_report_samples(emu_report: pd.DataFrame,
+                        active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
+    """Reorder columns in Emu report so that any controls come first and the remaining columns are
+    ordered by barcode.
+
+    Arguments:
+        emu_report:     multiindexed but unsorted aggregated Emu report
+        active_config:  the config file to use
+
+    Returns:
+        The Emu report rearranged so that negative and positive controls come first and the rest is
+        ordered by barcode (as in the runsheet).
+    """
+    # get the names of all controls and non-controls and combine them
+    (negative_control,
+     positive_control) = helpers.get_control_patterns(
+        active_config["sample_number_settings"]["negative_control"],
+        active_config["sample_number_settings"]["positive_control"])
+    controls = re.compile(f"{negative_control.pattern}|{positive_control.pattern}")
+    sample_numbers = emu_report.columns.get_level_values("prøvenummer")
+    # control columns should be sorted alphabetically to ensure same order
+    control_columns = sorted(list({sample_nr
+                                   for sample_nr in sample_numbers
+                                   if re.search(negative_control, sample_nr)
+                                   or re.search(positive_control, sample_nr)}))
+    # get their positions to start with
+    control_columns_pos = [position for sample_nr in control_columns
+                             for (position, colname) in
+                             enumerate(sample_numbers)
+                             if colname == sample_nr]
+    # non-controls need to be sorted by barcode
+    # find all sample numbers not matching control format - predefined slice since it's a lot of writing
+    non_control_slice = ~sample_numbers.str.match(controls)
+    non_control_header = emu_report.loc[:, non_control_slice].columns.to_frame(index=False)
+    # get sample number and barcode as a tuple...
+    non_control_col_and_barcode = pd.Series(zip(non_control_header["prøvenummer"],
+                                           non_control_header["barcode"])).unique()
+    # ...so we can sort by barcode
+    non_control_col_and_barcode = sorted(non_control_col_and_barcode,
+                                         key = lambda col_tuple: col_tuple[1])
+    # ...and then get back to sample numbers
+    non_controls = [col_tuple[0] for col_tuple in non_control_col_and_barcode]
+    reordered_columns = control_columns + non_controls
+    # get the position of these in the "prøvenummer" level
+    reordered_columns_pos = [position for sample_nr in reordered_columns
+                             for (position, colname) in enumerate(sample_numbers)
+                             if colname == sample_nr]
+    # reindex with the columns given by positions
+    emu_report = emu_report.reindex(pd.MultiIndex.from_tuples([emu_report.columns[column_index]
+                                                               for column_index in
+                                                               reordered_columns_pos],
+                                                              names = emu_report.columns.names),
+                                    axis = "columns")
+    return emu_report
+
+
+
 def merge_all_in_emu_dir(emu_dir: pathlib.Path,
                          active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
     """Merge all Emu reports in the supplied directory.
@@ -281,28 +338,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
 
     all_merged = merge_emu(all_reports)
     # sort here:
-    # get the names of all controls and non-controls and combine them
-    (negative_control,
-     positive_control) = helpers.get_control_patterns(
-        active_config["sample_number_settings"]["negative_control"],
-        active_config["sample_number_settings"]["positive_control"])
-    control_columns = sorted(list({sample_nr
-                                   for sample_nr in all_merged.columns.get_level_values("prøvenummer")
-                                   if re.search(negative_control, sample_nr)
-                                   or re.search(positive_control, sample_nr)}))
-    non_controls = sorted(list({sample_nr
-                                for sample_nr in all_merged.columns.get_level_values("prøvenummer")
-                                if not (re.search(negative_control, sample_nr)
-                                        or re.search(positive_control, sample_nr))}))
-    reordered_columns = control_columns + non_controls
-    # get the position of these in the "prøvenummer" level
-    reordered_columns_pos = [position for sample_nr in reordered_columns
-                             for (position, colname) in enumerate(all_merged.columns.get_level_values("prøvenummer"))
-                             if colname == sample_nr]
-    # reorder the columns according to positions
-    all_merged.columns = pd.MultiIndex.from_tuples([all_merged.columns[column_index]
-                                                   for column_index in reordered_columns_pos],
-                                                   names = all_merged.columns.names)
+    all_merged = sort_report_samples(all_merged, active_config=active_config)
     run_names = all_merged.columns.get_level_values("run").unique().tolist()
     if len(run_names) > 1:
         log_msg = f"Data appear to be from multiple runs ({run_names})."
