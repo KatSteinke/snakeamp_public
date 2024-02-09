@@ -81,6 +81,47 @@ class TestCheckEmuResults(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_report
 
+    def test_warn_broken_header(self):
+        """Warn if the format of the header differs from the expected format."""
+        test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
+                       / "RUN0001_bad_cols_emu-combined.xlsx")
+        cols_per_sample = 3
+        expected_index = pd.Index([*["NegK_Sanger"] * cols_per_sample,
+                                   *["PosK"] * cols_per_sample,
+                                   *["F99123457"] * cols_per_sample,
+                                   *["F99123456"] * cols_per_sample,
+                                   *["F99123458"] * cols_per_sample
+                                   ],
+                                  name = "prøvenr")
+        expected_cols = pd.Index(["run",
+                                  "barcode",
+                                  "modtagedato",
+                                  "prøvemateriale",
+                                  "anatomi"])
+        found_index = pd.Index([*["PosK"] * cols_per_sample,
+                                *["NegK_Sanger"] * cols_per_sample,
+                                *["F99123457"] * cols_per_sample,
+                                *["F99123456"] * cols_per_sample,
+                                *["F99123458"] * cols_per_sample
+                                ],
+                               name = "prøvenr")
+        found_cols = pd.Index(["run",
+                               "barcode",
+                               "modtagedato",
+                               "prøvemateriale",
+                               "anatomi"])
+        warn_msg = ("WARNING:QATest:Sample metadata labels differ from expected sample metadata"
+                    " - could not compare. \n"
+                    f"Expected index: {expected_index}\n"
+                    f"Found index: {found_index}\n"
+                    f"Expected columns: {expected_cols}\n"
+                    f"Found columns: {found_cols}")
+        with self.assertLogs("QATest") as logged:
+            check_report = check_results.check_emu_result_file(test_report)
+            print(logged.output)
+            assert warn_msg in logged.output
+        assert not check_report
+
     def test_warn_wrong_organism_main_tab(self):
         """Warn if one of the test samples isn't the organism we expect it to be (overview tab)."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
