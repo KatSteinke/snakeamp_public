@@ -38,6 +38,10 @@ def check_files_present(output_dir: pathlib.Path) -> bool:
         logger.warning("Multiple Emu summaries found, need only one. "
                        "Cannot evaluate Emu results.")
         return False
+    emu_raw = list(output_dir.glob("*_emu-combined.tsv"))
+    if not emu_raw:
+        logger.warning("Raw TSV backup of Emu report is missing.")
+        return False
     return True
 
 
@@ -98,32 +102,36 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
             expected_headers = pd.DataFrame(data = {"run":
                                                     ["NANO_Amplicon_Y20990101_RUN0001_XYZ"]
                                                         * amount_compared_cols,
-                                                    "barcode": [*["RB31"] * cols_per_sample,
+                                                    "barcode": [*["RB62"] * cols_per_sample,
+                                                                *["RB64"] * cols_per_sample,
+                                                                *["RB31"] * cols_per_sample,
                                                                 *["RB51"] * cols_per_sample,
                                                                 *["RB60"] * cols_per_sample,
-                                                                *["RB62"] * cols_per_sample,
-                                                                *["RB64"] * cols_per_sample],
-                                                    "modtagedato": [*["2021-01-02"] * cols_per_sample,
-                                                                    *["2021-01-02"] * cols_per_sample,
-                                                                    *["2021-01-02"] * cols_per_sample,
+                                                                ],
+                                                    "modtagedato": [*[""] * cols_per_sample,
                                                                     *[""] * cols_per_sample,
-                                                                    *[""] * cols_per_sample],
-                                                    "prøvemateriale": [
+                                                                    *["2021-01-02"] * cols_per_sample,
+                                                                    *["2021-01-02"] * cols_per_sample,
+                                                                    *["2021-01-02"] * cols_per_sample
+                                                                    ],
+                                                    "prøvemateriale": [*[""] * cols_per_sample,
+                                                        *[""] * cols_per_sample,
                                                         *["Hjerneventrikelvæske <liquor>"] * cols_per_sample,
                                                         *["Podning"] * cols_per_sample,
                                                         *["Spinalvæske"] *cols_per_sample,
-                                                        *[""] * cols_per_sample,
-                                                        *[""] * cols_per_sample],
-                                                    "anatomi": [*["Shunt (hjerneventrikel)"] * cols_per_sample,
+                                                        ],
+                                                    "anatomi": [*[""] * cols_per_sample,
+                                                                *[""] * cols_per_sample,
+                                                                *["Shunt (hjerneventrikel)"] * cols_per_sample,
                                                                 *["Svælg/tonsil"] * cols_per_sample,
-                                                                *[""] * cols_per_sample,
-                                                                *[""] * cols_per_sample,
-                                                                *[""] * cols_per_sample]
-                                                    }, index = pd.Index([*["F99123457"] * cols_per_sample,
+                                                                *[""] * cols_per_sample
+                                                                ]
+                                                    }, index = pd.Index([*["NegK_Sanger"] * cols_per_sample,
+                                                                    *["PosK"] * cols_per_sample,
+                                                                    *["F99123457"] * cols_per_sample,
                                                                     *["F99123456"] * cols_per_sample,
-                                                                    *["F99123458"] * cols_per_sample,
-                                                                    *["NegK_Sanger"] * cols_per_sample,
-                                                                    *["PosK"] * cols_per_sample],
+                                                                    *["F99123458"] * cols_per_sample
+                                                                    ],
                                                                         name="prøvenr"))
             # are the headers correct? use MultiIndex.to_frame(index=False)
             # strip the "Unnamed" parts out
@@ -144,16 +152,25 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                                               "%Y-%m-%d")
                                                                                           if pd.notnull(x)
                                                                                           else "")
-            compare_headers = expected_headers.compare(header_cols, result_names = ("expected",
-                                                                                    "found"))
-            if not compare_headers.empty:
+            try:
+                compare_headers = expected_headers.compare(header_cols, result_names = ("expected",
+                                                                                        "found"))
+                if not compare_headers.empty:
+                    results_okay = False
+                    # for a "proper" header in the overview tab we'll have duplicated entries
+                    # but we can't assume that so we only deduplicate now
+                    compare_headers = compare_headers.drop_duplicates()
+                    logger.warning("Sample metadata differ from expected sample metadata in tab"
+                                   f" {sheet}:\n"
+                                   f"{compare_headers.to_string()}")
+            except ValueError:
                 results_okay = False
-                # for a "proper" header in the overview tab we'll have duplicated entries
-                # but we can't assume that so we only deduplicate now
-                compare_headers = compare_headers.drop_duplicates()
-                logger.warning("Sample metadata differ from expected sample metadata in tab"
-                               f" {sheet}:\n"
-                               f"{compare_headers.to_string()}")
+                logger.warning("Sample metadata labels differ from expected sample metadata"
+                               " - could not compare. \n"
+                               f"Expected index: {expected_headers.index}\n"
+                               f"Found index: {header_cols.index}\n"
+                               f"Expected columns: {expected_headers.columns}\n"
+                               f"Found columns: {header_cols.columns}")
             # run extra checks on the overview sheet - TODO: can we avoid checking twice?
             if sheet == "overview":
                 # get the first column for each barcode - this'll be abundance in the overview
@@ -219,6 +236,27 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
     return results_okay
 
 
+def check_all_qc(results_dir: pathlib.Path) -> bool:
+    """Run all QC checks on a result directory and report success/failure.
+
+    Arguments:
+        results_dir: Directory containing test run results to evaluate
+
+    Returns:
+        True if all QC checks pass, False otherwise
+    """
+    files_present = check_files_present(results_dir)
+    if not files_present:
+        return False
+    emu_file = list(results_dir.glob("*_emu-combined.xlsx"))[0]
+    check_emu = check_emu_result_file(emu_file)
+    if not check_emu:
+        return False
+    logger.info("All QC checks passed")
+    return True
+
+
+
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description = "Check whether results of a test run match "
                                               "expected results")
@@ -238,16 +276,8 @@ if __name__ == "__main__":
     logfile_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     log_file.setFormatter(logfile_formatter)
     logger.addHandler(log_file)
-
-    # TODO: better way to log pass/fail?
-    qc_passes = []
-    files_present = check_files_present(result_dir)
-    qc_passes.append(files_present)
-    if files_present:
-        emu_file = list(result_dir.glob("*_emu-combined.xlsx"))[0]
-        check_emu = check_emu_result_file(emu_file)
-        qc_passes.append(check_emu)
-    if not all(qc_passes):
+    check_qc = check_all_qc(result_dir)
+    if not check_qc:
         logger.error("One or more QC steps failed. Check log for details.")
         sys.exit(1)
     sys.exit(0)

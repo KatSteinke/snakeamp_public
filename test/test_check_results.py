@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 import check_results
+import version
 
 
 class TestCheckFilePresence(unittest.TestCase):
@@ -22,6 +23,16 @@ class TestCheckFilePresence(unittest.TestCase):
             check_files = check_results.check_files_present(test_dir)
             assert warn_msg in logged.output
         assert not check_files
+
+    def test_missing_raw_backup(self):
+        """Alert when the backup file is missing."""
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "emu_dir_no_backup"
+        warn_msg = "WARNING:QATest:Raw TSV backup of Emu report is missing."
+        with self.assertLogs("QATest") as logged:
+            check_files = check_results.check_files_present(test_dir)
+            assert warn_msg in logged.output
+        assert not check_files
+
 
     def test_too_many_emus(self):
         """Alert when there are multiple Emu reports"""
@@ -67,6 +78,47 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{mismatched.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
+            assert warn_msg in logged.output
+        assert not check_report
+
+    def test_warn_broken_header(self):
+        """Warn if the format of the header differs from the expected format."""
+        test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
+                       / "RUN0001_bad_cols_emu-combined.xlsx")
+        cols_per_sample = 3
+        expected_index = pd.Index([*["NegK_Sanger"] * cols_per_sample,
+                                   *["PosK"] * cols_per_sample,
+                                   *["F99123457"] * cols_per_sample,
+                                   *["F99123456"] * cols_per_sample,
+                                   *["F99123458"] * cols_per_sample
+                                   ],
+                                  name = "prøvenr")
+        expected_cols = pd.Index(["run",
+                                  "barcode",
+                                  "modtagedato",
+                                  "prøvemateriale",
+                                  "anatomi"])
+        found_index = pd.Index([*["PosK"] * cols_per_sample,
+                                *["NegK_Sanger"] * cols_per_sample,
+                                *["F99123457"] * cols_per_sample,
+                                *["F99123456"] * cols_per_sample,
+                                *["F99123458"] * cols_per_sample
+                                ],
+                               name = "prøvenr")
+        found_cols = pd.Index(["run",
+                               "barcode",
+                               "modtagedato",
+                               "prøvemateriale",
+                               "anatomi"])
+        warn_msg = ("WARNING:QATest:Sample metadata labels differ from expected sample metadata"
+                    " - could not compare. \n"
+                    f"Expected index: {expected_index}\n"
+                    f"Found index: {found_index}\n"
+                    f"Expected columns: {expected_cols}\n"
+                    f"Found columns: {found_cols}")
+        with self.assertLogs("QATest") as logged:
+            check_report = check_results.check_emu_result_file(test_report)
+            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 
@@ -134,8 +186,6 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
-            print(warn_msg)
-            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 
@@ -193,8 +243,40 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
-            print(warn_msg)
-            print(logged.output)
             assert warn_msg in logged.output
         assert not check_report
 
+
+class TestCheckAllQC(unittest.TestCase):
+    def test_warn_missing_files(self):
+        """Warn if there are missing files."""
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "empty_dir"
+        warn_msg = "WARNING:QATest:Emu report is missing. Cannot evaluate Emu results."
+        with self.assertLogs("QATest") as logged:
+            check_files = check_results.check_all_qc(test_dir)
+            assert warn_msg in logged.output
+        assert not check_files
+
+    def test_warn_wrong_results(self):
+        """Warn if any results differ from the expected results."""
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "bad_emu_dir"
+        expected_data = pd.DataFrame(data = {"expected": [20.0],
+                                             "found": [25.00]},
+                                     index = pd.Index(["Salmonella enterica"], name = "organism"))
+        warn_msg = ("WARNING:QATest:Different abundance in positive control for "
+                    "['Salmonella enterica']."
+                    " Expected abundance:\n"
+                    f"{expected_data.to_string()}")
+        with self.assertLogs("QATest") as logged:
+            check_report = check_results.check_all_qc(test_dir)
+            assert warn_msg in logged.output
+        assert not check_report
+
+    def test_success(self):
+        """Report success if all checks pass."""
+        test_dir = pathlib.Path(__file__).parent / "data"/"check_results"/"success_emu_dir"
+        success_msg = "INFO:QATest:All QC checks passed"
+        with self.assertLogs("QATest") as logged:
+            check_files = check_results.check_all_qc(test_dir)
+            assert success_msg in logged.output
+        assert check_files

@@ -764,6 +764,276 @@ class TestMergeEmu(unittest.TestCase):
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
 
+class TestSortColumns(unittest.TestCase):
+    species_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                      "Placeholderia fakeorum",
+                                      "Placeholderia testfacei",
+                                      "unassigned"], name = "species")
+    def test_sort_no_controls(self):
+        """Sort a report with no controls."""
+        workflow_config = {"sample_number_settings": {"sample_number_format": r"sample\d{2}",
+                                                      "positive_control": {},
+                                                      "negative_control": ""},
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": False}}
+        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
+                           [75.00, 15, "", 80.00, 16, ""],
+                           [np.nan, np.nan, np.nan, 20.00, 4, ""],
+                           [5.00, 1, "", 0.00, 0, ""]]
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["sample02",
+                                                       "sample02",
+                                                       "sample02",
+                                                       "sample01",
+                                                       "sample01",
+                                                       "sample01"],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run",
+                                                              "barcode",
+                                                              "prøvenummer",
+                                                              "PhHV",
+                                                              None])
+        expected_sorted = pd.DataFrame(data = expected_values, index = self.species_index,
+                                       columns = expected_columns)
+        unsorted_values = [[np.nan, np.nan, np.nan, 20.00, 4, ""],
+                           [80.00, 16, "", 75.00, 15, ""],
+                           [20.00, 4, "", np.nan, np.nan, np.nan],
+                           [0.00, 0, "", 5.00, 1, ""]]
+        unsorted_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB01"],
+                                                      ["sample01",
+                                                       "sample01",
+                                                       "sample01",
+                                                       "sample02",
+                                                       "sample02",
+                                                       "sample02"],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run",
+                                                              "barcode",
+                                                              "prøvenummer",
+                                                              "PhHV",
+                                                              None])
+        test_df = pd.DataFrame(data = unsorted_values, index = self.species_index,
+                                       columns = unsorted_columns)
+        test_sort = summarize_emu.sort_report_samples(test_df, workflow_config)
+        pd.testing.assert_frame_equal(test_sort, expected_sorted)
+
+    def test_sort_one_control_type(self):
+        """Sort a report with only one type of controls."""
+        workflow_config = {"sample_number_settings":
+                               {"sample_number_format":
+                                    r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                "positive_control": {},
+                                "negative_control": "NegK"},
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": False}}
+        species_counts = [[20.00, 4, "", 20.00, 4, "", 20.00, 4, ""],
+                           [75.00, 15, "", 75.00, 15, "", 75.00, 15, ""],
+                           [5.00, 1, "", 5.00, 1, "", 5.00, 1, ""],
+                          [0.00, 0, "", 0.00, 0, "", 0.00, 0, ""]]
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["NegK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "F99123456-1",
+                                                       "F99123456-1",
+                                                       "F99123456-1",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0"],
+                                                      ["", "", "", "", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode",
+                                                              "prøvenummer", "PhHV", None])
+        expected_sorted = pd.DataFrame(data = species_counts, index = self.species_index,
+                                       columns = expected_columns)
+        unsorted_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["F99123456-1",
+                                                       "F99123456-1",
+                                                       "F99123456-1",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0"],
+                                                      ["", "", "", "", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode",
+                                                              "prøvenummer", "PhHV", None])
+        test_df = pd.DataFrame(data = species_counts, index = self.species_index,
+                                       columns = unsorted_columns)
+        test_sort = summarize_emu.sort_report_samples(test_df, workflow_config)
+        pd.testing.assert_frame_equal(test_sort, expected_sorted)
+
+
+    def test_sort_with_controls(self):
+        """Sort a report with both positive and negative controls."""
+        workflow_config = {"sample_number_settings":
+                               {"sample_number_format":
+                                    r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                "positive_control": {"PosK": "Placeholderia"},
+                                "negative_control": "NegK"},
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": False}}
+        species_counts = [[20.00, 4, "", 20.00, 4, "", 20.00, 4, ""],
+                          [75.00, 15, "", 75.00, 15, "", 75.00, 15, ""],
+                          [5.00, 1, "", 5.00, 1, "", 5.00, 1, ""],
+                          [0.00, 0, "", 0.00, 0, "", 0.00, 0, ""]]
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["NegK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "PosK",
+                                                       "PosK",
+                                                       "PosK",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0"],
+                                                      ["", "", "", "", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode",
+                                                              "prøvenummer", "PhHV", None])
+        expected_sorted = pd.DataFrame(data = species_counts, index = self.species_index,
+                                       columns = expected_columns)
+        unsorted_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["PosK",
+                                                       "PosK",
+                                                       "PosK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0"],
+                                                      ["", "", "", "", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode",
+                                                              "prøvenummer", "PhHV", None])
+        test_df = pd.DataFrame(data = species_counts, index = self.species_index,
+                               columns = unsorted_columns)
+        test_sort = summarize_emu.sort_report_samples(test_df, workflow_config)
+        pd.testing.assert_frame_equal(test_sort, expected_sorted)
+
+
+
 class TestMergeEmuDir(unittest.TestCase):
     workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
@@ -1056,18 +1326,18 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
-                                                      ["RB01",
-                                                       "RB01",
-                                                       "RB01",
+                                                      ["RB02",
                                                        "RB02",
                                                        "RB02",
-                                                       "RB02"],
-                                                      ["F99123456-0",
-                                                       "F99123456-0",
-                                                       "F99123456-0",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB01"],
+                                                      ["NegK",
                                                        "NegK",
                                                        "NegK",
-                                                       "NegK"],
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0"],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
@@ -1079,8 +1349,67 @@ class TestMergeEmuDir(unittest.TestCase):
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                          active_config = workflow_config)
-        print(expected_merged)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
+
+    def test_multi_sort_with_controls(self):
+        """Ensure non-control samples are sorted by barcode."""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK"},
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": False}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "merge_multi_sample"
+
+        expected_values = [[20.00, 4, "", 20.00, 4, "", 20.00, 4, ""],
+                           [75.00, 15, "", 75.00, 15, "", 75.00, 15, ""],
+                           [5.00, 1, "", 5.00, 1, "", 5.00, 1, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["NegK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "F99123456-1",
+                                                       "F99123456-1",
+                                                       "F99123456-1",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0"],
+                                                      ["", "", "", "", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode",
+                                                              "prøvenummer", "PhHV", None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                         active_config = workflow_config)
+        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
+
 
     def test_merge_and_get_material(self):
         """Get sample material for all samples."""
@@ -1108,7 +1437,7 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(__file__).parent / "data"/"summarize_emu"/"merge_different_format"
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "",75.00, 15, ""],
+                           [75.00, 15, "", 75.00, 15, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
@@ -1119,36 +1448,39 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
-                                                      ["RB01",
-                                                       "RB01",
-                                                       "RB01",
+                                                      ["RB02",
                                                        "RB02",
                                                        "RB02",
-                                                       "RB02"],
-                                                      ["F99123456",
-                                                       "F99123456",
-                                                       "F99123456",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB01"],
+                                                      ["NegK",
                                                        "NegK",
                                                        "NegK",
-                                                       "NegK"],
-                                                      ["2021-01-02",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99123456"],
+                                                      ["",
+                                                       "",
+                                                       "",
                                                        "2021-01-02",
                                                        "2021-01-02",
+                                                       "2021-01-02",
+                                                       ],
+                                                      ["",
                                                        "",
                                                        "",
-                                                       ""],
-                                                      ["Podning",
                                                        "Podning",
                                                        "Podning",
+                                                       "Podning"
+                                                       ],
+                                                      ["",
                                                        "",
                                                        "",
-                                                       ""],
-                                                      ["Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
-                                                       "",
-                                                       "",
-                                                       ""],
+                                                       "Svælg/tonsil",
+                                                       ],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
@@ -1164,7 +1496,6 @@ class TestMergeEmuDir(unittest.TestCase):
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                          active_config = workflow_config)
-        print(expected_merged)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
 
@@ -1178,6 +1509,30 @@ class TestMergeEmuDir(unittest.TestCase):
 
 
 class TestWriteToSheets(unittest.TestCase):
+    test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                  / "test_results_sheet.xlsx")
+    expected_values = [[20, 4, "", np.nan, np.nan, np.nan],
+                       [75, 15, "", 80, 16, ""],
+                       [np.nan, np.nan, np.nan, 20, 4, ""],
+                       [5, 1, "", 0, 0, ""]]
+    expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                      "Placeholderia fakeorum",
+                                      "Placeholderia testfacei",
+                                      "unassigned"], name = "species")
+    expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
+                                                   "barcode01_RB01",
+                                                   "barcode01_RB01",
+                                                   "barcode02_RB02",
+                                                   "barcode02_RB02",
+                                                   "barcode02_RB02"],
+                                                  ["abundance_from_all [%]", "estimated counts",
+                                                   "medtages",
+                                                   "abundance_from_all [%]", "estimated counts",
+                                                   "medtages"]],
+                                                 names = ["prøvenummer", None])
+    expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                   columns = expected_columns)
+    print(expected_merged.columns.names)
     @classmethod
     def tearDownClass(cls) -> None:
         # remove test sheet
@@ -1188,27 +1543,25 @@ class TestWriteToSheets(unittest.TestCase):
         (pathlib.Path(__file__).parent / "data" / "summarize_emu"
          / "test_results_mads_blank.xlsx").unlink()
 
+    def test_check_all_sheets_present(self):
+        """Ensure that all sheets are present."""
+        expected_sheet_names = ["overview", "abundance", "count", "notes"]
+        summarize_emu.write_to_sheets(self.expected_merged, self.test_sheet)
+        with pd.ExcelFile(self.test_sheet) as test_sheet_data:
+            assert test_sheet_data.sheet_names == expected_sheet_names
+
+
+    def test_add_notes_sheet(self):
+        """Check that the notes sheet (with sample numbers as index) is created correctly."""
+        summarize_emu.write_to_sheets(self.expected_merged, self.test_sheet)
+        expected_notes = pd.DataFrame(index = pd.Index(data=["barcode01_RB01", "barcode02_RB02"],
+                                                       name="Prøvenummer"),
+                                      columns = ["notes"])
+        test_notes = pd.read_excel(self.test_sheet, sheet_name = "notes", index_col = 0)
+        pd.testing.assert_frame_equal(expected_notes, test_notes, check_dtype = False)
+
+
     def test_write_success(self):
-        expected_values = [[20, 4, "", np.nan, np.nan, np.nan],
-                           [75, 15, "", 80, 16, ""],
-                           [np.nan, np.nan, np.nan, 20, 4, ""],
-                           [5, 1, "", 0, 0, ""]]
-        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
-                                          "Placeholderia fakeorum",
-                                          "Placeholderia testfacei",
-                                          "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode01_RB01",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02",
-                                                       "barcode02_RB02"],
-                                                      ["abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "abundance_from_all [%]", "estimated counts",
-                                                       "medtages"]])
-        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
-                                       columns = expected_columns)
         expected_abundance_values = [[20.00, np.nan],
                                      [75.00, 80.00],
                                      [np.nan, 20.00],
@@ -1216,8 +1569,10 @@ class TestWriteToSheets(unittest.TestCase):
         expected_abundance_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
                                                               "barcode02_RB02"],
                                                              ["abundance_from_all [%]",
-                                                              "abundance_from_all [%]"]])
-        expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
+                                                              "abundance_from_all [%]"]],
+                                                            names = ["prøvenummer", None])
+        expected_abundance = pd.DataFrame(data = expected_abundance_values,
+                                          index = self.expected_index,
                                           columns = expected_abundance_cols)
         expected_count_values = [[4, np.nan],
                                  [15, 16],
@@ -1226,13 +1581,14 @@ class TestWriteToSheets(unittest.TestCase):
         expected_count_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
                                                           "barcode02_RB02"],
                                                          ["estimated counts",
-                                                          "estimated counts"]])
-        expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
+                                                          "estimated counts"]],
+                                                            names = ["prøvenummer", None])
+        expected_count = pd.DataFrame(data = expected_count_values,
+                                      index = self.expected_index,
                                       columns = expected_count_cols)
-        test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
-         / "test_results_sheet.xlsx")
-        summarize_emu.write_to_sheets(expected_merged, test_sheet)
-        test_merged = pd.read_excel(test_sheet, sheet_name = "overview", index_col = 0,
+
+        summarize_emu.write_to_sheets(self.expected_merged, self.test_sheet)
+        test_merged = pd.read_excel(self.test_sheet, sheet_name = "overview", index_col = 0,
                                     header = [0, 1])
         test_merged.loc[["Placeholderia bielefeldensis",
                          "Placeholderia fakeorum",
@@ -1242,11 +1598,11 @@ class TestWriteToSheets(unittest.TestCase):
                          "Placeholderia testfacei",
                          "unassigned"], pd.IndexSlice[["barcode02_RB02"],
                                                       ["medtages"]]] = ""
-        test_abundance = pd.read_excel(test_sheet, sheet_name = "abundance", index_col = 0,
+        test_abundance = pd.read_excel(self.test_sheet, sheet_name = "abundance", index_col = 0,
                                        header = [0, 1])
-        test_count = pd.read_excel(test_sheet, sheet_name = "count", index_col = 0,
+        test_count = pd.read_excel(self.test_sheet, sheet_name = "count", index_col = 0,
                                    header = [0, 1])
-        pd.testing.assert_frame_equal(test_merged, expected_merged, check_dtype = False)
+        pd.testing.assert_frame_equal(test_merged, self.expected_merged, check_dtype = False)
         pd.testing.assert_frame_equal(test_abundance, expected_abundance, check_dtype = False)
         pd.testing.assert_frame_equal(test_count, expected_count, check_dtype = False)
 
@@ -1275,7 +1631,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages"]])
+                                                       "medtages"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         expected_abundance_values = [[20.00, np.nan],
@@ -1286,7 +1644,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                               "barcode02_RB02"],
                                                              ["podning", "Væv"],
                                                              ["abundance_from_all [%]",
-                                                              "abundance_from_all [%]"]])
+                                                              "abundance_from_all [%]"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
                                           columns = expected_abundance_cols)
         expected_count_values = [[4, np.nan],
@@ -1297,7 +1657,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                           "barcode02_RB02"],
                                                          ["podning", "Væv"],
                                                          ["estimated counts",
-                                                          "estimated counts"]])
+                                                          "estimated counts"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
                                       columns = expected_count_cols)
         test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
@@ -1346,7 +1708,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                       ["abundance_from_all [%]", "estimated counts",
                                                        "medtages",
                                                        "abundance_from_all [%]", "estimated counts",
-                                                       "medtages"]])
+                                                       "medtages"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         expected_abundance_values = [[20.00, np.nan],
@@ -1357,7 +1721,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                               "barcode02_RB02"],
                                                              ["podning", ""],
                                                              ["abundance_from_all [%]",
-                                                              "abundance_from_all [%]"]])
+                                                              "abundance_from_all [%]"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
                                           columns = expected_abundance_cols)
         expected_count_values = [[4, np.nan],
@@ -1368,7 +1734,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                           "barcode02_RB02"],
                                                          ["podning", ""],
                                                          ["estimated counts",
-                                                          "estimated counts"]])
+                                                          "estimated counts"]],
+                                                     names = ["prøvenummer",
+                                                              "prøvemateriale", None])
         expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
                                       columns = expected_count_cols)
         test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
