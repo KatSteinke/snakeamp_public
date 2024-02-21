@@ -107,6 +107,7 @@ rule remove_human_reads:
     params:
         kraken_db = pathlib.Path(config['databases']['human_reads']),
     conda: "kraken_env"
+    log: "logs/kraken/{sample_number}_{barcode}.log"
     resources:
         mem_mb = 5000  # database + a bit extra
     threads: workflow.cores
@@ -114,7 +115,7 @@ rule remove_human_reads:
         """
         kraken2 --db "{params.kraken_db}" --unclassified-out "{output.human_depleted}" \
         --output "-" --threads {threads} \
-        {input.concat_fasta}
+        {input.concat_fasta} 2&>1 > "{log}"
         """
 
 
