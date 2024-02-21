@@ -115,7 +115,7 @@ rule remove_human_reads:
         """
         kraken2 --db "{params.kraken_db}" --unclassified-out "{output.human_depleted}" \
         --output "-" --threads {threads} \
-        {input.concat_fasta} 2>&1 > "{log}"
+        {input.concat_fasta} 2> "{log}"
         """
 
 
