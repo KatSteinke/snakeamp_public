@@ -103,7 +103,9 @@ rule remove_human_reads:
         concat_fasta = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
     output:
         human_depleted = temp("{sample_number}_{barcode}/reads"
-                              "/{sample_number}_{barcode}.depleted.fastq")
+                              "/{sample_number}_{barcode}.depleted.fastq"),
+        depletion_report = ("{sample_number}_{barcode}/reads"
+                              "/{sample_number}_{barcode}.kraken.tsv")
     params:
         kraken_db = pathlib.Path(config['databases']['human_reads']),
     conda: "kraken_env"
@@ -114,7 +116,7 @@ rule remove_human_reads:
     shell:
         """
         kraken2 --db "{params.kraken_db}" --unclassified-out "{output.human_depleted}" \
-        --output "-" --threads {threads} \
+        --output "-" --report "{output.depletion_report}" --threads {threads} \
         {input.concat_fasta} 2> "{log}"
         """
 
