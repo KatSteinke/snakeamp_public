@@ -157,8 +157,17 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     emu_read_counts = pd.read_csv(emu_counts, sep = "\t")
     # check if something is wrong with the abundance as is
     if not math.isclose(sum(emu_read_counts['abundance'].dropna()), 1):
-        raise ValueError("Relative abundance does not sum to 100%. "
-                         "This suggests the result file is broken (missing/extra lines).")
+        # this might be legit if a fallback file was generated (all reads are unassigned)
+        taxids = emu_read_counts['tax_id']
+        # TODO: simplify conditions
+        if len(taxids) > 1:
+            raise ValueError("Relative abundance does not sum to 100%. "
+                             "This suggests the result file is broken (missing/extra lines).")
+        # if we only have one taxid we can check if it's unassigned
+        if not taxids.squeeze() == "unassigned":
+            raise ValueError("Relative abundance does not sum to 100%. "
+                             "This suggests the result file is broken (missing/extra lines).")
+        logger.info(f"All reads for sample {sample_name_components.sample_name} are unassigned.")
     # recalculate percentage to include unassigned reads
     total_reads = sum(emu_read_counts['estimated counts'])
     # output as percent
@@ -169,13 +178,15 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     emu_read_counts = emu_read_counts.astype({"estimated counts": "Int64"})
     # cut down to required columns and add approval column
     cols_for_report = ["species", "abundance_from_all [%]", "estimated counts", "medtages"]
-    emu_read_counts = emu_read_counts.reindex(columns = cols_for_report, fill_value = "")
+    emu_read_counts = emu_read_counts.reindex(columns = cols_for_report)
     # "unassigned" is only noted on the taxid level - fill it in on the species level
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
+    # "medtages" should be a blank string
+    emu_read_counts["medtages"] = emu_read_counts["medtages"].fillna(value = "")
     # deduplicate species names
     # this also sets species as index so we keep it out of the multiindexed columns
     emu_read_counts = emu_read_counts.groupby(by="species").sum()
-
+    print(emu_read_counts.to_string())
     # note down relevant information
     run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
     barcode_header = [sample_name_components.barcode] * len(emu_read_counts.columns)
