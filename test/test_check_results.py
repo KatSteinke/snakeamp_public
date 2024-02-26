@@ -33,7 +33,6 @@ class TestCheckFilePresence(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_files
 
-
     def test_too_many_emus(self):
         """Alert when there are multiple Emu reports"""
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "multiple_emus"
@@ -96,6 +95,7 @@ class TestCheckEmuResults(unittest.TestCase):
         expected_cols = pd.Index(["run",
                                   "barcode",
                                   "modtagedato",
+                                  "patient",
                                   "prøvemateriale",
                                   "anatomi"])
         found_index = pd.Index([*["PosK"] * cols_per_sample,
@@ -108,6 +108,7 @@ class TestCheckEmuResults(unittest.TestCase):
         found_cols = pd.Index(["run",
                                "barcode",
                                "modtagedato",
+                               "patient",
                                "prøvemateriale",
                                "anatomi"])
         warn_msg = ("WARNING:QATest:Sample metadata labels differ from expected sample metadata"

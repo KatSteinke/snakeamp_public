@@ -52,7 +52,9 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
      positive_control_pattern) = helpers.get_control_patterns(
         active_config["sample_number_settings"]["negative_control"],
         active_config["sample_number_settings"]["positive_control"])
-    sample_information = pd.DataFrame(data = {"prøvenr": [sample_number], "modtagedato": [""],
+    sample_information = pd.DataFrame(data = {"patient": [""],
+                                              "prøvenr": [sample_number],
+                                              "modtagedato": [""],
                                               "prøvemateriale": [""],
                                               "anatomi": [""]})
     if not (re.match(positive_control_pattern, sample_number)
@@ -76,13 +78,15 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
             error_msg = (f"Sample number {name_translate} (original number: {sample_number}) "
                          "not found in LIS report.")
             raise KeyError(error_msg)
-        sample_information = lis_report[lis_report["prøvenr"] == name_translate][["prøvenr",
+        sample_information = lis_report[lis_report["prøvenr"] == name_translate][["cprnr.",
+                                                                                  "prøvenr",
                                                                                   "modtaget",
                                                                                   "prøvekategori",
                                                                                   "anatomi"]]
         sample_information = sample_information.rename(columns = {"modtaget": "modtagedato",
                                                                   "prøvekategori":
-                                                                      "prøvemateriale"})
+                                                                      "prøvemateriale",
+                                                                  "cprnr.": "patient"})
         sample_information["modtagedato"] = sample_information["modtagedato"].apply(lambda x:
                                                                               datetime.strptime(x,
                                                                                         "%d%m%Y").strftime("%Y-%m-%d"))
@@ -184,13 +188,14 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     header_names = ["run", "barcode", "prøvenummer"]
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
-                               encoding = "latin1", dtype = {"modtaget": str})
+                               encoding = "latin1", dtype = {"modtaget": str,
+                                                             "cprnr.": str})
         data_from_lis = get_lis_information(sample_name_components.sample_name, lis_data,
                                             active_config)
         # rename sample number if needed - TODO: more prettily!
         name_header = [data_from_lis["prøvenr"].squeeze()] * len(emu_read_counts.columns)
         report_headers[-1] = name_header
-        lis_data_cols = ["modtagedato", "prøvemateriale", "anatomi"]
+        lis_data_cols = ["modtagedato", "patient", "prøvemateriale", "anatomi"]
         lis_headers = [[data_from_lis[sample_metadata].squeeze()] * len(emu_read_counts.columns)
                        if pd.notna(data_from_lis[sample_metadata].squeeze())
                        else [""] * len(emu_read_counts.columns)
@@ -257,7 +262,7 @@ def sort_report_samples(emu_report: pd.DataFrame,
     non_control_header = emu_report.loc[:, non_control_slice].columns.to_frame(index=False)
     # get sample number and barcode as a tuple...
     non_control_col_and_barcode = pd.Series(zip(non_control_header["prøvenummer"],
-                                           non_control_header["barcode"])).unique()
+                                                non_control_header["barcode"])).unique()
     # ...so we can sort by barcode
     non_control_col_and_barcode = sorted(non_control_col_and_barcode,
                                          key = lambda col_tuple: col_tuple[1])
@@ -275,7 +280,6 @@ def sort_report_samples(emu_report: pd.DataFrame,
                                                               names = emu_report.columns.names),
                                     axis = "columns")
     return emu_report
-
 
 
 def merge_all_in_emu_dir(emu_dir: pathlib.Path,
@@ -307,8 +311,9 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     if active_config["lab_info_system"]["use_lis_features"]:
         fallback_cols = [["", "", ""],
                          ["", "", ""],
+                         ["", "", ""],
                          ["", "", ""]] + fallback_cols
-        fallback_names = ["modtagedato", "prøvemateriale", "anatomi"] + fallback_names
+        fallback_names = ["modtagedato", "patient", "prøvemateriale", "anatomi"] + fallback_names
     for emu_report in emu_reports:
         try:
             emu_data = report_species_per_barcode(emu_report, active_config)
@@ -338,6 +343,18 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     if len(run_names) > 1:
         log_msg = f"Data appear to be from multiple runs ({run_names})."
         logger.warning(log_msg)
+    # if we're using LIS data we're giving out a patient ID here
+    if "patient" in all_merged.columns.names:
+        patient_ids = [pt_id
+                       for pt_id in all_merged.columns.get_level_values("patient").unique().tolist()
+                       if pt_id]
+        # we want to make it clear that this is the ID for this batch of *results*
+        # -> use run number from all runs
+        all_run_names = "".join(run_names)
+        patients_to_ids = {patient_id: f"{all_run_names}_patient_{patient_index}"
+                           for patient_index, patient_id in enumerate(patient_ids)
+                           if patient_id}
+        all_merged = all_merged.rename(columns = patients_to_ids)
     return all_merged
 
 
