@@ -256,23 +256,24 @@ def sort_report_samples(emu_report: pd.DataFrame,
                                    for sample_nr in sample_numbers
                                    if re.search(negative_control, sample_nr)
                                    or re.search(positive_control, sample_nr)}))
+    # now get their positions
+    control_positions = [position for sample_nr in control_columns
+                         for (position, colname) in enumerate(sample_numbers)
+                         if colname == sample_nr]
     # non-controls need to be sorted by barcode
     # find all sample numbers not matching control format - predefined slice since it's a lot of writing
     non_control_slice = ~sample_numbers.str.match(controls)
     non_control_header = emu_report.loc[:, non_control_slice].columns.to_frame(index=False)
-    # get sample number and barcode as a tuple...
-    non_control_col_and_barcode = pd.Series(zip(non_control_header["prøvenummer"],
-                                                non_control_header["barcode"])).unique()
-    # ...so we can sort by barcode
-    non_control_col_and_barcode = sorted(non_control_col_and_barcode,
-                                         key = lambda col_tuple: col_tuple[1])
-    # ...and then get back to sample numbers
-    non_controls = [col_tuple[0] for col_tuple in non_control_col_and_barcode]
-    reordered_columns = control_columns + non_controls
-    # get the position of these in the "prøvenummer" level
-    reordered_columns_pos = [position for sample_nr in reordered_columns
-                             for (position, colname) in enumerate(sample_numbers)
-                             if colname == sample_nr]
+    # now sort non-control on barcodes since they're guaranteed to be unique
+    # (aside from coming in groups of three due to the multiindex setup)
+    non_control_barcodes = sorted(list(non_control_header["barcode"].unique()))
+    barcodes = emu_report.columns.get_level_values("barcode")
+    # get the positions so we can combine them with the controls' positions (based on sample number)
+    # TODO: avoid repetition?
+    non_control_positions = [position for barcode in non_control_barcodes
+                             for (position, colname) in enumerate(barcodes)
+                             if colname == barcode]
+    reordered_columns_pos = control_positions + non_control_positions
     # reindex with the columns given by positions
     emu_report = emu_report.reindex(pd.MultiIndex.from_tuples([emu_report.columns[column_index]
                                                                for column_index in
