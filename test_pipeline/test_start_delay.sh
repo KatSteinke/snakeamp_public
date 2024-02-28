@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 mkdir -p run_test/testdir/rawdata/fastq_pass
-python3 /snake_qc/run_pipeline.py --dry-run \
+python3 /snake_qc/run_pipeline.py --dry_run \
         --runsheet /data/test_data/16S/test_data/20240124-runsheet-rearrange.xlsx \
         --rundir run_test \
         --workflow_config_file /snake_qc/config/pipeline_testjob.yml &> delayed_start_log &
