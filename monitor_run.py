@@ -2,9 +2,112 @@
 
 __author__ = "Kat Steinke"
 
+import logging
+import pathlib
+import subprocess
+import time
 
-# watch for presence of file
+from typing import Any, Dict, NamedTuple, Optional, List
 
-# construct nomad command
+import pipeline_config
+import version
+
+__version__ = version.__version__
+
+# import parameters
+default_config_file = pipeline_config.default_config_file
+workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
+
+# start logging
+logger = logging.getLogger("launch_run")
+logger.setLevel(logging.INFO)
+console_log = logging.StreamHandler()
+console_log.setLevel(logging.INFO)
+logger.addHandler(console_log)
+
+
+class AmpliconRun(NamedTuple):
+    """Parameters for an amplicon sequencing run.
+
+    Attributes:
+        sequence_dir:   the directory containing input files for the pipeline
+        outdir:         the directory to which results should be output
+        runsheet:       the runsheet used for the run
+        configfile:     the file containing the configuration for the pipeline
+        active_config:  the configuration to use for the pipeline
+        test_run:       whether to run the pipeline in test mode (overrides config setting)
+    """
+    sequence_dir: pathlib.Path
+    outdir: pathlib.Path
+    runsheet: pathlib.Path
+    configfile: pathlib.Path
+    active_config: Dict[str, Any]
+    test_run: Optional[bool] = None
+
+
+def get_pipeline_command(sequencing_run: AmpliconRun) -> List[str]:
+    """Generate the command for starting the pipeline.
+
+    Arguments:
+        sequencing_run:          the directory containing input files for the pipeline
+
+    Returns:
+        The nomad command to start the pipeline
+    """
+    if sequencing_run.test_run is None:
+        run_as_debug = sequencing_run.active_config["debug"]
+    else:
+        run_as_debug = sequencing_run.test_run
+    nomad_job = "16s-snake-emu-staging" if run_as_debug else "16s-snake-emu-prod"
+    nomad_command = ["nomad", "job", "dispatch",
+                     "-meta", f"indir={sequencing_run.sequence_dir}",
+                     "-meta", f"outdir={sequencing_run.outdir}",
+                     "-meta", f"runsheet={sequencing_run.runsheet}",
+                     nomad_job,
+                     str(sequencing_run.configfile)]
+    return nomad_command
+
+
+# convenience function to allow user to specify duration
+
+def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_run: bool = False,
+                        watch_interval: int = 300,
+                        watch_timeout: int = 600) -> subprocess.CompletedProcess:
+    """Start the analysis pipeline when a given file is found in the specified run's sequencing dir.
+
+    Arguments:
+        run_to_watch:       the run for which the analysis pipeline should be started
+        pattern_to_watch:   the file pattern to watch for
+        dry_run:            whether or not to only print the pipeline command
+        watch_interval:     the interval (in seconds) in which the script should check for
+                            the presence of the file
+        watch_timeout:      the timespan (in seconds) to wait for the file
+
+
+    Returns:
+        The process that launches the pipeline
+    Raises:
+        FileNotFoundError:  if the file is not found before the timeout
+    """
+    file_found = 0
+    time_watching = 0
+    run_basedir = run_to_watch.sequence_dir.parent
+    # watch for presence of file
+    while not (file_found or time_watching >= watch_timeout):
+        file_found = len(list(run_basedir.glob(pattern_to_watch)))
+        if not file_found:  # TODO: we can definitely make this flow more nicely
+            time_watching += watch_interval
+            time.sleep(watch_interval)
+    if not file_found:
+        raise FileNotFoundError(f"No file matching pattern {pattern_to_watch} "
+                                f"found in {run_basedir}.")
+    logger.info(f"Found {pattern_to_watch} in {run_basedir} after {time_watching} seconds.")
+    # construct nomad command
+    nomad_command = get_pipeline_command(run_to_watch)
+    # return only string if in test mode
+    if dry_run:
+        nomad_command_text = " ".join(nomad_command)
+        return subprocess.run(["echo", f'"{nomad_command_text}"'])
+    return subprocess.run(nomad_command)
 
 # parser to take input? but we need to pass all parameters down
