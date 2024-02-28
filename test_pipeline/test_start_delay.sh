@@ -2,7 +2,7 @@
 
 mkdir -p run_test/testdir/rawdata/fastq_pass
 python3 /snake_qc/run_pipeline.py --dry_run \
-        --runsheet /snake_qc/test/data/sample_sheet_test/test_translate_runsheet_rearrange.xlsx \
+        --runsheet /snake_qc/test_pipeline/test_nanopore_runsheet_16s_only.xlsx \
         --rundir run_test \
         --workflow_config_file /snake_qc/config/pipeline_testjob.yml &> delayed_start_log &
 sleep 30
