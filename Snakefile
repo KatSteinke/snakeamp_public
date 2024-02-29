@@ -174,7 +174,9 @@ rule run_emu:
     params:
         emu_db = config["databases"]["emu_db"],
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
-        basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}"
+        basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}",
+        # add very minimal results if emu fails
+        fallback_header = r"tax_id\tabundance\testimated_counts\n"
     conda:
         "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
@@ -184,7 +186,8 @@ rule run_emu:
         """
         emu abundance "{input.fasta_reads}" --db "{params.emu_db}" --keep-counts \
          --output-dir "{params.outdir}" --output-basename {params.basename} \
-         --threads {threads} &> "{log}"
+         --threads {threads} &> "{log}" || {{ printf "{params.fallback_header}" > "{output.relative_abundance}" ; \
+          printf "unassigned\\t0.0\\t$(grep -P '(?<=Unassigned read count: )[0-9]+' {log:q} --only-matching)\\n" ; }}
         """
 
 rule combine_emu:

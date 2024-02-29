@@ -128,6 +128,39 @@ class TestExtractCounts(unittest.TestCase):
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": False}}
 
+    def test_bad_name_format(self):
+        """Ensure the function complains if the name doesn't match the expected Emu output format
+        (so sample name can't be inferred)"""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "barcode02_RB02_emu.tsv"
+        error_msg = "File name barcode02_RB02_emu.tsv does not conform to the expected format " \
+                    "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)." \
+                    " Sample name components could not be extracted."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+
+    def test_bad_sample_name(self):
+        """Ensure the function complains if the name doesn't match the expected sample name format
+        (so sample name can't be inferred)"""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "barcode2_RB02_rel-abundance.tsv"
+        error_msg = "File name barcode2_RB02_rel-abundance.tsv does not conform to " \
+                    "the expected format " \
+                    "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)." \
+                    " Sample name components could not be extracted."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+
+    def test_fail_wrong_abundance(self):
+        """Ensure a relative abundance that does not sum to 100% (suggesting a corrupted file)
+        is caught."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode03_RB03_rel-abundance.tsv"
+        error_msg = "Relative abundance does not sum to 100%. " \
+                    "This suggests the result file is broken (missing/extra lines)."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode01_RB01_rel-abundance.tsv"
@@ -152,6 +185,33 @@ class TestExtractCounts(unittest.TestCase):
                                                                     "prøvenummer",
                                                                     "PhHV",
                                                                     None])
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_handle_failed_sample_success(self):
+        """Successfully parse a fallback file created when Emu fails."""
+        sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu" / "fallback_test"
+                       / "RUN0001_barcode01_RB01_rel-abundance.tsv")
+        expected_results = pd.DataFrame(data = {"abundance_from_all [%]": [100.00],
+                                                "estimated counts": [100],
+                                                "medtages": [""]},
+                                        index = pd.Index(data = ["unassigned"], name = "species"))
+        expected_results = expected_results.astype({"estimated counts": "Int64"})
+        run_header = ["RUN0001"] * len(expected_results.columns)
+        name_header = ["barcode01"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              barcode_header,
+                                                              name_header,
+                                                              phhv_header,
+                                                              expected_results.columns],
+                                                             names = ["run",
+                                                                      "barcode",
+                                                                      "prøvenummer",
+                                                                      "PhHV",
+                                                                      None])
+        log_msg = "INFO:summarize_emu:All reads for sample barcode01 are unassigned."
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -471,38 +531,7 @@ class TestExtractCounts(unittest.TestCase):
         test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
-    def test_bad_name_format(self):
-        """Ensure the function complains if the name doesn't match the expected Emu output format
-        (so sample name can't be inferred)"""
-        sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "barcode02_RB02_emu.tsv"
-        error_msg = "File name barcode02_RB02_emu.tsv does not conform to the expected format " \
-                    "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)." \
-                    " Sample name components could not be extracted."
-        with pytest.raises(ValueError, match=re.escape(error_msg)):
-            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
 
-    def test_bad_sample_name(self):
-        """Ensure the function complains if the name doesn't match the expected sample name format
-        (so sample name can't be inferred)"""
-        sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "barcode2_RB02_rel-abundance.tsv"
-        error_msg = "File name barcode2_RB02_rel-abundance.tsv does not conform to " \
-                    "the expected format " \
-                    "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)." \
-                    " Sample name components could not be extracted."
-        with pytest.raises(ValueError, match=re.escape(error_msg)):
-            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
-
-    def test_fail_wrong_abundance(self):
-        """Ensure a relative abundance that does not sum to 100% (suggesting a corrupted file)
-        is caught."""
-        sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode03_RB03_rel-abundance.tsv"
-        error_msg = "Relative abundance does not sum to 100%. " \
-                    "This suggests the result file is broken (missing/extra lines)."
-        with pytest.raises(ValueError, match = re.escape(error_msg)):
-            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
 
 
 class TestMergeEmu(unittest.TestCase):
