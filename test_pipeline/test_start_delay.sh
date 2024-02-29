@@ -9,4 +9,4 @@ sleep 30
 touch run_test/rawdata/testdir/final_summary_test.txt
 sleep 30
 cat delayed_start_log
-grep -e "Found pattern .+ after 30 seconds\." delayed_start_log
+grep -e "Found .+ after 30 seconds\." delayed_start_log
