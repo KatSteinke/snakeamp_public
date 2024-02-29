@@ -322,6 +322,9 @@ if __name__ == "__main__":
     # we'll have to handle creating our folders ourselves - catch duplicate dirs here!
     if not output_dir.exists():
         output_dir.mkdir(parents = True)
+    else:
+        if not continue_pipeline:
+            raise FileExistsError("The desired output directory already exists.")
     # create dir for snakemake logs
     if not (output_dir / "logs").exists():
         (output_dir / "logs").mkdir()
