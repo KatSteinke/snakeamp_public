@@ -4,7 +4,7 @@ mkdir -p run_test/testdir/rawdata/fastq_pass
 python3 /snake_qc/run_pipeline.py --dry_run \
         --runsheet /snake_qc/test_pipeline/test_nanopore_runsheet_16s_only.xlsx \
         --rundir run_test \
-        --workflow_config_file /snake_qc/config/pipeline_testjob.yml &> delayed_start_log &
+        --workflow_config_file /snake_qc/test_pipeline/pipeline_testjob_no_lis.yml &> delayed_start_log &
 sleep 30
 touch run_test/testdir/rawdata/final_summary_test.txt
 cat delayed_start_log
