@@ -217,6 +217,9 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     # add blank PhHV header row
     header_names.append("PhHV")
     report_headers.append([""] * len(emu_read_counts.columns))
+    # add blank note row
+    header_names.append("notes")
+    report_headers.append([""] * len(emu_read_counts.columns))
     report_headers.append(emu_read_counts.columns)
     header_names += [None]
     emu_read_counts.columns = pd.MultiIndex.from_arrays(report_headers, names = header_names)
@@ -315,10 +318,11 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     all_reports = []
     # set up fallbacks - sample number is easiest to set up only when we have it..
     fallback_cols = [["", "", ""],
+                     ["", "", ""],
                      ["abundance_from_all [%]",
                       "estimated counts",
                       "medtages"]]
-    fallback_names = ["PhHV", None]
+    fallback_names = ["PhHV", "notes", None]
     # ... but we don't want to have to check whether we're using LIS features for every sample
     if active_config["lab_info_system"]["use_lis_features"]:
         fallback_cols = [["", "", ""],
