@@ -326,7 +326,7 @@ if __name__ == "__main__":
     if not (output_dir / "logs").exists():
         (output_dir / "logs").mkdir()
     # start pipeline (in Docker container)
-    logger.info("Running analysis pipeline")
+    logger.info("Pipeline is now waiting for sequencing to finish...")
     # set up sequencing run
     seq_run = monitor_run.AmpliconRun(sequence_dir = rundir, outdir = output_dir,
                                       runsheet = runsheet,
@@ -337,7 +337,7 @@ if __name__ == "__main__":
     total_time = seq_time + seq_run_fudge_factor
     check_interval = workflow_config["check_interval_seconds"]
     # wait and start - TODO: give pattern more nicely?
-    analysis_run = monitor_run.start_on_file_found(seq_run, "final_summary*.txt",
+    analysis_run = monitor_run.start_on_file_found(seq_run, "*/final_summary*.txt",
                                                    dry_run = args.dry_run,
                                                    watch_timeout = total_time.seconds,
                                                    watch_interval = check_interval)
