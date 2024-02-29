@@ -119,9 +119,11 @@ rule remove_human_reads:
 
 
 rule clean_nanopore_reads:
+    # only run depletion for 18S reads
     input:
-        concat_fastq = "{sample_number}_{barcode}/reads/" \
-                       "{sample_number}_{barcode}.depleted.fastq"
+        concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq" \
+                        if config["amplicon_type"] == "18S" \
+                        else "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
     output:
         filtered_fastq = temp("{sample_number}_{barcode}/reads/"
                               "{sample_number}_{barcode}.filtered.fastq")
