@@ -36,7 +36,7 @@ barcode_prefix: "RB" # barcode prefix as letter (for transferring original fastq
 amplicon_type: 16S
 
 # how long should the pipeline wait for the summary file?
-seq_run_duration_hours: 1
+seq_run_duration_hours: 0.1
 check_interval_seconds: 30
 
 paths:
