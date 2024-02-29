@@ -91,7 +91,7 @@ def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_ru
     """
     file_found = 0
     time_watching = 0
-    run_basedir = run_to_watch.sequence_dir.parent
+    run_basedir = run_to_watch.sequence_dir / "rawdata"
     # watch for presence of file
     while not (file_found or time_watching >= watch_timeout):
         file_found = len(list(run_basedir.glob(pattern_to_watch)))

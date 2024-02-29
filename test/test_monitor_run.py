@@ -32,8 +32,7 @@ class TestWaitForFile(unittest.TestCase):
                      "debug": False}
     config_path = pathlib.Path(__file__).parent / "data"/"monitor_run"/"test_config.yaml"
     test_run = monitor_run.AmpliconRun(sequence_dir = pathlib.Path(__file__).parent / "data"
-                                                      /"monitor_run"/"miniondir"/"test1"/"rawdata"
-                                                      /"test_subdir"/"fastq_pass",
+                                                      /"monitor_run"/"miniondir"/"test1",
                                        outdir = pathlib.Path(__file__).parent / "data"
                                                 / "monitor_run" / "test_outdir",
                                        runsheet = pathlib.Path(__file__).parent / "data"
@@ -58,10 +57,10 @@ class TestWaitForFile(unittest.TestCase):
                                      f'-meta runsheet={self.test_run.runsheet} '
                                      '16s-snake-emu-prod '
                                      f'{str(self.test_run.configfile)}"')]
-        expected_log = ("INFO:launch_run:Found final_summary*.txt "
-                        f"in {self.test_run.sequence_dir.parent} after 0 seconds.")
+        expected_log = ("INFO:launch_run:Found */final_summary*.txt "
+                        f"in {self.test_run.sequence_dir / 'rawdata'} after 0 seconds.")
         with self.assertLogs("launch_run", level = "INFO") as logged:
-            test_command = monitor_run.start_on_file_found(self.test_run, "final_summary*.txt",
+            test_command = monitor_run.start_on_file_found(self.test_run, "*/final_summary*.txt",
                                                            dry_run = True, watch_interval = 10,
                                                            watch_timeout = 30).args
             assert expected_log in logged.output
@@ -74,7 +73,7 @@ class TestWaitForFile(unittest.TestCase):
         """Successfully run the output of the pipeline command builder."""
         mock_command.return_value = ["echo", "Hello"]
         expected_command = ["echo", "Hello"]
-        test_command = monitor_run.start_on_file_found(self.test_run, "final_summary*.txt",
+        test_command = monitor_run.start_on_file_found(self.test_run, "*/final_summary*.txt",
                                                        dry_run = False, watch_interval = 10,
                                                        watch_timeout = 30).args
         assert test_command == expected_command
