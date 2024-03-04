@@ -161,6 +161,16 @@ class TestExtractCounts(unittest.TestCase):
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
 
+    def test_fail_wrong_abundance_single_taxid(self):
+        """Ensure a relative abundance that does not sum to 100% (suggesting a corrupted file)
+        is caught for a single taxid that isn't 'unassigned'."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode04_RB04_rel-abundance.tsv"
+        error_msg = "Relative abundance does not sum to 100%. " \
+                    "This suggests the result file is broken (missing/extra lines)."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode01_RB01_rel-abundance.tsv"
