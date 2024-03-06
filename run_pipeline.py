@@ -3,6 +3,7 @@
 __author__ = "Kat Steinke"
 
 import logging
+import os
 import pathlib
 import re
 import readline
@@ -241,7 +242,7 @@ if __name__ == "__main__":
     seq_time = timedelta(hours=workflow_config["seq_run_duration_hours"])
     seq_run_fudge_factor = timedelta(hours = 1)
     if manual_mode:
-        # lots of typing, so  allow tab completion of paths
+        # lots of typing, so allow tab completion of paths
         readline.set_completer_delims('\t\n=')
         readline.parse_and_bind("tab: complete")
         # ...and greet the user nicely
@@ -340,6 +341,9 @@ if __name__ == "__main__":
     total_time = seq_time + seq_run_fudge_factor
     check_interval = workflow_config["check_interval_seconds"]
     # wait and start - TODO: give pattern more nicely?
+    # detach here - keep start log
+    if os.fork():
+        sys.exit()
     analysis_run = monitor_run.start_on_file_found(seq_run, "*/final_summary*.txt",
                                                    dry_run = args.dry_run,
                                                    watch_timeout = total_time.seconds,
