@@ -116,17 +116,17 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                     ],
                                                     "patient": [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
-                                                                *["NANO_Amplicon_Y20990101_RUN0001_XYZ_patient_0"]
+                                                                *["RUN0001_pt_0"]
                                                                  * cols_per_sample,
-                                                                *["NANO_Amplicon_Y20990101_RUN0001_XYZ_patient_0"]
+                                                                *["RUN0001_pt_0"]
                                                                  * cols_per_sample,
-                                                                *["NANO_Amplicon_Y20990101_RUN0001_XYZ_patient_0"]
+                                                                *["RUN0001_pt_0"]
                                                                  * cols_per_sample],
                                                     "prøvemateriale": [*[""] * cols_per_sample,
                                                         *[""] * cols_per_sample,
                                                         *["Hjerneventrikelvæske <liquor>"] * cols_per_sample,
                                                         *["Podning"] * cols_per_sample,
-                                                        *["Spinalvæske"] *cols_per_sample,
+                                                        *["Spinalvæske"] * cols_per_sample,
                                                         ],
                                                     "anatomi": [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,

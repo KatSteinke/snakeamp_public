@@ -366,8 +366,13 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
                        if pt_id]
         # we want to make it clear that this is the ID for this batch of *results*
         # -> use run number from all runs
-        all_run_names = "".join(run_names)
-        patients_to_ids = {patient_id: f"{all_run_names}_patient_{patient_index}"
+        # shorter run name - only extract RUNXXXX from names since it's a one-off ID
+        run_numbers = [re.search(r"run\d{4}", run_name, flags = re.IGNORECASE).group(0)
+                       if re.search(r"run\d{4}", run_name, flags =re.IGNORECASE)
+                       else "RUNxxxx"
+                       for run_name in run_names]
+        all_run_numbers = "".join(run_numbers)
+        patients_to_ids = {patient_id: f"{all_run_numbers}_pt_{patient_index}"
                            for patient_index, patient_id in enumerate(patient_ids)
                            if patient_id}
         all_merged = all_merged.rename(columns = patients_to_ids)
