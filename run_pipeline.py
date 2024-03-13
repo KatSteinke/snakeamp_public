@@ -251,7 +251,7 @@ if __name__ == "__main__":
         rundir = pathlib.Path(input("Type full path or name of Nanopore "
                                     "sequencing folder and press enter: ").strip().strip("'"))
         seq_time_accept = input("Expecting sequencing to be finished after"
-                                f" {workflow_config['seq_run_duration_hours']}. "
+                                f" {workflow_config['seq_run_duration_hours']} hours. "
                                 "Is this correct? [y/n]")
         if seq_time_accept == "n":
             seq_time = timedelta(hours = float(input("Type how many hours the sequencing run"
