@@ -130,25 +130,19 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     lab_info_data = pd.read_csv(lab_report, encoding="latin1", dtype = {"afsendt": str,
                                                                         "cprnr.": str,
                                                                         "modtaget": str})
-    # sample numbers can be identical except for the prefix
-    # -> make subsets of sample sheet and report by prefix
+    # match column names for sample number in sheet and LIS
+    sheet_data = sheet_data.rename(columns = {"Prøvenummer": "prøvenr"})
     # remove both negative and positive controls here
-    # TODO: get control pattern?
-    (negative_control_pattern,
-     positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
-                                                              active_config["sample_number_settings"]["positive_control"])
-    # extract prefix: numbers or letters
+    (neg_control_pattern,
+     pos_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
+                                                         active_config["sample_number_settings"][
+                                                             "positive_control"])
+    # TODO: might be prettier but it's the only way that shuts the warning up
+    non_controls = sheet_data[~(sheet_data["prøvenr"].str.fullmatch(pos_control_pattern)
+                                | sheet_data["prøvenr"].str.fullmatch(neg_control_pattern))].copy()
+    # get the order of components in the sheetvs the  LIS and rearrange accordingly
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
-    # add date if needed
-    sheet_data["prøvenr"] = sheet_data["Prøvenummer"]
-    # match only sample type and replace as needed
-    # remove all controls
-    non_controls = sheet_data[~(sheet_data["Prøvenummer"].str.fullmatch(positive_control_pattern)
-                              | sheet_data["Prøvenummer"].str.fullmatch(negative_control_pattern))]
-    # get the order of components in the LIS and rearrange accordingly - TODO: can we handle this elsewhere?
-    sample_format_lis = re.compile(active_config[
-                                          "sample_number_settings"][
-                                          "format_in_lis"])
+    sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
     component_order_lis = {value: key for key, value in
                            sample_format_lis.groupindex.items()}
     extra_components = (set(sample_format_sheet.groupindex.keys())
@@ -158,11 +152,12 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
                     f"Cannot check if {list(extra_components)} component(s) are correct.")
     non_controls["prøvenr_translate"] = non_controls["prøvenr"].apply(lambda x:
                                                                       helpers.translate_sample_number(
-                                                                          x, sample_format_sheet,
+                                                                          x,
+                                                                          sample_format_sheet,
                                                                           sample_format_lis,
                                                                           prefix_mapping,
-                                                                          positive_control_pattern,
-                                                                          negative_control_pattern))
+                                                                          pos_control_pattern,
+                                                                          neg_control_pattern))
 
     # left join the rest on the LIS report
     samples_in_lis = non_controls.merge(lab_info_data, how = "left",
@@ -262,7 +257,6 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         negative_control = active_config["sample_number_settings"]["negative_control"],
         positive_control = active_config["sample_number_settings"]["positive_control"])
     id_pattern = re.compile(f"^{id_pattern.pattern}$")
-    print(id_pattern.pattern)
     fail_ids = sheet_data["Prøvenummer"][~sheet_data["Prøvenummer"].apply(str).str.match(id_pattern,
                                                                                na=False)].dropna().tolist()
     if active_config['sample_number_settings']['sample_numbers_in'] == "number":
