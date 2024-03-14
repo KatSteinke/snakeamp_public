@@ -111,8 +111,8 @@ class TestGetNameComponents(unittest.TestCase):
 
     def test_get_name(self):
         """Extract the components of the name where present."""
-        sample_name = "kørsel0001-Y20231009_barcode01_RB01_rel-abundance.tsv"
-        expected_run = "kørsel0001-Y20231009"
+        sample_name = "kørsel0001-Y20231009-16S_barcode01_RB01_rel-abundance.tsv"
+        expected_run = "kørsel0001-Y20231009-16S"
         expected_name = "barcode01"
         expected_barcode = "RB01"
         test_components = summarize_emu.extract_name_components(sample_name, self.workflow_config)
