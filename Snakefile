@@ -103,25 +103,30 @@ rule remove_human_reads:
         concat_fasta = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
     output:
         human_depleted = temp("{sample_number}_{barcode}/reads"
-                              "/{sample_number}_{barcode}.depleted.fastq")
+                              "/{sample_number}_{barcode}.depleted.fastq"),
+        depletion_report = ("{sample_number}_{barcode}/reads"
+                              "/{sample_number}_{barcode}.kraken.tsv")
     params:
         kraken_db = pathlib.Path(config['databases']['human_reads']),
     conda: "kraken_env"
+    log: "logs/kraken/{sample_number}_{barcode}.log"
     resources:
         mem_mb = 5000  # database + a bit extra
     threads: workflow.cores
     shell:
         """
         kraken2 --db "{params.kraken_db}" --unclassified-out "{output.human_depleted}" \
-        --output "-" --threads {threads} \
-        {input.concat_fasta}
+        --output "-" --report "{output.depletion_report}" --threads {threads} \
+        {input.concat_fasta} 2> "{log}"
         """
 
 
 rule clean_nanopore_reads:
+    # only run depletion for 18S reads
     input:
-        concat_fastq = "{sample_number}_{barcode}/reads/" \
-                       "{sample_number}_{barcode}.depleted.fastq"
+        concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq" \
+                        if config["amplicon_type"] == "18S" \
+                        else "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
     output:
         filtered_fastq = temp("{sample_number}_{barcode}/reads/"
                               "{sample_number}_{barcode}.filtered.fastq")
@@ -174,7 +179,9 @@ rule run_emu:
     params:
         emu_db = config["databases"]["emu_db"],
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
-        basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}"
+        basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}",
+        # add very minimal results if emu fails
+        fallback_header = r"tax_id\tabundance\testimated_counts\n"
     conda:
         "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
@@ -184,7 +191,8 @@ rule run_emu:
         """
         emu abundance "{input.fasta_reads}" --db "{params.emu_db}" --keep-counts \
          --output-dir "{params.outdir}" --output-basename {params.basename} \
-         --threads {threads} &> "{log}"
+         --threads {threads} &> "{log}" || {{ printf "{params.fallback_header}" > "{output.relative_abundance}" ; \
+          printf "unassigned\\t0.0\\t$(grep -P '(?<=Unassigned read count: )[0-9]+' {log:q} --only-matching)\\n" ; }}
         """
 
 rule combine_emu:

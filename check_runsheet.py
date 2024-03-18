@@ -9,18 +9,21 @@ import readline
 import sys
 import warnings
 
+from argparse import ArgumentParser
 from typing import Any, Dict
 
 import pandas as pd
+import yaml
 
 import helpers
 import pipeline_config
 import version
+
+from helpers import extract_sample_number_part
+
 __version__ = version.__version__
 
 # import parameters
-from helpers import extract_sample_number_part
-
 default_config_file = pipeline_config.default_config_file
 workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
@@ -38,6 +41,7 @@ console_log.setLevel(logging.INFO)
 plain_messages = logging.Formatter("%(message)s")
 console_log.setFormatter(plain_messages)
 logger.addHandler(console_log)
+
 
 # TODO: sample year is now already spliced in or should be
 def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_prefix: str,
@@ -126,25 +130,19 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     lab_info_data = pd.read_csv(lab_report, encoding="latin1", dtype = {"afsendt": str,
                                                                         "cprnr.": str,
                                                                         "modtaget": str})
-    # sample numbers can be identical except for the prefix
-    # -> make subsets of sample sheet and report by prefix
+    # match column names for sample number in sheet and LIS
+    sheet_data = sheet_data.rename(columns = {"Prøvenummer": "prøvenr"})
     # remove both negative and positive controls here
-    # TODO: get control pattern?
-    (negative_control_pattern,
-     positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
-                                                              active_config["sample_number_settings"]["positive_control"])
-    # extract prefix: numbers or letters
+    (neg_control_pattern,
+     pos_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
+                                                         active_config["sample_number_settings"][
+                                                             "positive_control"])
+    # TODO: might be prettier but it's the only way that shuts the warning up
+    non_controls = sheet_data[~(sheet_data["prøvenr"].str.fullmatch(pos_control_pattern)
+                                | sheet_data["prøvenr"].str.fullmatch(neg_control_pattern))].copy()
+    # get the order of components in the sheetvs the  LIS and rearrange accordingly
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
-    # add date if needed
-    sheet_data["prøvenr"] = sheet_data["Prøvenummer"]
-    # match only sample type and replace as needed
-    # remove all controls
-    non_controls = sheet_data[~(sheet_data["Prøvenummer"].str.fullmatch(positive_control_pattern)
-                              | sheet_data["Prøvenummer"].str.fullmatch(negative_control_pattern))]
-    # get the order of components in the LIS and rearrange accordingly - TODO: can we handle this elsewhere?
-    sample_format_lis = re.compile(active_config[
-                                          "sample_number_settings"][
-                                          "format_in_lis"])
+    sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
     component_order_lis = {value: key for key, value in
                            sample_format_lis.groupindex.items()}
     extra_components = (set(sample_format_sheet.groupindex.keys())
@@ -154,11 +152,12 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
                     f"Cannot check if {list(extra_components)} component(s) are correct.")
     non_controls["prøvenr_translate"] = non_controls["prøvenr"].apply(lambda x:
                                                                       helpers.translate_sample_number(
-                                                                          x, sample_format_sheet,
+                                                                          x,
+                                                                          sample_format_sheet,
                                                                           sample_format_lis,
                                                                           prefix_mapping,
-                                                                          positive_control_pattern,
-                                                                          negative_control_pattern))
+                                                                          pos_control_pattern,
+                                                                          neg_control_pattern))
 
     # left join the rest on the LIS report
     samples_in_lis = non_controls.merge(lab_info_data, how = "left",
@@ -278,7 +277,44 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         raise ValueError(fail_record)
 
 
+def check_runsheet(runsheet: pathlib.Path, check_barcodes: bool = False,
+                   active_config: Dict[str, Any] = workflow_config) -> bool:
+    """Check whether the runsheet format is correct and the samples are present in the LIS report
+    if one is used.
+
+    Arguments:
+        runsheet:       the path to the runsheet to check
+        check_barcodes: whether to check barcodes
+        active_config:  the configuration to use
+
+    Returns:
+        True if the runsheet format is correct and the samples are present in the LIS report
+    Raises:
+        ValueError: if the runsheet format is incorrect or samples are missing
+    """
+    logger.info("Loading runsheet...")
+    # TODO: handle this part in a function?
+    runsheet_data = pd.read_excel(runsheet, usecols = "A:B", skiprows = 3,  # don't check CP for now
+                                  dtype = {"Prøvenummer": str})
+    runsheet_data = runsheet_data.dropna(subset = ["Prøvenummer", "Barkode"], how="all")
+    logger.info("Checking runsheet format....")
+    # simple error handling, suppressing tracebacks
+    check_sheet_format(runsheet_data, check_barcodes, active_config=active_config)
+    if active_config["lab_info_system"]["use_lis_features"]:
+        lab_info_report = pathlib.Path(active_config["lab_info_system"]["lis_report"])
+        logger.info("Comparing to samples in MADS......")
+        check_against_lis(runsheet_data, lab_info_report, active_config=active_config)
+    # if we haven't crashed by now we're fine
+    return True
+
+
 if __name__ == "__main__":
+    parser = ArgumentParser(description = "Check amplicon runsheet")
+    parser.add_argument("--runsheet", help="Path to runsheet to check")
+    parser.add_argument("--workflow_config_file",
+                        help=f"The config to use (default: {default_config_file}).",
+                        default=default_config_file)
+    args = parser.parse_args()
     readline.set_completer_delims('\t\n=')   # allow tab completion of paths
     readline.parse_and_bind("tab: complete")
     # suppress openpyxl warning - not relevant for data processing
@@ -286,23 +322,17 @@ if __name__ == "__main__":
                             message="Data Validation extension is not supported and will be removed",
                             module="openpyxl")
     print("###Runsheet check")
-    run_sheet = pathlib.Path(input("Enter path to runsheet: ").strip().strip("'")).resolve()
-    print("Loading runsheet...\n")
-    # TODO: handle this part in a function?
-    runsheet_data = pd.read_excel(run_sheet, usecols = "A", skiprows = 3,  # don't check CP for now
-                                  dtype = {"Prøvenummer": str})
-    runsheet_data = runsheet_data.dropna()
-    print("Checking runsheet format....\n")
-    # simple error handling, suppressing tracebacks
+    if args.workflow_config_file:
+        default_config_file = pathlib.Path(args.workflow_config_file).resolve()
+        with open(default_config_file, "r", encoding = "utf-8") as config_file:
+            workflow_config = yaml.safe_load(config_file)
+    if args.runsheet:
+        run_sheet = pathlib.Path(args.runsheet).resolve()
+    else:
+        run_sheet = pathlib.Path(input("Enter path to runsheet: ").strip().strip("'")).resolve()
     try:
-        check_sheet_format(runsheet_data)
+        check_runsheet(run_sheet, active_config = workflow_config)
     except ValueError as value_error:
         logger.error(str(value_error))
-        sys.exit()
-    lab_info_report = pathlib.Path(workflow_config["lab_info_system"]["lis_report"])
-    print("Comparing to samples in MADS......\n")
-    try:
-        check_against_lis(runsheet_data, lab_info_report)
-    except ValueError as value_error:
-        logger.error(str(value_error))
-        sys.exit()
+        sys.exit(1)
+    sys.exit(0)

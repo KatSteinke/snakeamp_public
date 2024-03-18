@@ -52,7 +52,9 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
      positive_control_pattern) = helpers.get_control_patterns(
         active_config["sample_number_settings"]["negative_control"],
         active_config["sample_number_settings"]["positive_control"])
-    sample_information = pd.DataFrame(data = {"prøvenr": [sample_number], "modtagedato": [""],
+    sample_information = pd.DataFrame(data = {"patient": [""],
+                                              "prøvenr": [sample_number],
+                                              "modtagedato": [""],
                                               "prøvemateriale": [""],
                                               "anatomi": [""]})
     if not (re.match(positive_control_pattern, sample_number)
@@ -76,13 +78,15 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
             error_msg = (f"Sample number {name_translate} (original number: {sample_number}) "
                          "not found in LIS report.")
             raise KeyError(error_msg)
-        sample_information = lis_report[lis_report["prøvenr"] == name_translate][["prøvenr",
+        sample_information = lis_report[lis_report["prøvenr"] == name_translate][["cprnr.",
+                                                                                  "prøvenr",
                                                                                   "modtaget",
                                                                                   "prøvekategori",
                                                                                   "anatomi"]]
         sample_information = sample_information.rename(columns = {"modtaget": "modtagedato",
                                                                   "prøvekategori":
-                                                                      "prøvemateriale"})
+                                                                      "prøvemateriale",
+                                                                  "cprnr.": "patient"})
         sample_information["modtagedato"] = sample_information["modtagedato"].apply(lambda x:
                                                                               datetime.strptime(x,
                                                                                         "%d%m%Y").strftime("%Y-%m-%d"))
@@ -157,8 +161,17 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     emu_read_counts = pd.read_csv(emu_counts, sep = "\t")
     # check if something is wrong with the abundance as is
     if not math.isclose(sum(emu_read_counts['abundance'].dropna()), 1):
-        raise ValueError("Relative abundance does not sum to 100%. "
-                         "This suggests the result file is broken (missing/extra lines).")
+        # this might be legit if a fallback file was generated (all reads are unassigned)
+        taxids = emu_read_counts['tax_id']
+        # TODO: simplify conditions
+        if len(taxids) > 1:
+            raise ValueError("Relative abundance does not sum to 100%. "
+                             "This suggests the result file is broken (missing/extra lines).")
+        # if we only have one taxid we can check if it's unassigned
+        if not taxids.squeeze() == "unassigned":
+            raise ValueError("Relative abundance does not sum to 100%. "
+                             "This suggests the result file is broken (missing/extra lines).")
+        logger.info(f"All reads for sample {sample_name_components.sample_name} are unassigned.")
     # recalculate percentage to include unassigned reads
     total_reads = sum(emu_read_counts['estimated counts'])
     # output as percent
@@ -169,13 +182,15 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     emu_read_counts = emu_read_counts.astype({"estimated counts": "Int64"})
     # cut down to required columns and add approval column
     cols_for_report = ["species", "abundance_from_all [%]", "estimated counts", "medtages"]
-    emu_read_counts = emu_read_counts.reindex(columns = cols_for_report, fill_value = "")
+    emu_read_counts = emu_read_counts.reindex(columns = cols_for_report)
     # "unassigned" is only noted on the taxid level - fill it in on the species level
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
+    # "medtages" should be a blank string
+    emu_read_counts["medtages"] = emu_read_counts["medtages"].fillna(value = "")
     # deduplicate species names
     # this also sets species as index so we keep it out of the multiindexed columns
     emu_read_counts = emu_read_counts.groupby(by="species").sum()
-
+    print(emu_read_counts.to_string())
     # note down relevant information
     run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
     barcode_header = [sample_name_components.barcode] * len(emu_read_counts.columns)
@@ -184,13 +199,14 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     header_names = ["run", "barcode", "prøvenummer"]
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
-                               encoding = "latin1", dtype = {"modtaget": str})
+                               encoding = "latin1", dtype = {"modtaget": str,
+                                                             "cprnr.": str})
         data_from_lis = get_lis_information(sample_name_components.sample_name, lis_data,
                                             active_config)
         # rename sample number if needed - TODO: more prettily!
         name_header = [data_from_lis["prøvenr"].squeeze()] * len(emu_read_counts.columns)
         report_headers[-1] = name_header
-        lis_data_cols = ["modtagedato", "prøvemateriale", "anatomi"]
+        lis_data_cols = ["modtagedato", "patient", "prøvemateriale", "anatomi"]
         lis_headers = [[data_from_lis[sample_metadata].squeeze()] * len(emu_read_counts.columns)
                        if pd.notna(data_from_lis[sample_metadata].squeeze())
                        else [""] * len(emu_read_counts.columns)
@@ -200,6 +216,9 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
         header_names.extend(lis_data_cols)
     # add blank PhHV header row
     header_names.append("PhHV")
+    report_headers.append([""] * len(emu_read_counts.columns))
+    # add blank note row
+    header_names.append("notes")
     report_headers.append([""] * len(emu_read_counts.columns))
     report_headers.append(emu_read_counts.columns)
     header_names += [None]
@@ -251,23 +270,24 @@ def sort_report_samples(emu_report: pd.DataFrame,
                                    for sample_nr in sample_numbers
                                    if re.search(negative_control, sample_nr)
                                    or re.search(positive_control, sample_nr)}))
+    # now get their positions
+    control_positions = [position for sample_nr in control_columns
+                         for (position, colname) in enumerate(sample_numbers)
+                         if colname == sample_nr]
     # non-controls need to be sorted by barcode
     # find all sample numbers not matching control format - predefined slice since it's a lot of writing
     non_control_slice = ~sample_numbers.str.match(controls)
     non_control_header = emu_report.loc[:, non_control_slice].columns.to_frame(index=False)
-    # get sample number and barcode as a tuple...
-    non_control_col_and_barcode = pd.Series(zip(non_control_header["prøvenummer"],
-                                           non_control_header["barcode"])).unique()
-    # ...so we can sort by barcode
-    non_control_col_and_barcode = sorted(non_control_col_and_barcode,
-                                         key = lambda col_tuple: col_tuple[1])
-    # ...and then get back to sample numbers
-    non_controls = [col_tuple[0] for col_tuple in non_control_col_and_barcode]
-    reordered_columns = control_columns + non_controls
-    # get the position of these in the "prøvenummer" level
-    reordered_columns_pos = [position for sample_nr in reordered_columns
-                             for (position, colname) in enumerate(sample_numbers)
-                             if colname == sample_nr]
+    # now sort non-control on barcodes since they're guaranteed to be unique
+    # (aside from coming in groups of three due to the multiindex setup)
+    non_control_barcodes = sorted(list(non_control_header["barcode"].unique()))
+    barcodes = emu_report.columns.get_level_values("barcode")
+    # get the positions so we can combine them with the controls' positions (based on sample number)
+    # TODO: avoid repetition?
+    non_control_positions = [position for barcode in non_control_barcodes
+                             for (position, colname) in enumerate(barcodes)
+                             if colname == barcode]
+    reordered_columns_pos = control_positions + non_control_positions
     # reindex with the columns given by positions
     emu_report = emu_report.reindex(pd.MultiIndex.from_tuples([emu_report.columns[column_index]
                                                                for column_index in
@@ -275,7 +295,6 @@ def sort_report_samples(emu_report: pd.DataFrame,
                                                               names = emu_report.columns.names),
                                     axis = "columns")
     return emu_report
-
 
 
 def merge_all_in_emu_dir(emu_dir: pathlib.Path,
@@ -299,16 +318,18 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     all_reports = []
     # set up fallbacks - sample number is easiest to set up only when we have it..
     fallback_cols = [["", "", ""],
+                     ["", "", ""],
                      ["abundance_from_all [%]",
                       "estimated counts",
                       "medtages"]]
-    fallback_names = ["PhHV", None]
+    fallback_names = ["PhHV", "notes", None]
     # ... but we don't want to have to check whether we're using LIS features for every sample
     if active_config["lab_info_system"]["use_lis_features"]:
         fallback_cols = [["", "", ""],
                          ["", "", ""],
+                         ["", "", ""],
                          ["", "", ""]] + fallback_cols
-        fallback_names = ["modtagedato", "prøvemateriale", "anatomi"] + fallback_names
+        fallback_names = ["modtagedato", "patient", "prøvemateriale", "anatomi"] + fallback_names
     for emu_report in emu_reports:
         try:
             emu_data = report_species_per_barcode(emu_report, active_config)
@@ -338,6 +359,23 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     if len(run_names) > 1:
         log_msg = f"Data appear to be from multiple runs ({run_names})."
         logger.warning(log_msg)
+    # if we're using LIS data we're giving out a patient ID here
+    if "patient" in all_merged.columns.names:
+        patient_ids = [pt_id
+                       for pt_id in all_merged.columns.get_level_values("patient").unique().tolist()
+                       if pt_id]
+        # we want to make it clear that this is the ID for this batch of *results*
+        # -> use run number from all runs
+        # shorter run name - only extract RUNXXXX from names since it's a one-off ID
+        run_numbers = [re.search(r"run\d{4}", run_name, flags = re.IGNORECASE).group(0)
+                       if re.search(r"run\d{4}", run_name, flags =re.IGNORECASE)
+                       else "RUNxxxx"
+                       for run_name in run_names]
+        all_run_numbers = "".join(run_numbers)
+        patients_to_ids = {patient_id: f"{all_run_numbers}_pt_{patient_index}"
+                           for patient_index, patient_id in enumerate(patient_ids)
+                           if patient_id}
+        all_merged = all_merged.rename(columns = patients_to_ids)
     return all_merged
 
 

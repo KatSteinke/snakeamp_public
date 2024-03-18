@@ -35,6 +35,10 @@ barcode_prefix: "RB" # barcode prefix as letter (for transferring original fastq
 # what are we looking at? 16S, 18S, something else? Cosmetic for now but tells users what they're doing
 amplicon_type: 16S
 
+# how long should the pipeline wait for the summary file?
+seq_run_duration_hours: 16
+check_interval_seconds: 300
+
 paths:
   output_base_path: "/path/to/analysis_outputs"
 

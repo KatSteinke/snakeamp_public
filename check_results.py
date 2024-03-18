@@ -81,7 +81,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
     results_okay = True
     # get list of tabs - do we have everything
     expected_tabs = {'overview', 'abundance', 'count'}
-    with (pd.ExcelFile(emu_report) as report_sheet):
+    with pd.ExcelFile(emu_report) as report_sheet:
         sheets_in_report = set(report_sheet.sheet_names)
         tabs_found = expected_tabs.intersection(sheets_in_report)
         if len(tabs_found) < len(expected_tabs):
@@ -92,7 +92,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         # for each sheet:
         for sheet in tabs_found:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
-                                       header = [0, 1, 2, 3, 4, 5, 6, 7])
+                                       header = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
             # if it's the overview sheet it'll have a PhHV column, the others don't need one
             # we're not going to compare everything in the PhHV column
             # so don't count this when generating expected data
@@ -114,11 +114,19 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                     *["2021-01-02"] * cols_per_sample,
                                                                     *["2021-01-02"] * cols_per_sample
                                                                     ],
+                                                    "patient": [*[""] * cols_per_sample,
+                                                                *[""] * cols_per_sample,
+                                                                *["RUN0001_pt_0"]
+                                                                 * cols_per_sample,
+                                                                *["RUN0001_pt_0"]
+                                                                 * cols_per_sample,
+                                                                *["RUN0001_pt_0"]
+                                                                 * cols_per_sample],
                                                     "prøvemateriale": [*[""] * cols_per_sample,
                                                         *[""] * cols_per_sample,
                                                         *["Hjerneventrikelvæske <liquor>"] * cols_per_sample,
                                                         *["Podning"] * cols_per_sample,
-                                                        *["Spinalvæske"] *cols_per_sample,
+                                                        *["Spinalvæske"] * cols_per_sample,
                                                         ],
                                                     "anatomi": [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
@@ -143,6 +151,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "modtagedato",
+                                                                      "patient",
                                                                       "prøvemateriale",
                                                                       "anatomi"]]
             header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
@@ -254,7 +263,6 @@ def check_all_qc(results_dir: pathlib.Path) -> bool:
         return False
     logger.info("All QC checks passed")
     return True
-
 
 
 if __name__ == "__main__":

@@ -3,24 +3,27 @@
 __author__ = "Kat Steinke"
 
 import logging
+import os
 import pathlib
 import re
 import readline
 import sys
-import subprocess
 
 from argparse import ArgumentParser
-from typing import Any, Dict, List, Optional
+from datetime import timedelta
+from typing import Any, Dict
 
 import pandas as pd
 import yaml
 
 import check_runsheet
 import helpers
+import monitor_run
 import pipeline_config
 import version
 
 __version__ = version.__version__
+
 
 # import parameters
 default_config_file = pipeline_config.default_config_file
@@ -43,6 +46,7 @@ class BadPathError(Exception):
     pass
 
 
+# TODO: how long does it take for the run dir to be created?
 def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.Path:
     """Check whether run directory exists as full path or directory in MinION dir and
     adjust path of run directory accordingly.
@@ -97,6 +101,7 @@ def get_run_name(runsheet: pathlib.Path) -> str:
         raise ValueError("No run name given in the runsheet.")
     return run_name
 
+
 # read runsheet
 def process_runsheet(runsheet_path: pathlib.Path,
                      active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
@@ -114,7 +119,7 @@ def process_runsheet(runsheet_path: pathlib.Path,
         KeyError:   if there are no samples for which the analysis should be performed
     """
     run_data = pd.read_excel(runsheet_path, usecols = "A:D", skiprows = 3,  # don't check CP for now
-                  dtype = {"Prøvenummer": str, "Eluat nr.": str})
+                             dtype = {"Prøvenummer": str, "Eluat nr.": str})
     run_data = run_data.dropna(subset = "Prøvenummer")
     # filter down to correct analysis
     run_data = run_data[run_data["Analyse"] == active_config["amplicon_type"]]
@@ -191,35 +196,6 @@ def get_clean_outdir(outdir_path: pathlib.Path) -> pathlib.Path:
 
 
 # get the command to run the pipeline
-def get_pipeline_command(indir: pathlib.Path, outdir: pathlib.Path, runsheet: pathlib.Path,
-                         configfile: pathlib.Path = default_config_file,
-                         active_config: Dict[str, Any] = workflow_config,
-                         debug: Optional[bool] = None) -> List[str]:
-    """Generate the command for starting the pipeline.
-
-    Arguments:
-        indir:          the directory containing input files for the pipeline
-        outdir:         the directory to which results should be output
-        runsheet:       the runsheet used for the run
-        debug:          whether to run the pipeline in test mode (overrides config setting)
-        configfile:     the file containing the configuration for the pipeline
-        active_config:  the configuration to use for the pipeline
-
-    Returns:
-        The nomad command to start the pipeline
-    """
-    if debug is None:
-        run_as_debug = active_config["debug"]
-    else:
-        run_as_debug = debug
-    nomad_job = "16s-snake-emu-staging" if run_as_debug else "16s-snake-emu-prod"
-    nomad_command = ["nomad", "job", "dispatch",
-                     "-meta", f"indir={indir}",
-                     "-meta", f"outdir={outdir}",
-                     "-meta", f"runsheet={runsheet}",
-                     nomad_job,
-                     configfile]
-    return nomad_command
 
 
 if __name__ == "__main__":
@@ -227,8 +203,8 @@ if __name__ == "__main__":
     arg_parser.add_argument("--rundir", help="Full path or name of sequencing folder")
     arg_parser.add_argument("--runsheet", help="Path to runsheet")
     arg_parser.add_argument("--outdir",
-                            help=f"Path to output directory "
-                                 f"(default: "
+                            help="Path to output directory "
+                                 "(default: "
                                  f"{workflow_config['paths']['output_base_path']}/[name of rundir])")
     arg_parser.add_argument("--workflow_config_file",
                             help="Config file for run (overrides default config given in script, "
@@ -236,7 +212,14 @@ if __name__ == "__main__":
     arg_parser.add_argument("--continue_pipeline", action="store_true",
                             help="Continue pipeline after interruption")
     arg_parser.add_argument("--test_run", action="store_true",
-                            help="Start a test run")
+                            help="Start a run with the development version of the pipeline")
+    arg_parser.add_argument("--dry_run", action="store_true",
+                            help="Determine the pipeline start command,"
+                                 " set up required dirs and exit")
+    arg_parser.add_argument("--run_time", action="store", type=float,
+                            help = "Expected sequencing time in hours "
+                                   "(will wait for the sequencing run for another hour after this;"
+                                   f" default: {workflow_config['seq_run_duration_hours']})")
     args = arg_parser.parse_args()
     # we assume this is commandline mode unless started without arguments
     manual_mode = False
@@ -255,8 +238,11 @@ if __name__ == "__main__":
                 manual_mode = True
     # load debug settings from config (either the one we loaded or the default)
     debug_run = workflow_config["debug"]
+    # load sequencing time settings
+    seq_time = timedelta(hours=workflow_config["seq_run_duration_hours"])
+    seq_run_fudge_factor = timedelta(hours = 1)
     if manual_mode:
-        # lots of typing, so  allow tab completion of paths
+        # lots of typing, so allow tab completion of paths
         readline.set_completer_delims('\t\n=')
         readline.parse_and_bind("tab: complete")
         # ...and greet the user nicely
@@ -264,7 +250,18 @@ if __name__ == "__main__":
         print("# Setup analysis -------------------------------")
         rundir = pathlib.Path(input("Type full path or name of Nanopore "
                                     "sequencing folder and press enter: ").strip().strip("'"))
-
+        seq_time_accept = input("Expecting sequencing to be finished after"
+                                f" {workflow_config['seq_run_duration_hours']} hours. "
+                                "Is this correct? [y/n]")
+        if seq_time_accept == "n":
+            seq_time = timedelta(hours = float(input("Type how many hours the sequencing run"
+                                                     " is expected to last"
+                                                     " (e.g. 2 if you set it to 2 hours) "
+                                                     "and press enter: ")))
+        elif seq_time_accept == "y":
+            pass
+        else:
+            raise ValueError("Sequencing time not entered. Aborting")
         runsheet = pathlib.Path(input("Output directory will be based on experiment name."
                                       "\n"
                                       "Enter path to runsheet: ").strip().strip("'")).resolve()
@@ -276,6 +273,8 @@ if __name__ == "__main__":
             raise ValueError("Nanopore run directory not specified.")
         runsheet = pathlib.Path(args.runsheet).resolve()
         rundir = pathlib.Path(args.rundir).resolve()
+        if args.run_time:
+            seq_time = timedelta(hours = args.run_time)
 
     # check runsheet
     runsheet_data = process_runsheet(runsheet, workflow_config)
@@ -321,18 +320,32 @@ if __name__ == "__main__":
         debug_run = True
         append_to_databases = False
     continue_pipeline = args.continue_pipeline
-    # we'll have to handle creating our folders ourselves
+    # we'll have to handle creating our folders ourselves - catch duplicate dirs here!
     if not output_dir.exists():
         output_dir.mkdir(parents = True)
+    else:
+        if not continue_pipeline:
+            raise FileExistsError("The desired output directory already exists.")
     # create dir for snakemake logs
     if not (output_dir / "logs").exists():
         (output_dir / "logs").mkdir()
     # start pipeline (in Docker container)
-    logger.info("Running analysis pipeline")
-    start_command = get_pipeline_command(rundir, output_dir, runsheet,
-                                         configfile = default_config_file,
-                                         active_config = workflow_config,
-                                         debug = debug_run)
-    subprocess.run(start_command, check = True)
-
-
+    logger.info("Pipeline is now waiting for sequencing to finish...")
+    # set up sequencing run
+    seq_run = monitor_run.AmpliconRun(sequence_dir = rundir, outdir = output_dir,
+                                      runsheet = runsheet,
+                                      active_config = workflow_config,
+                                      configfile = default_config_file,
+                                      test_run = debug_run)
+    # calculate waiting time and check interval
+    total_time = seq_time + seq_run_fudge_factor
+    check_interval = workflow_config["check_interval_seconds"]
+    # wait and start - TODO: give pattern more nicely?
+    # detach here - keep start log
+    if os.fork():
+        sys.exit()
+    analysis_run = monitor_run.start_on_file_found(seq_run, "*/final_summary*.txt",
+                                                   dry_run = args.dry_run,
+                                                   watch_timeout = total_time.seconds,
+                                                   watch_interval = check_interval)
+    logger.info(f"Started pipeline with command {' '.join(analysis_run.args)}")
