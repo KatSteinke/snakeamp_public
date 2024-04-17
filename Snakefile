@@ -43,6 +43,7 @@ sheet_data = pd.read_excel(config["runsheet"],usecols = "A:D",skiprows = 3,
                            dtype = {"Prøvenummer": str, "Eluat nr.": str})
 sheet_data = sheet_data.dropna(subset=["Prøvenummer", "Barkode"])
 sheet_data = sheet_data[sheet_data["Analyse"] == config["amplicon_type"]]
+# TODO: do we need to translate here?
 sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
                                                        helpers.translate_sample_number(sample_number,
                                                                                        input_format,
@@ -192,7 +193,7 @@ rule run_emu:
         emu abundance "{input.fasta_reads}" --db "{params.emu_db}" --keep-counts \
          --output-dir "{params.outdir}" --output-basename {params.basename} \
          --threads {threads} &> "{log}" || {{ printf "{params.fallback_header}" > "{output.relative_abundance}" ; \
-          printf "unassigned\\t0.0\\t$(grep -P '(?<=Unassigned read count: )[0-9]+' {log:q} --only-matching)\\n" ; }}
+          printf "unassigned\\t0.0\\t$(grep -P '(?<=Unassigned read count: )[0-9]+' {log:q} --only-matching)\\n" >> "{output.relative_abundance}" ; }}
         """
 
 rule combine_emu:
