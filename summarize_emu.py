@@ -159,6 +159,11 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     sample_name_components = extract_name_components(emu_counts.name, active_config)
     # get read counts per species
     emu_read_counts = pd.read_csv(emu_counts, sep = "\t")
+    # create a fallback if it's empty
+    if emu_read_counts.empty:
+        emu_read_counts = pd.DataFrame(data={"tax_id": ["unassigned"],
+                                             "abundance": [0],
+                                             "estimated counts": [0]})
     # check if something is wrong with the abundance as is
     if not math.isclose(sum(emu_read_counts['abundance'].dropna()), 1):
         # this might be legit if a fallback file was generated (all reads are unassigned)
@@ -190,7 +195,6 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     # deduplicate species names
     # this also sets species as index so we keep it out of the multiindexed columns
     emu_read_counts = emu_read_counts.groupby(by="species").sum()
-    print(emu_read_counts.to_string())
     # note down relevant information
     run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
     barcode_header = [sample_name_components.barcode] * len(emu_read_counts.columns)
@@ -203,7 +207,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
                                                              "cprnr.": str})
         data_from_lis = get_lis_information(sample_name_components.sample_name, lis_data,
                                             active_config)
-        # rename sample number if needed - TODO: more prettily!
+        # rename sample number if needed - TODO: more prettily! Or just avoid it?
         name_header = [data_from_lis["prøvenr"].squeeze()] * len(emu_read_counts.columns)
         report_headers[-1] = name_header
         lis_data_cols = ["modtagedato", "patient", "prøvemateriale", "anatomi"]
@@ -315,6 +319,11 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     emu_reports = list(emu_dir.glob("*_rel-abundance.tsv"))
     if not emu_reports:
         raise FileNotFoundError(f"No Emu reports found in {emu_dir}.")
+    # establish controls here if needed
+    (negative_control_pattern,
+     positive_control_pattern) = helpers.get_control_patterns(
+        active_config["sample_number_settings"]["negative_control"],
+        active_config["sample_number_settings"]["positive_control"])
     all_reports = []
     # set up fallbacks - sample number is easiest to set up only when we have it..
     fallback_cols = [["", "", ""],
@@ -334,6 +343,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
         try:
             emu_data = report_species_per_barcode(emu_report, active_config)
         except ValueError as value_err:
+            # here's the bastard - no translation, somehow run/barcode/samplenumber are already added?
             logger.error(f"Error in {emu_report}:\n"
                          f"{value_err}\n"
                          "Empty results will be added to the merged summary.")
@@ -341,6 +351,27 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
             run_name = sample_name_components.run_name
             sample_name = sample_name_components.sample_name
             barcode = sample_name_components.barcode
+            # if we can we'll translate sample number here - only when using LIS for now
+            if active_config["lab_info_system"]["use_lis_features"]:
+                if not (re.match(positive_control_pattern, sample_name)
+                        or re.match(negative_control_pattern, sample_name)):
+                    prefix_mapping = helpers.get_number_letter_combination(
+                        active_config["sample_number_settings"][
+                            "number_to_letter"],
+                        active_config["sample_number_settings"][
+                            "sample_numbers_output"],
+                        active_config["sample_number_settings"][
+                            "sample_numbers_out"])
+
+                    sample_format_results = re.compile(
+                        active_config["sample_number_settings"]["format_output"])
+                    sample_format_lis = re.compile(
+                        active_config["sample_number_settings"]["format_in_lis"])
+                    sample_name = helpers.translate_sample_number(sample_name,
+                                                                  sample_format_results,
+                                                                  sample_format_lis, prefix_mapping,
+                                                                  positive_control_pattern,
+                                                                  negative_control_pattern)
             fallback_cols = [[run_name, run_name, run_name],
                              [barcode, barcode, barcode],
                              [sample_name, sample_name, sample_name]] + fallback_cols
