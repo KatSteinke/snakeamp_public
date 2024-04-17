@@ -182,7 +182,7 @@ rule run_emu:
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
         basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}",
         # add very minimal results if emu fails
-        fallback_header = r"tax_id\tabundance\testimated_counts\n"
+        fallback_header = r"tax_id\tabundance\testimated counts\n"
     conda:
         "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
