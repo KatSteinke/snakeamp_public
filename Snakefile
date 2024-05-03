@@ -137,14 +137,19 @@ rule clean_nanopore_reads:
         filtered_fastq = temp("{sample_number}_{barcode}/reads/"
                               "{sample_number}_{barcode}.filtered.fastq")
     params:
-        min_length = 100,
-        min_quality = 15
+        min_length = f"--min_length {config['quality_params']['min_length']}" \
+                      if config['quality_params']['min_length'] else '',
+        max_length= f"--max_length {config['quality_params']['max_length']}" \
+                    if config['quality_params']['max_length'] else '',
+        min_quality = f"--min_mean_q {config['quality_params']['min_qscore']}" \
+                      if config['quality_params']['min_qscore'] else ''
     conda: "nanopore_qc_env" # TODO: set up env!
     shell:
         """
-        filtlong --min_length {params.min_length} \
+        filtlong {params.min_length} \
+        {params.max_length} \
+        {params.min_quality} \
          --keep_percent 95 \
-         --min_mean_q {params.min_quality} \
          {input.concat_fastq} >  {output.filtered_fastq}
         """
 
