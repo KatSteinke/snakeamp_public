@@ -284,8 +284,9 @@ if __name__ == "__main__":
         check_runsheet.check_against_lis(runsheet_data, lis_report, active_config = workflow_config)
     else:
         lis_report = None
-    # get output dir from experiment name
-    experiment_name = helpers.extract_nanopore_run_name(runsheet)
+    # get output dir from experiment name + amplicon type
+    experiment_name = (f"{helpers.extract_nanopore_run_name(runsheet)}"
+                       f"-{workflow_config['amplicon_type']}")
     # set output dir
     if args.outdir:  # can only be given in commandline mode
         output_dir = pathlib.Path(args.outdir)

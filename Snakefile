@@ -43,6 +43,7 @@ sheet_data = pd.read_excel(config["runsheet"],usecols = "A:D",skiprows = 3,
                            dtype = {"Prøvenummer": str, "Eluat nr.": str})
 sheet_data = sheet_data.dropna(subset=["Prøvenummer", "Barkode"])
 sheet_data = sheet_data[sheet_data["Analyse"] == config["amplicon_type"]]
+# TODO: do we need to translate here?
 sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
                                                        helpers.translate_sample_number(sample_number,
                                                                                        input_format,
@@ -181,7 +182,7 @@ rule run_emu:
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
         basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}",
         # add very minimal results if emu fails
-        fallback_header = r"tax_id\tabundance\testimated_counts\n"
+        fallback_header = r"tax_id\tabundance\testimated counts\n"
     conda:
         "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
@@ -192,7 +193,7 @@ rule run_emu:
         emu abundance "{input.fasta_reads}" --db "{params.emu_db}" --keep-counts \
          --output-dir "{params.outdir}" --output-basename {params.basename} \
          --threads {threads} &> "{log}" || {{ printf "{params.fallback_header}" > "{output.relative_abundance}" ; \
-          printf "unassigned\\t0.0\\t$(grep -P '(?<=Unassigned read count: )[0-9]+' {log:q} --only-matching)\\n" ; }}
+          printf "unassigned\\t0.0\\t$(grep -P '(?<=Unassigned read count: )[0-9]+' {log:q} --only-matching)\\n" >> "{output.relative_abundance}" ; }}
         """
 
 rule combine_emu:
