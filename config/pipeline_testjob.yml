@@ -44,7 +44,7 @@ paths:
 
 # quality settings - expected minimum and maximum length and average Q score
 quality_params:
-  min_length: 700
+  min_length: 100
   max_length: 1600
   min_qscore: 15
 
