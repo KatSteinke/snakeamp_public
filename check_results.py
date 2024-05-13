@@ -244,7 +244,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                math.isclose(df["abundance_expected"],
                                                                             df["abundance_found"],
                                                                             rel_tol = 0.001,
-                                                                            abs_tol = 0.1),
+                                                                            abs_tol = 0.5),
                                                                axis=1)
                 if not all(abundances_match):
                     results_okay = False

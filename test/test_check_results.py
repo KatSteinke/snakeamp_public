@@ -52,6 +52,14 @@ class TestCheckEmuResults(unittest.TestCase):
         check_report = check_results.check_emu_result_file(test_report)
         assert check_report
 
+    def test_success_minor_abundance_diff(self):
+        """Report success if there is a small difference in abundance in the positive control
+        (<0.5 percent points)."""
+        test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
+                       / "RUN0001_minor_diff_emu-combined.xlsx")
+        check_report = check_results.check_emu_result_file(test_report)
+        assert check_report
+
     def test_warn_missing_tabs(self):
         """Complain if one or more of the output sheets are missing."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
