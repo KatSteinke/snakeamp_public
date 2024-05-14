@@ -178,7 +178,7 @@ rule run_emu:
         "logs/emu/{sample_number}_{barcode}.log"
     shell:
         """
-        emu abundance "{input.fasta_reads}" --db "{params.emu_db}" --keep-counts \
+        emu abundance "{input.filtered_fastq}" --db "{params.emu_db}" --keep-counts \
          --output-dir "{params.outdir}" --output-basename {params.basename} \
          --threads {threads} &> "{log}" || {{ printf "{params.fallback_header}" > "{output.relative_abundance}" ; \
           printf "unassigned\\t0.0\\t$(grep -P '(?<=Unassigned read count: )[0-9]+' {log:q} --only-matching)\\n" ; }}
