@@ -156,24 +156,10 @@ rule compress_nanopore_reads:
         pigz -p {threads} -c -n "{input.filtered_fastq}" > "{output.compressed_fastq}"
         """
 
-rule fastq_to_fasta:
-    input:
-        compressed_fastq = "{sample_number}_{barcode}/reads/" \
-                           "{sample_number}_{barcode}.filtered.fastq.gz"
-    output:
-        fasta_reads = "{sample_number}_{barcode}/reads/" \
-                      "{sample_number}_{barcode}.filtered.fasta"
-    conda:
-        "nanopore_qc_env"
-    shell:
-        """
-        seqtk seq -a "{input.compressed_fastq}" > "{output.fasta_reads}"
-        """
-
 rule run_emu:
     input:
-        fasta_reads = "{sample_number}_{barcode}/reads/" \
-                      "{sample_number}_{barcode}.filtered.fasta"
+        filtered_fastq = "{sample_number}_{barcode}/reads/" \
+                         "{sample_number}_{barcode}.filtered.fastq"
     output:
         relative_abundance = f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv"
     params:
