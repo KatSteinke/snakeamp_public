@@ -68,7 +68,7 @@ def get_pipeline_command(sequencing_run: AmpliconRun) -> List[str]:
     return nomad_command
 
 
-# convenience function to allow user to specify duration
+# allow user to specify duration
 
 def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_run: bool = False,
                         watch_interval: int = 300,
@@ -91,7 +91,12 @@ def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_ru
     """
     file_found = 0
     time_watching = 0
+    if not run_to_watch.sequence_dir.exists():
+        raise FileNotFoundError(f"Parent directory {run_to_watch.sequence_dir} does not exist.")
     run_basedir = run_to_watch.sequence_dir / "rawdata"
+    if not run_basedir.exists():
+        raise FileNotFoundError(f"Parent directory {run_to_watch.sequence_dir} "
+                                "does not contain a rawdata directory.")
     # watch for presence of file
     while not (file_found or time_watching >= watch_timeout):
         file_found = len(list(run_basedir.glob(pattern_to_watch)))
