@@ -63,7 +63,10 @@ EXPERIMENT_NAME = helpers.extract_nanopore_run_name(pathlib.Path(config["runshee
 
 rule all:
     input:
-        all_results = f"{EXPERIMENT_NAME}_emu-combined.xlsx"  # TODO: experiment name!
+        all_results = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
+        all_compressed =  expand("{sample_number}_{barcode}/reads/" 
+                                 "{sample_number}_{barcode}.filtered.fastq.gz", zip,
+                                 sample_number=ALL_IDS, barcode=ALL_BARCODES)
 
 rule concatenate_fastqs:
     params:
@@ -157,24 +160,10 @@ rule compress_nanopore_reads:
         pigz -p {threads} -c -n "{input.filtered_fastq}" > "{output.compressed_fastq}"
         """
 
-rule fastq_to_fasta:
-    input:
-        compressed_fastq = "{sample_number}_{barcode}/reads/" \
-                           "{sample_number}_{barcode}.filtered.fastq.gz"
-    output:
-        fasta_reads = "{sample_number}_{barcode}/reads/" \
-                      "{sample_number}_{barcode}.filtered.fasta"
-    conda:
-        "nanopore_qc_env"
-    shell:
-        """
-        seqtk seq -a "{input.compressed_fastq}" > "{output.fasta_reads}"
-        """
-
 rule run_emu:
     input:
-        fasta_reads = "{sample_number}_{barcode}/reads/" \
-                      "{sample_number}_{barcode}.filtered.fasta"
+        filtered_fastq = "{sample_number}_{barcode}/reads/" \
+                         "{sample_number}_{barcode}.filtered.fastq"
     output:
         relative_abundance = f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv"
     params:
@@ -190,7 +179,7 @@ rule run_emu:
         "logs/emu/{sample_number}_{barcode}.log"
     shell:
         """
-        emu abundance "{input.fasta_reads}" --db "{params.emu_db}" --keep-counts \
+        emu abundance "{input.filtered_fastq}" --db "{params.emu_db}" --keep-counts \
          --output-dir "{params.outdir}" --output-basename {params.basename} \
          --threads {threads} &> "{log}" || {{ printf "{params.fallback_header}" > "{output.relative_abundance}" ; \
           printf "unassigned\\t0.0\\t$(grep -P '(?<=Unassigned read count: )[0-9]+' {log:q} --only-matching)\\n" >> "{output.relative_abundance}" ; }}
