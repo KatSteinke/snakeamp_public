@@ -62,7 +62,10 @@ EXPERIMENT_NAME = helpers.extract_nanopore_run_name(pathlib.Path(config["runshee
 
 rule all:
     input:
-        all_results = f"{EXPERIMENT_NAME}_emu-combined.xlsx"  # TODO: experiment name!
+        all_results = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
+        all_compressed =  expand("{sample_number}_{barcode}/reads/" 
+                                 "{sample_number}_{barcode}.filtered.fastq.gz", zip,
+                                 sample_number=ALL_IDS, barcode=ALL_BARCODES)
 
 rule concatenate_fastqs:
     params:
