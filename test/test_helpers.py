@@ -92,10 +92,31 @@ class TestGetPatterns(unittest.TestCase):
         assert test_pattern == expected_pattern
 
 
+class TestCheckBarcodeDirs(unittest.TestCase):
+    def test_raise_when_no_barcodes(self):
+        """Raise an error if no barcode directories are present."""
+        test_path = pathlib.Path(__file__).parent / "data" / "helpers" / \
+                    "test_dir_multi_pass" / "rawdata" / "subdir_3" / "fastq_pass"
+        error_msg = "No barcode directories found in fastq_pass directory."
+        with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
+            helpers.check_barcode_dirs(test_path)
+
 class TestFindRundir(unittest.TestCase):
     def test_find_absolute_path_success(self):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" \
                     / "test_dir_multi_pass" / "rawdata" / "subdir" / "fastq_pass"
+        true_path = pathlib.Path(__file__).parent / "data" / "helpers" \
+                    / "test_dir_multi_pass" / "rawdata" / "subdir"
+        with self.assertLogs("helpers", level = "INFO") as logged:
+            log_msg = f"INFO:helpers:Data is retrieved from the following folder:\n" \
+                      f"{true_path}"
+            test_fastq = helpers.get_fastq_pass_parent(test_path)
+        assert log_msg in logged.output
+        assert test_fastq == true_path
+
+    def test_handle_parent_dir(self):
+        test_path = pathlib.Path(__file__).parent / "data" / "helpers" \
+                    / "test_dir_multi_pass" / "rawdata" / "subdir"
         true_path = pathlib.Path(__file__).parent / "data" / "helpers" \
                     / "test_dir_multi_pass" / "rawdata" / "subdir"
         with self.assertLogs("helpers", level = "INFO") as logged:
@@ -118,27 +139,23 @@ class TestFindRundir(unittest.TestCase):
 
     def test_fail_path(self):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" / "subdir"
-        error_msg = "fastq_pass folder not found in expected location:\n" \
-                    f"{test_path}/rawdata/*/fastq_pass\n" \
+        error_msg = f"fastq_pass folder not found in {test_path} or any subfolders. \n" \
                     "Ensure correct directory and/or directory structure is used.\n" \
                     "Aborting 16S pipeline..."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)), \
                 self.assertLogs("helpers", level = "INFO") as logged:
-            log_msg = f"INFO:helpers:No barcode directories found in {test_path}.\n" \
-                      f"Searching for barcodes in {test_path}/rawdata/*/fastq_pass..."
+            log_msg = f"INFO:helpers:Searching for fastq_pass folder in {test_path}..."
             helpers.get_fastq_pass_parent(test_path)
         assert log_msg in logged.output
 
     def test_fastq_fail_path(self):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" / "subdir_3" / "fastq_fail"
-        error_msg = "fastq_pass folder not found in expected location:\n" \
-                    f"{test_path}/rawdata/*/fastq_pass\n" \
+        error_msg = f"fastq_pass folder not found in {test_path} or any subfolders. \n" \
                     "Ensure correct directory and/or directory structure is used.\n" \
                     "Aborting 16S pipeline..."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)),\
                 self.assertLogs("helpers", level = "INFO") as logged:
-            log_msg = f"INFO:helpers:No barcode directories found in {test_path}.\n" \
-                      f"Searching for barcodes in {test_path}/rawdata/*/fastq_pass..."
+            log_msg = f"INFO:helpers:Searching for fastq_pass folder in {test_path}..."
             helpers.get_fastq_pass_parent(test_path)
         assert log_msg in logged.output
 
@@ -151,15 +168,16 @@ class TestFindRundir(unittest.TestCase):
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             helpers.get_fastq_pass_parent(test_path)
 
-    def test_fail_no_barcode_dirs(self):
+    def test_warn_no_barcode_dirs(self):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" / \
                     "test_dir_multi_pass" / "rawdata" / "subdir_3" / "fastq_pass"
-        error_msg = "fastq_pass or a subdirectory has been given " \
-                    "but no barcode directories were found. " \
-                    "Please give the path to the base directory " \
-                    "or a directory containing barcode directories ('barcodeXX')."
-        with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
+        warn_msg = "WARNING:helpers:No barcode directories found in fastq_pass directory. " \
+                   "This may be due to a delay in copying files from the sequencer, but could" \
+                   " also mean you have given the wrong path. \n" \
+                   "Only continue if you are sure. "
+        with self.assertLogs("helpers", level = "INFO") as logged:
             helpers.get_fastq_pass_parent(test_path)
+            assert warn_msg in logged.output
 
 
 class TestTranslateSampleType(unittest.TestCase):

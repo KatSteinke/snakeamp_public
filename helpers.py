@@ -120,6 +120,19 @@ def get_number_letter_combination(number_to_letter: Dict[str, str], samples_in: 
         return {value: value for value in number_to_letter.values()}
 
 
+def check_barcode_dirs(fastq_pass: pathlib.Path) -> None:
+    """Check if a fastq_pass directory contains barcode dirs.
+
+    Arguments:
+        fastq_pass: the fastq_pass directory to check
+
+    Raises:
+        FileNotFoundError:  if there are no barcode dirs
+    """
+    if not any((child_dir.name.startswith("barcode") for child_dir in fastq_pass.iterdir())):
+        raise FileNotFoundError("No barcode directories found in fastq_pass directory.")
+
+
 def get_fastq_pass_parent(rundir: pathlib.Path) -> pathlib.Path:
     """Find the parent directory of the fastq_pass directory for the given run directory.
 
@@ -136,33 +149,39 @@ def get_fastq_pass_parent(rundir: pathlib.Path) -> pathlib.Path:
     """
     # we may need to give the fastq_pass directory directly
     # or a group of dirs in the fastq_pass dir
-    if "fastq_pass" in rundir.parts:
-        # check if the rundir contains barcodes
-        if any((child_dir.name.startswith("barcode") for child_dir in rundir.iterdir())):
-            fastq_pass_dir = rundir.parent
-        else:
-            raise FileNotFoundError("fastq_pass or a subdirectory has been given "
-                                    "but no barcode directories were found. "
-                                    "Please give the path to the base directory "
-                                    "or a directory containing barcode directories ('barcodeXX').")
-    else:
-        logger.info(f"No barcode directories found in {rundir}.\n"
-                    f"Searching for barcodes in {rundir}/rawdata/*/fastq_pass...")
-        check_fastq_pass = list(rundir.glob("rawdata/*/fastq_pass"))
+    existing_path = rundir.parts
+    try:
+        # if the fastq_pass directory already is somewhere in the dirs given, use this
+        fastq_pass_parts = existing_path[:existing_path.index("fastq_pass") + 1]
+        # parts contains the initial "/" - resolve the path to clean this up
+        fastq_pass_dir = pathlib.Path("/".join(fastq_pass_parts)).resolve()
+    except ValueError:
+        logger.info(f"Searching for fastq_pass folder in {rundir}...")
+        check_fastq_pass = list(rundir.glob("**/fastq_pass"))
         if not check_fastq_pass:
-            raise FileNotFoundError(f"fastq_pass folder not found in expected location:\n"
-                                    f"{str(rundir)}/rawdata/*/fastq_pass\n"
-                                    f"Ensure correct directory and/or directory structure is used.\n"
-                                    f"Aborting 16S pipeline...")
+            raise FileNotFoundError(f"fastq_pass folder not found in {rundir} or any subfolders. \n"
+                                    "Ensure correct directory and/or directory structure is used.\n"
+                                    "Aborting 16S pipeline...")
         if len(check_fastq_pass) > 1:
             raise ValueError(f"The directory {rundir} contains "
                              f"multiple fastq_pass directories."
                              "Please choose the one containing the fastq files you want to analyze"
                              " and specify the entire path to the fastq_pass directory.")
-        fastq_pass_dir = check_fastq_pass[0].parent
+        fastq_pass_dir = check_fastq_pass[0]
+
+    # we're using this at multiple points, at some of which barcode dirs not being present might not
+    # be an issue
+    try:
+        check_barcode_dirs(fastq_pass_dir)
+    except FileNotFoundError:
+        logger.warning("No barcode directories found in fastq_pass directory. "
+                       "This may be due to a delay in copying files from the sequencer, but could"
+                       " also mean you have given the wrong path. \n"
+                       "Only continue if you are sure. ")
+    fastq_pass_parent = fastq_pass_dir.parent
     logger.info(f"Data is retrieved from the following folder:\n"
-                f"{fastq_pass_dir}")
-    return fastq_pass_dir
+                f"{fastq_pass_parent}")
+    return fastq_pass_parent
 
 
 def extract_sample_number_part(number_to_check: str, to_extract: str, pattern_in_sheet: re.Pattern,

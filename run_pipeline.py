@@ -17,6 +17,7 @@ import pandas as pd
 import yaml
 
 import check_runsheet
+import helpers
 import monitor_run
 import pipeline_config
 import version
@@ -260,6 +261,7 @@ def initialize_classic_run(active_config: Dict[str, Any],
                 "# Setup analysis -------------------------------")
     run_dir = pathlib.Path(input("Type full path or name of Nanopore "
                                  "sequencing folder and press enter: ").strip().strip("'"))
+    run_dir = helpers.get_fastq_pass_parent(run_dir)
     sequencing_time = ask_seq_time(active_config["seq_run_duration_hours"])
     run_sheet = pathlib.Path(input("Output directory will be based on experiment name."
                                    "\n"
@@ -355,7 +357,7 @@ if __name__ == "__main__":
         if not args.rundir:
             raise ValueError("Nanopore run directory not specified.")
         runsheet = pathlib.Path(args.runsheet).resolve()
-        rundir = pathlib.Path(args.rundir).resolve()  # TODO: should we explicitly get the fastq pass parent dir here?
+        rundir = helpers.get_fastq_pass_parent(pathlib.Path(args.rundir))
         if args.run_time:
             seq_time = args.run_time
         current_run = monitor_run.AmpliconRun(sequence_dir = rundir, runsheet = runsheet,
