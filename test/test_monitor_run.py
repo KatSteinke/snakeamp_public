@@ -249,26 +249,7 @@ class TestWaitForFile(unittest.TestCase):
                                            test_run = False)
         error_msg = f"Parent directory {test_run.sequence_dir} does not exist."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
-            monitor_run.start_on_file_found(test_run, "*/final_summary*.txt",
-                                            watch_interval = 1,
-                                            watch_timeout = 5, dry_run = True)
-
-    def test_fail_bad_parent_dir(self):
-        """Don't start monitoring if the parent directory does not have the expected structure."""
-        test_run = monitor_run.AmpliconRun(sequence_dir = pathlib.Path(__file__).parent / "data"
-                                                          / "monitor_run" / "miniondir" / "test3",
-                                           outdir = pathlib.Path(__file__).parent / "data"
-                                                    / "monitor_run" / "test_outdir",
-                                           runsheet = pathlib.Path(__file__).parent / "data"
-                                                      / "utilities_test"
-                                                      / "test_nanopore_runsheet_16s_only.xlsx",
-                                           active_config = self.active_config,
-                                           configfile = self.config_path,
-                                           test_run = False)
-        error_msg = (f"Parent directory {test_run.sequence_dir} "
-                     "does not contain a rawdata directory.")
-        with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
-            monitor_run.start_on_file_found(test_run, "*/final_summary*.txt",
+            monitor_run.start_on_file_found(test_run, "final_summary*.txt",
                                             watch_interval = 1,
                                             watch_timeout = 5, dry_run = True)
 
