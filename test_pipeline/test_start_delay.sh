@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-mkdir -p run_test/rawdata/testdir/fastq_pass
-mkdir -p run_test/rawdata/testdir2/fastq_pass
+mkdir -p run_test/rawdata/testdir/fastq_pass/barcode01
+mkdir -p run_test/rawdata/testdir2/fastq_pass/barcode01
 python3 /snake_qc/run_pipeline.py --dry_run \
         --runsheet /snake_qc/test_pipeline/test_nanopore_runsheet_16s_only.xlsx \
         --rundir run_test/rawdata/testdir/fastq_pass \
