@@ -355,7 +355,7 @@ if __name__ == "__main__":
         if not args.rundir:
             raise ValueError("Nanopore run directory not specified.")
         runsheet = pathlib.Path(args.runsheet).resolve()
-        rundir = pathlib.Path(args.rundir).resolve()
+        rundir = pathlib.Path(args.rundir).resolve()  # TODO: should we explicitly get the fastq pass parent dir here?
         if args.run_time:
             seq_time = args.run_time
         current_run = monitor_run.AmpliconRun(sequence_dir = rundir, runsheet = runsheet,
@@ -396,7 +396,7 @@ if __name__ == "__main__":
     # detach here - keep start log
     if os.fork():
         sys.exit()
-    analysis_run = monitor_run.start_on_file_found(current_run, "*/final_summary*.txt",
+    analysis_run = monitor_run.start_on_file_found(current_run, "final_summary*.txt",
                                                    dry_run = args.dry_run,
                                                    watch_timeout = total_time.seconds,
                                                    watch_interval = check_interval)

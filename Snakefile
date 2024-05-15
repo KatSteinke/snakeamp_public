@@ -19,7 +19,7 @@ workdir: config["outdir"]
 # set relevant dirs
 
 RUNDIR = pathlib.Path(config["rundir"])
-FASTQ_DIR = helpers.get_fastq_pass_dir(RUNDIR)
+FASTQ_DIR = helpers.get_fastq_pass_parent(RUNDIR) / "fastq_pass"
 print(FASTQ_DIR)
 sample_number_pattern = helpers.get_id_pattern(config["sample_number_settings"]["sample_number_format"],
         negative_control = config["sample_number_settings"]["negative_control"],
