@@ -47,38 +47,6 @@ class BadPathError(Exception):
 
 
 # TODO: how long does it take for the run dir to be created?
-def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.Path:
-    """Check whether run directory exists as full path or directory in MinION dir and
-    adjust path of run directory accordingly.
-    Arguments:
-        run_dir:        absolute or relative path to run directory
-        minion_basedir: absolute path to directory of MinION results
-    Returns:
-        The unchanged run directory if it exists, or the full path to the directory
-        within the MinION dir if this was given.
-    """
-    # we only need to do something if the directory doesn't exist:
-    if not run_dir.exists():
-        # ...check in MinION dir
-        if (minion_basedir / run_dir).exists():
-            run_dir = minion_basedir / run_dir
-        # if neither of them exists, complain and stop
-        else:
-            raise FileNotFoundError(f"{str(run_dir)} or {str(minion_basedir / run_dir)} "
-                                    f"does not exist \n"
-                                    f"Aborting pipeline...")
-    # Check if fastq_pass folder exist
-    check_fastq_pass = list(run_dir.glob("rawdata/*/fastq_pass"))
-    if not check_fastq_pass:
-        raise FileNotFoundError(f"fastq_pass folder(s) not found in expected location:\n"
-                                f"{str(run_dir)}/rawdata/*/fastq_pass\n"
-                                f"Ensure correct directory and/or directory structure is used.\n"
-                                f"Aborting pipeline...")
-
-    logger.info(f"Data is retrieved from following folders: \n "
-                f"{str([str(fastq_dir) for fastq_dir in check_fastq_pass])}")
-    return run_dir
-
 
 # read runsheet
 def process_runsheet(runsheet_path: pathlib.Path,
