@@ -195,9 +195,75 @@ def get_clean_outdir(outdir_path: pathlib.Path) -> pathlib.Path:
     return cleaned_path
 
 
+# get sequencing time from manual input
+def ask_seq_time(default_seq_time: float) -> timedelta:
+    """Ask the user whether sequencing time is correct and get changed sequencing time if needed
+
+    Arguments:
+        default_seq_time:   the default sequencing time specified in the config
+
+    Returns:
+        The sequencing timespan for the run
+    """
+    seq_time_accept = input("Expecting sequencing to be finished after"
+                            f" {default_seq_time} hours. "
+                            "Is this correct? [y/n]")
+    # if they just accept we're done
+    if seq_time_accept == "y":
+        return timedelta(hours=default_seq_time)
+    if seq_time_accept == "n":
+        sequencing_time = input("Type how many hours the sequencing run is expected to last"
+                                " (e.g. 2 if you set it to 2 hours) and press enter: ")
+        try:
+            sequencing_time = float(sequencing_time)
+        except ValueError as value_err:
+            raise ValueError(f"{sequencing_time} is not a valid sequencing time. "
+                             "Sequencing time must be entered as numbers "
+                             "(e.g. 8 for eight hours or 0.5 for half an hour).") from value_err
+        if sequencing_time < 0:
+            raise ValueError("Expected sequencing time must be greater than 0 hours.")
+        return timedelta(hours=sequencing_time)
+    # we should not reach this with valid input
+    raise ValueError("Sequencing time not entered. Aborting")
+
+
+# get output dir from manual input
+def ask_output_dir(output_dir_path: pathlib.Path) -> pathlib.Path:
+    """Ask the user to confirm the default output directory or define a new one.
+
+    Arguments:
+        output_dir_path:    the suggested output directory
+
+    Returns:
+        The output directory to use for the run
+
+    Raises:
+        BadPathError:   if the path that was entered would break on a Windows file system
+        ValueError:     if an invalid response is entered
+    """
+    try:
+        # check if this would break anything in Windows or contains spaces
+        output_dir_path = get_clean_outdir(output_dir_path)
+        # if it's good, ask user for confirmation
+        target_accept = input(f"Do you accept {str(output_dir_path)} as target folder [y/n]")
+        if target_accept == "n":
+            output_dir_path = pathlib.Path(
+                input("Type full path or name of target folder and press "
+                      "enter: ").strip().strip("'"))
+        elif target_accept == "y":  # TODO: can we handle this more nicely?
+            pass
+        else:
+            raise ValueError("Output folder not entered. Aborting")
+    except BadPathError:
+        logger.warning("The default target folder contains characters that can break the pipeline.")
+        output_dir_path = pathlib.Path(input("Type full path to new target folder "
+                                             "and press enter: ").strip().strip("'"))
+    output_dir_path = get_clean_outdir(output_dir_path)
+    logger.info(f"Saving results to {output_dir_path}")
+    return output_dir_path
+
+
 # get the command to run the pipeline
-
-
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description = "Run the Nanopore amplicon analysis pipeline")
     arg_parser.add_argument("--rundir", help="Full path or name of sequencing folder")
@@ -250,18 +316,7 @@ if __name__ == "__main__":
         print("# Setup analysis -------------------------------")
         rundir = pathlib.Path(input("Type full path or name of Nanopore "
                                     "sequencing folder and press enter: ").strip().strip("'"))
-        seq_time_accept = input("Expecting sequencing to be finished after"
-                                f" {workflow_config['seq_run_duration_hours']} hours. "
-                                "Is this correct? [y/n]")
-        if seq_time_accept == "n":
-            seq_time = timedelta(hours = float(input("Type how many hours the sequencing run"
-                                                     " is expected to last"
-                                                     " (e.g. 2 if you set it to 2 hours) "
-                                                     "and press enter: ")))
-        elif seq_time_accept == "y":
-            pass
-        else:
-            raise ValueError("Sequencing time not entered. Aborting")
+        seq_time = ask_seq_time(workflow_config["seq_run_duration_hours"])
         runsheet = pathlib.Path(input("Output directory will be based on experiment name."
                                       "\n"
                                       "Enter path to runsheet: ").strip().strip("'")).resolve()
@@ -295,22 +350,7 @@ if __name__ == "__main__":
 
     # in manual mode, we'll give the user a chance to fix the path
     if manual_mode:
-        try:
-            # check if this would break anything in Windows or contains spaces
-            output_dir = get_clean_outdir(output_dir)
-            # ask user for confirmation
-            target_accept = input(f"Do you accept {str(output_dir)} as target folder [y/n]")
-            if target_accept == "n":
-                output_dir = pathlib.Path(input("Type full path or name of target folder and press "
-                                                "enter: ").strip().strip("'"))
-            elif target_accept == "y":
-                pass
-            else:
-                raise ValueError("Output folder not entered. Aborting")
-        except BadPathError as path_err:
-            print("The default target folder contains characters that can break the pipeline.")
-            output_dir = pathlib.Path(input("Type full path to new target folder "
-                                            "and press enter: ").strip().strip("'"))
+        ask_output_dir(output_dir)
     # we check the output dir - first check in commandline mode, second in manual mode
     # if something still is broken, or the commandline version has been given a wrong path,
     # we yell at the user and fail

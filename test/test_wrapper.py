@@ -2,6 +2,7 @@ import pathlib
 import re
 import unittest
 
+from datetime import timedelta
 from unittest import mock
 
 import pandas as pd
@@ -252,5 +253,152 @@ class TestProcessRunsheet(unittest.TestCase):
                                                  "Analyse": ["16S", "16S", "16S"]})
         test_runsheet = snake_wrapper.process_runsheet(runsheet, active_config)
         pd.testing.assert_frame_equal(test_runsheet, expected_runsheet)
+
+
+class TestGetSeqTime(unittest.TestCase):
+    default_time = 16
+
+    @mock.patch("builtins.input")
+    def test_fail_invalid_accept(self, mock_input):
+        """Fail if an invalid value was entered for accepting/rejecting default sequencing time."""
+        mock_input.return_value = "16"
+        error_msg = "Sequencing time not entered. Aborting"
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.ask_seq_time(self.default_time)
+
+    @mock.patch("builtins.input", side_effect=["n", "sixteen"])
+    def test_fail_bad_time_format(self, mock_input):
+        """Fail if a value that could not be converted to a time was entered."""
+        error_msg = ("sixteen is not a valid sequencing time. "
+                     "Sequencing time must be entered as numbers "
+                     "(e.g. 8 for eight hours or 0.5 for half an hour).")
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            snake_wrapper.ask_seq_time(self.default_time)
+
+    @mock.patch("builtins.input", side_effect = ["n", -1])
+    def test_fail_invalid_time(self, mock_input):
+        """Fail if an invalid time was entered."""
+        error_msg = "Expected sequencing time must be greater than 0 hours."
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            snake_wrapper.ask_seq_time(self.default_time)
+
+    @mock.patch("builtins.input")
+    def test_success_default_time(self, mock_input):
+        """Return the default timespan if no changes are made."""
+        mock_input.return_value = "y"
+        expected_time = timedelta(hours = self.default_time)
+        test_time = snake_wrapper.ask_seq_time(self.default_time)
+        assert expected_time == test_time
+
+    @mock.patch("builtins.input", side_effect = ["n", 1])
+    def test_success_different_time(self, mock_input):
+        """Change the sequencing time when specified by the user."""
+        expected_time = timedelta(hours = 1)
+        test_time = snake_wrapper.ask_seq_time(self.default_time)
+        assert expected_time == test_time
+
+
+class TestAskOutputPath(unittest.TestCase):
+    default_path = pathlib.Path("data/test_run")
+
+    @mock.patch("builtins.input")
+    def test_fail_invalid_accept(self, mock_input):
+        """Fail on an invalid response for whether to accept the default output path."""
+        mock_input.return_value = "nope"
+        error_msg = "Output folder not entered. Aborting"
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            snake_wrapper.ask_output_dir(self.default_path)
+
+    # to check issues in the existing path, we need to pretend we've got a broken path
+    # decorators are applied bottom up: https://stackoverflow.com/a/15922422/15704972
+    @mock.patch(f'{snake_wrapper.__name__}.get_existing_path')
+    @mock.patch("builtins.input", side_effect=["n", # user rejects path
+                                               "/data/test:run"])  # user suggests new
+    def test_fail_bad_user_path(self, mock_input, mock_path):
+        """Fail when the user suggests a new path and it's invalid."""
+        mock_path.return_value = "/data/test:run"
+        error_msg = ("The path you are trying to save results to contains a character that "
+                           "can't be used in Windows in an existing folder's name. "
+                           "This can break the pipeline. "
+                           "\nAborting....")
+        with pytest.raises(snake_wrapper.BadPathError, match=re.escape(error_msg)):
+            snake_wrapper.ask_output_dir(self.default_path)
+
+    @mock.patch(f'{snake_wrapper.__name__}.get_existing_path')
+    @mock.patch("builtins.input", side_effect=["/data/test:run/run2"])  # user needs to give a new path because the old one is broken
+    def test_fail_bad_corrected_path(self, mock_input, mock_path):
+        """Fail when the original path is invalid and the user's correction is as well."""
+        mock_path.return_value = "/data/test:run"
+        default_path = pathlib.Path("/data/test:run")
+        error_msg = ("The path you are trying to save results to contains a character that "
+                           "can't be used in Windows in an existing folder's name. "
+                           "This can break the pipeline. "
+                           "\nAborting....")
+        log_msg = ("WARNING:amplicon_nanopore:The default target folder contains characters "
+                   "that can break the pipeline.")
+        with pytest.raises(snake_wrapper.BadPathError,
+                           match=re.escape(error_msg)), self.assertLogs("amplicon_nanopore") as logged:
+            snake_wrapper.ask_output_dir(default_path)
+            assert log_msg in logged.output
+
+    @mock.patch("builtins.input")
+    def test_success_valid_default(self, mock_input):
+        """Return the default output path when the user accepts it."""
+        mock_input.return_value = "y"
+        expected_path = self.default_path
+        log_msg = f"INFO:amplicon_nanopore:Saving results to {self.default_path}"
+        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+            test_path = snake_wrapper.ask_output_dir(self.default_path)
+            assert log_msg in logged.output
+        assert expected_path == test_path
+
+    @mock.patch("builtins.input", side_effect = ["n",  # user rejects the path
+                                                 "/data/test_run2"])  # ...and gives a new one
+    def test_success_valid_user_path(self, mock_input):
+        """Return the user's new path if it's valid."""
+        expected_path = pathlib.Path("/data/test_run2")
+        log_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
+        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+            test_path = snake_wrapper.ask_output_dir(self.default_path)
+            assert log_msg in logged.output
+        assert expected_path == test_path
+
+    @mock.patch("builtins.input", side_effect = ["/data/test_run2"])  # user needs to give a new path because the old one is broken
+    def test_success_valid_correction(self, mock_input):
+        """Ask the user for a new path and return it if the original path is invalid but the
+        user's correction fixes it."""
+        default_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test dir spaces"
+        expected_path = pathlib.Path("/data/test_run2")
+        log_msg = ("WARNING:amplicon_nanopore:The default target folder contains characters "
+                   "that can break the pipeline.")
+        success_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
+        with self.assertLogs("amplicon_nanopore", level="INFO") as logged:
+            test_path = snake_wrapper.ask_output_dir(default_path)
+            assert log_msg in logged.output
+            assert success_msg in logged.output
+        assert expected_path == test_path
+
+    @mock.patch("builtins.input")
+    def test_success_correct_fixable_default(self, mock_input):
+        """Correct a fixable bad path from default input."""
+        mock_input.return_value = "y"
+        default_path = pathlib.Path("data/test run")
+        expected_path = self.default_path
+        log_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
+        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+            test_path = snake_wrapper.ask_output_dir(default_path)
+            assert log_msg in logged.output
+        assert expected_path == test_path
+
+    @mock.patch("builtins.input", side_effect = ["n",  # user rejects the path
+                                                 "/data/test run2"])  # ...and gives a new one
+    def test_success_correct_fixable_user(self, mock_input):
+        """Correct a fixable bad path from user input."""
+        expected_path = pathlib.Path("/data/test_run2")
+        log_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
+        with self.assertLogs("amplicon_nanopore") as logged:
+            test_path = snake_wrapper.ask_output_dir(self.default_path)
+            assert log_msg in logged.output
+        assert expected_path == test_path
 
 
