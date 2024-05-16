@@ -263,6 +263,29 @@ def ask_output_dir(output_dir_path: pathlib.Path) -> pathlib.Path:
     return output_dir_path
 
 
+def set_up_output(outdir: pathlib.Path, continue_run: bool = False) -> None:
+    """Set up output and log directories if the output directory does not exist already.
+
+    Arguments:
+        outdir:         the desired output directory
+        continue_run:   whether this is a continued run from an existing output directory
+
+    Raises:
+        FileExistsError:    if the output directory already exists and this should be a new run
+
+    """
+    if not outdir.exists():
+        outdir.mkdir(parents = True)
+    else:
+        if not continue_run:
+            raise FileExistsError("The desired output directory already exists.")
+        # if we're continuing, confirm this to the user
+        logger.info("Output directory already exists. Continuing run...")
+    # create dir for snakemake logs
+    if not (outdir / "logs").exists():
+        (outdir / "logs").mkdir()
+
+
 # get the command to run the pipeline
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description = "Run the Nanopore amplicon analysis pipeline")
@@ -351,7 +374,6 @@ if __name__ == "__main__":
     # in manual mode, we'll give the user a chance to fix the path
     if manual_mode:
         ask_output_dir(output_dir)
-    # we check the output dir - first check in commandline mode, second in manual mode
     # if something still is broken, or the commandline version has been given a wrong path,
     # we yell at the user and fail
     output_dir = get_clean_outdir(output_dir)
@@ -362,14 +384,7 @@ if __name__ == "__main__":
         append_to_databases = False
     continue_pipeline = args.continue_pipeline
     # we'll have to handle creating our folders ourselves - catch duplicate dirs here!
-    if not output_dir.exists():
-        output_dir.mkdir(parents = True)
-    else:
-        if not continue_pipeline:
-            raise FileExistsError("The desired output directory already exists.")
-    # create dir for snakemake logs
-    if not (output_dir / "logs").exists():
-        (output_dir / "logs").mkdir()
+    set_up_output(outdir = output_dir, continue_run = continue_pipeline)
     # start pipeline (in Docker container)
     logger.info("Pipeline is now waiting for sequencing to finish...")
     # set up sequencing run

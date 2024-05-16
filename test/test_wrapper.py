@@ -1,5 +1,6 @@
 import pathlib
 import re
+import shutil
 import unittest
 
 from datetime import timedelta
@@ -402,3 +403,39 @@ class TestAskOutputPath(unittest.TestCase):
         assert expected_path == test_path
 
 
+class TestCreateOutputDirs(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls) -> None:
+        # clean up data after running
+        shutil.rmtree(pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_output")
+        shutil.rmtree(pathlib.Path(__file__).parent / "data" / "utilities_test"
+                      / "test_existing_output" / "logs")
+
+    def test_fail_existing_dir(self):
+        """Fail if the output directory exists already."""
+        error_msg = "The desired output directory already exists."
+        with pytest.raises(FileExistsError, match = re.escape(error_msg)):
+            snake_wrapper.set_up_output(pathlib.Path(__file__).parent / "data" / "utilities_test"
+                                        / "test_existing_output")
+
+    def test_success_create_new(self):
+        """Create a new output directory and log directory."""
+        output_dir = pathlib.Path(__file__).parent / "data" / "utilities_test"/ "test_output"
+        assert not output_dir.exists()
+        assert not (output_dir / "logs").exists()
+        snake_wrapper.set_up_output(output_dir)
+        assert output_dir.exists()
+        assert (output_dir / "logs").exists()
+
+    def test_success_continue_run(self):
+        """Don't complain for a continued run, and log that it's continued."""
+        log_msg = "INFO:amplicon_nanopore:Output directory already exists. Continuing run..."
+        output_dir = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                      / "test_existing_output")
+        assert output_dir.exists()
+        assert not (output_dir / "logs").exists()
+        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+            snake_wrapper.set_up_output(output_dir, continue_run = True)
+            assert log_msg in logged.output
+        assert output_dir.exists()
+        assert (output_dir / "logs").exists()
