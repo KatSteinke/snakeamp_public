@@ -388,11 +388,12 @@ if __name__ == "__main__":
     # start pipeline (in Docker container)
     logger.info("Pipeline is now waiting for sequencing to finish...")
     # set up sequencing run
-    seq_run = monitor_run.AmpliconRun(sequence_dir = rundir, outdir = output_dir,
+    seq_run = monitor_run.AmpliconRun(sequence_dir = rundir,
                                       runsheet = runsheet,
                                       active_config = workflow_config,
                                       configfile = default_config_file,
                                       test_run = debug_run)
+    seq_run.outdir = output_dir
     # calculate waiting time and check interval
     total_time = seq_time + seq_run_fudge_factor
     check_interval = workflow_config["check_interval_seconds"]

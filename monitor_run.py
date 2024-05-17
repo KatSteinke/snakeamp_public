@@ -7,8 +7,9 @@ import pathlib
 import subprocess
 import time
 
-from typing import Any, Dict, NamedTuple, Optional, List
+from typing import Any, Dict, Optional, List
 
+import helpers
 import pipeline_config
 import version
 
@@ -26,7 +27,7 @@ console_log.setLevel(logging.INFO)
 logger.addHandler(console_log)
 
 
-class AmpliconRun(NamedTuple):
+class AmpliconRun:
     """Parameters for an amplicon sequencing run.
 
     Attributes:
@@ -37,12 +38,27 @@ class AmpliconRun(NamedTuple):
         active_config:  the configuration to use for the pipeline
         test_run:       whether to run the pipeline in test mode (overrides config setting)
     """
-    sequence_dir: pathlib.Path
-    outdir: pathlib.Path
-    runsheet: pathlib.Path
-    configfile: pathlib.Path
-    active_config: Dict[str, Any]
-    test_run: Optional[bool] = None
+    def __init__(self, sequence_dir: pathlib.Path, runsheet: pathlib.Path, configfile: pathlib.Path,
+                 active_config: Dict[str, Any], test_run: Optional[bool] = None):
+        """Initialize an AmpliconRun with the supplied parameters, setting the output dir to one
+        based on the experiment name.
+
+        Arguments:
+            sequence_dir:   the directory containing input files for the pipeline
+            runsheet:       the runsheet used for the run
+            configfile:     the file containing the configuration for the pipeline
+            active_config:  the configuration to use for the pipeline
+            test_run:       whether to run the pipeline in test mode (overrides config setting)
+        """
+        self.sequence_dir = sequence_dir
+        self.runsheet = runsheet
+        self.configfile = configfile
+        self.active_config = active_config
+        self.test_run = test_run
+        # initially set output dir to experiment name
+        self.outdir = (pathlib.Path(active_config['paths']['output_base_path'])
+                       / f"{helpers.extract_nanopore_run_name(runsheet)}"
+                         f"-{active_config['amplicon_type']}")
 
 
 def get_pipeline_command(sequencing_run: AmpliconRun) -> List[str]:
