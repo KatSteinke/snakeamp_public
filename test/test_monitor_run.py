@@ -2,6 +2,7 @@ import pathlib
 import re
 import unittest
 
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -43,13 +44,43 @@ class TestCreateAmpliconRun(unittest.TestCase):
         amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
                                                configfile = configfile,
                                                active_config = self.active_config)
+        seq_run_duration = timedelta(hours = float(self.active_config["seq_run_duration_hours"]))
         assert expected_indir == amplicon_run.sequence_dir
         assert runsheet == amplicon_run.runsheet
         assert configfile == amplicon_run.configfile
         assert self.active_config == amplicon_run.active_config
-        assert self.active_config["seq_run_duration_hours"] == amplicon_run.sequencing_time
+        assert seq_run_duration == amplicon_run.sequencing_time
         assert expected_outdir == amplicon_run.outdir
         assert not amplicon_run.test_run
+
+    def test_initialize_with_seq_time(self):
+        """Set the sequencing time when initializing the run."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        new_seq_time = 16
+        new_seq_duration = timedelta(hours=new_seq_time)
+        amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config,
+                                               sequencing_time = new_seq_time)
+        assert amplicon_run.sequencing_time == new_seq_duration
+
+    def test_fail_bad_seq_time(self):
+        """Fail when the sequencing time is invalid."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        new_seq_time = -1
+        error_msg = "Expected sequencing time must be greater than 0 hours."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            monitor_run.AmpliconRun(sequence_dir = expected_indir,
+                                    runsheet = runsheet,
+                                    configfile = configfile,
+                                    active_config = self.active_config,
+                                    sequencing_time = new_seq_time)
 
     def test_override_test_run(self):
         """Initialize the run as a test run."""
@@ -57,16 +88,9 @@ class TestCreateAmpliconRun(unittest.TestCase):
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = pathlib.Path("path/to/config")
-        expected_outdir = pathlib.Path("/path/to/output/NANO_Amplicon_Y20990101_RUN0001_XYZ-16S")
         amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
                                                configfile = configfile,
                                                active_config = self.active_config, test_run = True)
-        assert expected_indir == amplicon_run.sequence_dir
-        assert runsheet == amplicon_run.runsheet
-        assert configfile == amplicon_run.configfile
-        assert self.active_config == amplicon_run.active_config
-        assert self.active_config["seq_run_duration_hours"] == amplicon_run.sequencing_time
-        assert expected_outdir == amplicon_run.outdir
         assert amplicon_run.test_run
 
     def test_initialize_with_outdir(self):
@@ -82,18 +106,6 @@ class TestCreateAmpliconRun(unittest.TestCase):
                                                outdir = new_outdir)
         assert new_outdir == amplicon_run.outdir
 
-    def test_initialize_with_seq_time(self):
-        """Set the sequencing time when initializing the run."""
-        expected_indir = pathlib.Path("path/to/indir")
-        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
-                    / "test_nanopore_runsheet.xlsx")
-        configfile = pathlib.Path("path/to/config")
-        amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
-                                               configfile = configfile,
-                                               active_config = self.active_config,
-                                               sequencing_time = 16)
-        assert amplicon_run.sequencing_time == 16
-
     def test_set_new_outdir(self):
         """Set a new output directory after the run has been initialized."""
         expected_indir = pathlib.Path("path/to/indir")
@@ -108,6 +120,56 @@ class TestCreateAmpliconRun(unittest.TestCase):
         new_outdir = pathlib.Path("/path/to/outdir")
         amplicon_run.outdir = new_outdir
         assert new_outdir == amplicon_run.outdir
+
+    def test_print_run(self):
+        """Print the run's attributes in the correct format."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        expected_outdir = pathlib.Path("/path/to/output/NANO_Amplicon_Y20990101_RUN0001_XYZ-16S")
+        amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config)
+        expected_repr = (f"AmpliconRun(sequence_dir={expected_indir}, runsheet={runsheet}, "
+                         f"configfile={configfile}, active_config={self.active_config}, "
+                         f"outdir={expected_outdir},"
+                         " sequencing_time="
+                         f"{timedelta(hours=self.active_config['seq_run_duration_hours'])})")
+        amplicon_repr = amplicon_run.__repr__()
+        assert amplicon_repr == expected_repr
+
+    def test_compare_equal_runs(self):
+        """Report two amplicon runs as equal if all their attributes are equal."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        run_1 = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                        configfile = configfile,
+                                        active_config = self.active_config)
+        run_2 = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                        configfile = configfile,
+                                        active_config = self.active_config)
+        print(run_1)
+        print(run_2)
+        assert run_1 == run_2
+
+    def test_compare_not_equal_runs(self):
+        """Report two amplicon runs as not equal if they differ in one or more attributes."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        run_1 = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                        configfile = configfile,
+                                        active_config = self.active_config)
+        run_2 = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                        configfile = configfile,
+                                        active_config = self.active_config,
+                                        sequencing_time = 1.5)
+        assert run_1 != run_2
+
 
 
 class TestWaitForFile(unittest.TestCase):

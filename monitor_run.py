@@ -7,6 +7,7 @@ import pathlib
 import subprocess
 import time
 
+from datetime import timedelta
 from typing import Any, Dict, Optional, List
 
 import helpers
@@ -71,11 +72,40 @@ class AmpliconRun:
             self.outdir = (pathlib.Path(active_config['paths']['output_base_path'])
                            / f"{helpers.extract_nanopore_run_name(runsheet)}"
                              f"-{active_config['amplicon_type']}")
+        seq_time = float(active_config['seq_run_duration_hours'])
         if sequencing_time:
-            self.sequencing_time = float(sequencing_time)
-        else:
-            self.sequencing_time = float(active_config['seq_run_duration_hours'])
+            seq_time = float(sequencing_time)
+        if seq_time < 0:
+            raise ValueError("Expected sequencing time must be greater than 0 hours.")
+        self.sequencing_time = timedelta(hours=seq_time)
 
+    def __repr__(self):
+        return (f"AmpliconRun(sequence_dir={self.sequence_dir}, runsheet={self.runsheet}, "
+                f"configfile={self.configfile}, active_config={self.active_config}, "
+                f"outdir={self.outdir}, sequencing_time={self.sequencing_time})")
+
+    def __eq__(self, other):
+        if isinstance(other, AmpliconRun):
+            return ((self.sequence_dir == other.sequence_dir
+                    and self.runsheet == other.runsheet
+                    and self.configfile == other.configfile
+                    and self.active_config == other.active_config
+                    and self.outdir == other.outdir
+                    and self.sequencing_time == other.sequencing_time
+                    and self.test_run == other.test_run))
+        return False
+
+    def __ne__(self, other):
+        if isinstance(other, AmpliconRun):
+            print()
+            return (~(self.sequence_dir == other.sequence_dir
+                    and self.runsheet == other.runsheet
+                    and self.configfile == other.configfile
+                    and self.active_config == other.active_config
+                    and self.outdir == other.outdir
+                    and self.sequencing_time == other.sequencing_time
+                    and self.test_run == other.test_run))
+        return True
 
 def get_pipeline_command(sequencing_run: AmpliconRun) -> List[str]:
     """Generate the command for starting the pipeline.
