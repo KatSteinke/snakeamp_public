@@ -56,7 +56,8 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
                                               "prøvenr": [sample_number],
                                               "modtagedato": [""],
                                               "prøvemateriale": [""],
-                                              "anatomi": [""]})
+                                              "anatomi": [""],
+                                              "indikation": [""]})
     if not (re.match(positive_control_pattern, sample_number)
             or re.match(negative_control_pattern, sample_number)):
         prefix_mapping = helpers.get_number_letter_combination(
@@ -82,11 +83,13 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
                                                                                   "prøvenr",
                                                                                   "modtaget",
                                                                                   "prøvekategori",
-                                                                                  "anatomi"]]
+                                                                                  "anatomi",
+                                                                                  "Indikation"]]
         sample_information = sample_information.rename(columns = {"modtaget": "modtagedato",
                                                                   "prøvekategori":
                                                                       "prøvemateriale",
-                                                                  "cprnr.": "patient"})
+                                                                  "cprnr.": "patient",
+                                                                  "Indikation": "indikation"})
         sample_information["modtagedato"] = sample_information["modtagedato"].apply(lambda x:
                                                                               datetime.strptime(x,
                                                                                         "%d%m%Y").strftime("%Y-%m-%d"))
@@ -210,7 +213,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
         # rename sample number if needed - TODO: more prettily! Or just avoid it?
         name_header = [data_from_lis["prøvenr"].squeeze()] * len(emu_read_counts.columns)
         report_headers[-1] = name_header
-        lis_data_cols = ["modtagedato", "patient", "prøvemateriale", "anatomi"]
+        lis_data_cols = ["modtagedato", "patient", "prøvemateriale", "anatomi", "indikation"]
         lis_headers = [[data_from_lis[sample_metadata].squeeze()] * len(emu_read_counts.columns)
                        if pd.notna(data_from_lis[sample_metadata].squeeze())
                        else [""] * len(emu_read_counts.columns)
@@ -342,8 +345,13 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
         fallback_cols = [["", "", ""],
                          ["", "", ""],
                          ["", "", ""],
+                         ["", "", ""],
                          ["", "", ""]] + fallback_cols
-        fallback_names = ["modtagedato", "patient", "prøvemateriale", "anatomi"] + fallback_names
+        fallback_names = ["modtagedato",
+                          "patient",
+                          "prøvemateriale",
+                          "anatomi",
+                          "indikation"] + fallback_names
     for emu_report in emu_reports:
         try:
             emu_data = report_species_per_barcode(emu_report, active_config)
