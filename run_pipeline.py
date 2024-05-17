@@ -17,7 +17,6 @@ import pandas as pd
 import yaml
 
 import check_runsheet
-import helpers
 import monitor_run
 import pipeline_config
 import version
@@ -78,28 +77,6 @@ def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.
     logger.info(f"Data is retrieved from following folders: \n "
                 f"{str([str(fastq_dir) for fastq_dir in check_fastq_pass])}")
     return run_dir
-
-
-def get_run_name(runsheet: pathlib.Path) -> str:
-    """Extract the run name from the runsheet (specified in the column RUNxxxx-INI) # TODO - is it?
-
-    Arguments:
-        runsheet:   the path to the runsheet for the run
-
-    Returns:
-        The run's name.
-    Raises:
-        KeyError:   if the runsheet is missing the column for the run name
-        ValueError: if the run name hasn't been given in the runsheet
-    """
-    run_name_col = "RUNxxxx-INI"
-    sheet_data = pd.read_excel(runsheet, skiprows = 1, nrows = 2, usecols="A:D")
-    if run_name_col not in sheet_data.columns:
-        raise KeyError("No column giving the run name found in the runsheet.")
-    run_name = sheet_data[run_name_col].squeeze()
-    if pd.isna(run_name):
-        raise ValueError("No run name given in the runsheet.")
-    return run_name
 
 
 # read runsheet
@@ -195,9 +172,131 @@ def get_clean_outdir(outdir_path: pathlib.Path) -> pathlib.Path:
     return cleaned_path
 
 
+# get sequencing time from manual input - TODO: just give it as hours and let the class handle the delta
+def ask_seq_time(default_seq_time: float) -> float:
+    """Ask the user whether sequencing time is correct and get changed sequencing time if needed
+
+    Arguments:
+        default_seq_time:   the default sequencing time specified in the config
+
+    Returns:
+        The sequencing timespan for the run
+    """
+    seq_time_accept = input("Expecting sequencing to be finished after"
+                            f" {default_seq_time} hours. "
+                            "Is this correct? [y/n]")
+    # if they just accept we're done
+    if seq_time_accept == "y":
+        return default_seq_time
+    if seq_time_accept == "n":
+        sequencing_time = input("Type how many hours the sequencing run is expected to last"
+                                " (e.g. 2 if you set it to 2 hours) and press enter: ")
+        try:
+            sequencing_time = float(sequencing_time)
+        except ValueError as value_err:
+            raise ValueError(f"{sequencing_time} is not a valid sequencing time. "
+                             "Sequencing time must be entered as numbers "
+                             "(e.g. 8 for eight hours or 0.5 for half an hour).") from value_err
+        if sequencing_time < 0:
+            raise ValueError("Expected sequencing time must be greater than 0 hours.")
+        return sequencing_time
+    # we should not reach this with valid input
+    raise ValueError("Sequencing time not entered. Aborting")
+
+
+# get output dir from manual input
+def ask_output_dir(output_dir_path: pathlib.Path) -> pathlib.Path:
+    """Ask the user to confirm the default output directory or define a new one.
+
+    Arguments:
+        output_dir_path:    the suggested output directory
+
+    Returns:
+        The output directory to use for the run
+
+    Raises:
+        BadPathError:   if the path that was entered would break on a Windows file system
+        ValueError:     if an invalid response is entered
+    """
+    try:
+        # check if this would break anything in Windows or contains spaces
+        output_dir_path = get_clean_outdir(output_dir_path)
+        # if it's good, ask user for confirmation
+        target_accept = input(f"Do you accept {str(output_dir_path)} as target folder [y/n]")
+        if target_accept == "n":
+            output_dir_path = pathlib.Path(
+                input("Type full path or name of target folder and press "
+                      "enter: ").strip().strip("'"))
+        elif target_accept == "y":  # TODO: can we handle this more nicely?
+            pass
+        else:
+            raise ValueError("Output folder not entered. Aborting")
+    except BadPathError:
+        logger.warning("The default target folder contains characters that can break the pipeline.")
+        output_dir_path = pathlib.Path(input("Type full path to new target folder "
+                                             "and press enter: ").strip().strip("'"))
+    # if something still is broken now, we yell at the user and fail
+    output_dir_path = get_clean_outdir(output_dir_path)
+    logger.info(f"Saving results to {output_dir_path}")
+    return output_dir_path
+
+
+def initialize_classic_run(active_config: Dict[str, Any],
+                           configfile: pathlib.Path) -> monitor_run.AmpliconRun:
+    """Initialize an amplicon sequencing run in classic mode (asking for user input).
+
+    Arguments:
+        active_config:  the configuration to use
+        configfile:     the configuration file for the configuration given
+
+    Returns:
+        An AmpliconRun with the input directory and runsheet specified by the user,
+        with default output directory for now. Sequencing time can be specified, otherwise defaults
+        to the time set in config.
+
+    """
+    # greet the user - TODO: simplified logging here or generally?
+    logger.info(f"### Nanopore {active_config['amplicon_type']} analysis\n"
+                "# Setup analysis -------------------------------")
+    run_dir = pathlib.Path(input("Type full path or name of Nanopore "
+                                 "sequencing folder and press enter: ").strip().strip("'"))
+    sequencing_time = ask_seq_time(active_config["seq_run_duration_hours"])
+    run_sheet = pathlib.Path(input("Output directory will be based on experiment name."
+                                   "\n"
+                                   "Enter path to runsheet: ").strip().strip("'")).resolve()
+    basic_run = monitor_run.AmpliconRun(sequence_dir = run_dir, runsheet = run_sheet,
+                                        configfile = configfile,
+                                        active_config = active_config,
+                                        sequencing_time = sequencing_time)
+    outdir = ask_output_dir(basic_run.outdir)
+    basic_run.outdir = outdir
+    return basic_run
+
+
+def set_up_output(outdir: pathlib.Path, continue_run: bool = False) -> None:
+    """Set up output and log directories if the output directory does not exist already.
+
+    Arguments:
+        outdir:         the desired output directory
+        continue_run:   whether this is a continued run from an existing output directory
+
+    Raises:
+        FileExistsError:    if the output directory already exists and this should be a new run
+
+    """
+    if not outdir.exists():
+        outdir.mkdir(parents = True)
+    else:
+        if not continue_run:
+            raise FileExistsError("The desired output directory already exists.")
+        # if we're continuing, confirm this to the user
+        logger.info("Output directory already exists. Continuing run...")
+    # create dir for snakemake logs
+    if not (outdir / "logs").exists():
+        (outdir / "logs").mkdir()
+
+
 # get the command to run the pipeline
-
-
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description = "Run the Nanopore amplicon analysis pipeline")
     arg_parser.add_argument("--rundir", help="Full path or name of sequencing folder")
@@ -239,32 +338,16 @@ if __name__ == "__main__":
     # load debug settings from config (either the one we loaded or the default)
     debug_run = workflow_config["debug"]
     # load sequencing time settings
-    seq_time = timedelta(hours=workflow_config["seq_run_duration_hours"])
+    seq_time = workflow_config["seq_run_duration_hours"]
     seq_run_fudge_factor = timedelta(hours = 1)
     if manual_mode:
         # lots of typing, so allow tab completion of paths
         readline.set_completer_delims('\t\n=')
         readline.parse_and_bind("tab: complete")
-        # ...and greet the user nicely
-        print(f"### Nanopore {workflow_config['amplicon_type']} analysis")
-        print("# Setup analysis -------------------------------")
-        rundir = pathlib.Path(input("Type full path or name of Nanopore "
-                                    "sequencing folder and press enter: ").strip().strip("'"))
-        seq_time_accept = input("Expecting sequencing to be finished after"
-                                f" {workflow_config['seq_run_duration_hours']} hours. "
-                                "Is this correct? [y/n]")
-        if seq_time_accept == "n":
-            seq_time = timedelta(hours = float(input("Type how many hours the sequencing run"
-                                                     " is expected to last"
-                                                     " (e.g. 2 if you set it to 2 hours) "
-                                                     "and press enter: ")))
-        elif seq_time_accept == "y":
-            pass
-        else:
-            raise ValueError("Sequencing time not entered. Aborting")
-        runsheet = pathlib.Path(input("Output directory will be based on experiment name."
-                                      "\n"
-                                      "Enter path to runsheet: ").strip().strip("'")).resolve()
+        # set logger to something quiet
+        plain_messages = logging.Formatter("%(message)s")
+        console_log.setFormatter(plain_messages)
+        current_run = initialize_classic_run(workflow_config, default_config_file)
     else:
         # if you're entering this from the commandline you should specify these
         if not args.runsheet:
@@ -274,78 +357,46 @@ if __name__ == "__main__":
         runsheet = pathlib.Path(args.runsheet).resolve()
         rundir = pathlib.Path(args.rundir).resolve()
         if args.run_time:
-            seq_time = timedelta(hours = args.run_time)
+            seq_time = args.run_time
+        current_run = monitor_run.AmpliconRun(sequence_dir = rundir, runsheet = runsheet,
+                                              sequencing_time = seq_time,
+                                              configfile = default_config_file,
+                                              active_config = workflow_config)
 
     # check runsheet
-    runsheet_data = process_runsheet(runsheet, workflow_config)
+    runsheet_data = process_runsheet(current_run.runsheet, workflow_config)
     # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?
     if workflow_config["lab_info_system"]["use_lis_features"]:
         lis_report = workflow_config["lab_info_system"]["lis_report"]
         check_runsheet.check_against_lis(runsheet_data, lis_report, active_config = workflow_config)
     else:
         lis_report = None
-    # get output dir from experiment name + amplicon type
-    experiment_name = (f"{helpers.extract_nanopore_run_name(runsheet)}"
-                       f"-{workflow_config['amplicon_type']}")
-    # set output dir
-    if args.outdir:  # can only be given in commandline mode
-        output_dir = pathlib.Path(args.outdir)
-    else:
-        output_dir = pathlib.Path(workflow_config["paths"]["output_base_path"]) / experiment_name
 
-    # in manual mode, we'll give the user a chance to fix the path
-    if manual_mode:
-        try:
-            # check if this would break anything in Windows or contains spaces
-            output_dir = get_clean_outdir(output_dir)
-            # ask user for confirmation
-            target_accept = input(f"Do you accept {str(output_dir)} as target folder [y/n]")
-            if target_accept == "n":
-                output_dir = pathlib.Path(input("Type full path or name of target folder and press "
-                                                "enter: ").strip().strip("'"))
-            elif target_accept == "y":
-                pass
-            else:
-                raise ValueError("Output folder not entered. Aborting")
-        except BadPathError as path_err:
-            print("The default target folder contains characters that can break the pipeline.")
-            output_dir = pathlib.Path(input("Type full path to new target folder "
-                                            "and press enter: ").strip().strip("'"))
-    # we check the output dir - first check in commandline mode, second in manual mode
-    # if something still is broken, or the commandline version has been given a wrong path,
-    # we yell at the user and fail
-    output_dir = get_clean_outdir(output_dir)
+    # manual mode has set up the output dir, commandline may still have to
+    if args.outdir:  # can only be given in commandline mode
+        current_run.outdir = get_clean_outdir(pathlib.Path(args.outdir))
+
     # we can check for whether this is a test and/or a continued pipeline here - in manual mode the
     # arguments will be false, so it defaults to pipeline defaults
     if args.test_run:
         debug_run = True
         append_to_databases = False
+    # now it's set for sure we can set it on the AmpliconRun
+    current_run.test_run = debug_run
     continue_pipeline = args.continue_pipeline
     # we'll have to handle creating our folders ourselves - catch duplicate dirs here!
-    if not output_dir.exists():
-        output_dir.mkdir(parents = True)
-    else:
-        if not continue_pipeline:
-            raise FileExistsError("The desired output directory already exists.")
-    # create dir for snakemake logs
-    if not (output_dir / "logs").exists():
-        (output_dir / "logs").mkdir()
+    set_up_output(outdir = current_run.outdir, continue_run = continue_pipeline)
     # start pipeline (in Docker container)
     logger.info("Pipeline is now waiting for sequencing to finish...")
     # set up sequencing run
-    seq_run = monitor_run.AmpliconRun(sequence_dir = rundir, outdir = output_dir,
-                                      runsheet = runsheet,
-                                      active_config = workflow_config,
-                                      configfile = default_config_file,
-                                      test_run = debug_run)
     # calculate waiting time and check interval
-    total_time = seq_time + seq_run_fudge_factor
+    total_time = current_run.sequencing_time + seq_run_fudge_factor
     check_interval = workflow_config["check_interval_seconds"]
     # wait and start - TODO: give pattern more nicely?
     # detach here - keep start log
     if os.fork():
         sys.exit()
-    analysis_run = monitor_run.start_on_file_found(seq_run, "*/final_summary*.txt",
+    analysis_run = monitor_run.start_on_file_found(current_run, "*/final_summary*.txt",
                                                    dry_run = args.dry_run,
                                                    watch_timeout = total_time.seconds,
                                                    watch_interval = check_interval)
