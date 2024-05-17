@@ -30,7 +30,8 @@ class TestCreateAmpliconRun(unittest.TestCase):
                      "barcode_prefix": "NB",
                      "amplicon_type": "16S",
                      "debug": False,
-                     "paths": {"output_base_path": "/path/to/output"}}
+                     "paths": {"output_base_path": "/path/to/output"},
+                     "seq_run_duration_hours": 1}
 
     def test_create_run(self):
         """Successfully create an AmpliconRun"""
@@ -46,7 +47,52 @@ class TestCreateAmpliconRun(unittest.TestCase):
         assert runsheet == amplicon_run.runsheet
         assert configfile == amplicon_run.configfile
         assert self.active_config == amplicon_run.active_config
+        assert self.active_config["seq_run_duration_hours"] == amplicon_run.sequencing_time
         assert expected_outdir == amplicon_run.outdir
+        assert not amplicon_run.test_run
+
+    def test_override_test_run(self):
+        """Initialize the run as a test run."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        expected_outdir = pathlib.Path("/path/to/output/NANO_Amplicon_Y20990101_RUN0001_XYZ-16S")
+        amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config, test_run = True)
+        assert expected_indir == amplicon_run.sequence_dir
+        assert runsheet == amplicon_run.runsheet
+        assert configfile == amplicon_run.configfile
+        assert self.active_config == amplicon_run.active_config
+        assert self.active_config["seq_run_duration_hours"] == amplicon_run.sequencing_time
+        assert expected_outdir == amplicon_run.outdir
+        assert amplicon_run.test_run
+
+    def test_initialize_with_outdir(self):
+        """Set a new output directory when initializing the run."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        new_outdir = pathlib.Path("/path/to/outdir")
+        amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config,
+                                               outdir = new_outdir)
+        assert new_outdir == amplicon_run.outdir
+
+    def test_initialize_with_seq_time(self):
+        """Set the sequencing time when initializing the run."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config,
+                                               sequencing_time = 16)
+        assert amplicon_run.sequencing_time == 16
 
     def test_set_new_outdir(self):
         """Set a new output directory after the run has been initialized."""
@@ -85,15 +131,15 @@ class TestWaitForFile(unittest.TestCase):
                      "barcode_prefix": "NB",
                      "amplicon_type": "16S",
                      "debug": False,
-                     "paths": {"output_base_path": "/path/to/output"}}
+                     "paths": {"output_base_path": "/path/to/output"},
+                     "seq_run_duration_hours": 1}
     config_path = pathlib.Path(__file__).parent / "data"/"monitor_run"/"test_config.yaml"
     test_run = monitor_run.AmpliconRun(sequence_dir = pathlib.Path(__file__).parent / "data"
-                                                      /"monitor_run"/"miniondir"/"test1",
+                                                      / "monitor_run" / "miniondir" / "test1",
                                        runsheet = pathlib.Path(__file__).parent / "data"
                                                   / "utilities_test"
                                                   / "test_nanopore_runsheet_16s_only.xlsx",
-                                       active_config = active_config,
-                                       configfile = config_path,
+                                       configfile = config_path, active_config = active_config,
                                        test_run = False)
     test_run.outdir = pathlib.Path(__file__).parent / "data"/ "monitor_run" / "test_outdir"
 
@@ -102,7 +148,8 @@ class TestWaitForFile(unittest.TestCase):
         error_msg = ("No file matching pattern test_summary*.txt "
                      f"found in {self.test_run.sequence_dir.parent}")
         with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
-            monitor_run.start_on_file_found(self.test_run, "test_summary*.txt", watch_interval = 1,
+            monitor_run.start_on_file_found(self.test_run, "test_summary*.txt",
+                                            watch_interval = 1,
                                             watch_timeout = 5)
 
     def test_success_dryrun(self):
@@ -155,7 +202,8 @@ class TestGetNomadCommand(unittest.TestCase):
                      "barcode_prefix": "NB",
                      "amplicon_type": "16S",
                      "debug": False,
-                     "paths": {"output_base_path": "/path/to/output"}
+                     "paths": {"output_base_path": "/path/to/output"},
+                     "seq_run_duration_hours": 1
                      }
     config_path = pathlib.Path(__file__).parent / "data"/"monitor_run"/"test_config.yaml"
 
@@ -164,10 +212,9 @@ class TestGetNomadCommand(unittest.TestCase):
         outdir = pathlib.Path("path/to/outdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
-        seq_run = monitor_run.AmpliconRun(sequence_dir = indir,
-                                          runsheet = runsheet,
-                                          active_config = self.active_config,
-                                          configfile = self.config_path)
+        seq_run = monitor_run.AmpliconRun(sequence_dir = indir, runsheet = runsheet,
+                                          configfile = self.config_path,
+                                          active_config = self.active_config)
         seq_run.outdir = outdir
         expected_command = ["nomad", "job", "dispatch",
                             "-meta", "indir=path/to/indir",
@@ -188,11 +235,9 @@ class TestGetNomadCommand(unittest.TestCase):
                             "-meta", "outdir=path/to/outdir",
                             "-meta", f"runsheet={runsheet}",
                             "16s-snake-emu-staging", str(self.config_path)]
-        seq_run = monitor_run.AmpliconRun(sequence_dir = indir,
-                                          runsheet = runsheet,
-                                          active_config = self.active_config,
+        seq_run = monitor_run.AmpliconRun(sequence_dir = indir, runsheet = runsheet,
                                           configfile = self.config_path,
-                                          test_run = True)
+                                          active_config = self.active_config, test_run = True)
         seq_run.outdir = outdir
         test_command = monitor_run.get_pipeline_command(seq_run)
         assert expected_command == test_command
@@ -205,16 +250,15 @@ class TestGetNomadCommand(unittest.TestCase):
                     / "test_nanopore_runsheet.xlsx")
         test_configfile = pathlib.Path("path/to/config")
         test_config = {"debug": True, "amplicon_type": "16S",
-                       "paths": {"output_base_path": "/path/to/output"}}
+                       "paths": {"output_base_path": "/path/to/output"},
+                       "seq_run_duration_hours": 1}
         expected_command = ["nomad", "job", "dispatch",
                             "-meta", "indir=path/to/indir",
                             "-meta", "outdir=path/to/outdir",
                             "-meta", f"runsheet={runsheet}",
                             "16s-snake-emu-prod", str(test_configfile)]
-        seq_run = monitor_run.AmpliconRun(sequence_dir = indir,
-                                          runsheet = runsheet,
-                                          active_config = test_config,
-                                          configfile = test_configfile,
+        seq_run = monitor_run.AmpliconRun(sequence_dir = indir, runsheet = runsheet,
+                                          configfile = test_configfile, active_config = test_config,
                                           test_run = False)
         seq_run.outdir = outdir
         test_command = monitor_run.get_pipeline_command(seq_run)
