@@ -341,7 +341,7 @@ class TestAskOutputPath(unittest.TestCase):
         with pytest.raises(snake_wrapper.BadPathError,
                            match=re.escape(error_msg)), self.assertLogs("amplicon_nanopore") as logged:
             snake_wrapper.ask_output_dir(default_path)
-            assert log_msg in logged.output
+        assert log_msg in logged.output
 
     @mock.patch("builtins.input")
     def test_success_valid_default(self, mock_input):
