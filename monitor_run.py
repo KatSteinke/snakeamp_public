@@ -97,7 +97,6 @@ class AmpliconRun:
 
     def __ne__(self, other):
         if isinstance(other, AmpliconRun):
-            print()
             return (~(self.sequence_dir == other.sequence_dir
                     and self.runsheet == other.runsheet
                     and self.configfile == other.configfile
@@ -106,6 +105,7 @@ class AmpliconRun:
                     and self.sequencing_time == other.sequencing_time
                     and self.test_run == other.test_run))
         return True
+
 
 def get_pipeline_command(sequencing_run: AmpliconRun) -> List[str]:
     """Generate the command for starting the pipeline.

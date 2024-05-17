@@ -2,6 +2,7 @@ import pathlib
 import re
 import unittest
 
+from collections import namedtuple
 from datetime import timedelta
 from unittest import mock
 
@@ -151,8 +152,6 @@ class TestCreateAmpliconRun(unittest.TestCase):
         run_2 = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
                                         configfile = configfile,
                                         active_config = self.active_config)
-        print(run_1)
-        print(run_2)
         assert run_1 == run_2
 
     def test_compare_not_equal_runs(self):
@@ -170,6 +169,28 @@ class TestCreateAmpliconRun(unittest.TestCase):
                                         sequencing_time = 1.5)
         assert run_1 != run_2
 
+    def test_compare_wrong_type(self):
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        run_1 = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                        configfile = configfile,
+                                        active_config = self.active_config)
+        OldAmpliconRun = namedtuple("OldAmpliconRun",
+                                    ["sequence_dir", "runsheet",
+                                     "configfile",
+                                     "active_config", "outdir",
+                                     "sequencing_time",
+                                     "test_run"])
+        run_2 = OldAmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                               configfile = configfile,
+                               active_config = self.active_config,
+                               outdir = pathlib.Path("/path/to/output/"
+                                                     "NANO_Amplicon_Y20990101_RUN0001_XYZ-16S"),
+                               sequencing_time = 1, test_run = None)
+        assert run_1 != run_2
+        assert not run_1 == run_2
 
 
 class TestWaitForFile(unittest.TestCase):
