@@ -17,7 +17,6 @@ import pandas as pd
 import yaml
 
 import check_runsheet
-import helpers
 import monitor_run
 import pipeline_config
 import version
@@ -258,6 +257,7 @@ def ask_output_dir(output_dir_path: pathlib.Path) -> pathlib.Path:
         logger.warning("The default target folder contains characters that can break the pipeline.")
         output_dir_path = pathlib.Path(input("Type full path to new target folder "
                                              "and press enter: ").strip().strip("'"))
+    # if something still is broken now, we yell at the user and fail
     output_dir_path = get_clean_outdir(output_dir_path)
     logger.info(f"Saving results to {output_dir_path}")
     return output_dir_path
@@ -290,6 +290,8 @@ def initialize_classic_run(active_config: Dict[str, Any],
                                         configfile = configfile,
                                         active_config = active_config,
                                         sequencing_time = sequencing_time)
+    outdir = ask_output_dir(basic_run.outdir)
+    basic_run.outdir = outdir
     return basic_run
 
 
@@ -392,20 +394,10 @@ if __name__ == "__main__":
     else:
         lis_report = None
 
-    # set output dir - TODO: can we do this more nicely now?
+    # manual mode has set up the output dir, commandline may still have to
     if args.outdir:  # can only be given in commandline mode
-        output_dir = pathlib.Path(args.outdir)
-    else:
-        output_dir = current_run.outdir
+        current_run.outdir = get_clean_outdir(pathlib.Path(args.outdir))
 
-    # in manual mode, we'll give the user a chance to fix the path
-    if manual_mode:
-        output_dir = ask_output_dir(output_dir)
-    # if something still is broken, or the commandline version has been given a wrong path,
-    # we yell at the user and fail
-    output_dir = get_clean_outdir(output_dir)
-    # now it's set, we can set it for the current run
-    current_run.outdir = output_dir
     # we can check for whether this is a test and/or a continued pipeline here - in manual mode the
     # arguments will be false, so it defaults to pipeline defaults
     if args.test_run:
@@ -415,7 +407,7 @@ if __name__ == "__main__":
     current_run.test_run = debug_run
     continue_pipeline = args.continue_pipeline
     # we'll have to handle creating our folders ourselves - catch duplicate dirs here!
-    set_up_output(outdir = output_dir, continue_run = continue_pipeline)
+    set_up_output(outdir = current_run.outdir, continue_run = continue_pipeline)
     # start pipeline (in Docker container)
     logger.info("Pipeline is now waiting for sequencing to finish...")
     # set up sequencing run

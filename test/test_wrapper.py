@@ -470,7 +470,8 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                  "y",  # accept sequencing time
                                                  str((pathlib.Path(__file__).parent / "data"  # runsheet
                                                       / "utilities_test"
-                                                      / "test_nanopore_runsheet.xlsx"))])
+                                                      / "test_nanopore_runsheet.xlsx")),
+                                                 "y"])  # accept default outdir
     def test_success_use_default_time(self, mock_input):
         """Successfully set up a run using the default sequencing time."""
         expected_indir = pathlib.Path("path/to/indir")
@@ -497,7 +498,8 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                  str((pathlib.Path(
                                                      __file__).parent / "data"  # runsheet
                                                       / "utilities_test"
-                                                      / "test_nanopore_runsheet.xlsx"))])
+                                                      / "test_nanopore_runsheet.xlsx")),
+                                                 "y"])  # accept default outdir
     def test_success_change_time(self, mock_input):
         """Successfully set up a run with a different sequencing time."""
         expected_indir = pathlib.Path("path/to/indir")
@@ -505,6 +507,56 @@ class TestInitializeRunFromInput(unittest.TestCase):
                     / "test_nanopore_runsheet.xlsx")
         configfile = pathlib.Path("path/to/config")
         expected_outdir = pathlib.Path("/path/to/output/NANO_Amplicon_Y20990101_RUN0001_XYZ-16S")
+        expected_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config,
+                                               outdir = expected_outdir,
+                                               sequencing_time = 1.5)
+        test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
+                                                        configfile = configfile)
+        assert test_run == expected_run
+
+    @mock.patch("builtins.input", side_effect = ["path/to/indir",  # sequencing directory
+                                                "y",  # accept suggested sequencing time
+                                                 str((pathlib.Path(
+                                                     __file__).parent / "data"  # runsheet
+                                                      / "utilities_test"
+                                                      / "test_nanopore_runsheet.xlsx")),
+                                                 "n",  # reject suggested outdir
+                                                 "/path/to/new_outdir"])  # set new outdir
+    def test_success_change_outdir(self, mock_input):
+        """Successfully set up a run with a different output directory."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        expected_outdir = pathlib.Path("/path/to/new_outdir")
+        expected_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config,
+                                               outdir = expected_outdir,
+                                               sequencing_time = self.active_config[
+                                                   "seq_run_duration_hours"])
+        test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
+                                                        configfile = configfile)
+        assert test_run == expected_run
+
+    @mock.patch("builtins.input", side_effect = ["path/to/indir",  # sequencing directory
+                                                 "n",  # reject default sequencing time
+                                                 1.5,  # set new sequencing time
+                                                 str((pathlib.Path(
+                                                     __file__).parent / "data"  # runsheet
+                                                      / "utilities_test"
+                                                      / "test_nanopore_runsheet.xlsx")),
+                                                 "n",  # reject suggested outdir
+                                                 "/path/to/new_outdir"])  # set new outdir
+    def test_success_change_time_and_outdir(self, mock_input):
+        """Successfully set up a run with a different sequencing time and output directory."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        expected_outdir = pathlib.Path("/path/to/new_outdir")
         expected_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
                                                configfile = configfile,
                                                active_config = self.active_config,
