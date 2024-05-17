@@ -98,6 +98,24 @@ class TestGetLISData(unittest.TestCase):
                                                           self.workflow_config)
         pd.testing.assert_frame_equal(positive_expected, positive_test)
 
+    def test_handle_old_format(self):
+        """Handle an older report without additional information on indication etc."""
+        lis_data = pd.read_csv((pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                               / "test_mads_old.csv"),
+                               encoding = "latin1", dtype = {"modtaget": str,
+                                                             "cprnr.": str})
+        expected_result = pd.DataFrame(data = {"patient": ["0000000000"],
+                                               "prøvenr": ["F99123456"],
+                                               "modtagedato": ["2021-01-02"],
+                                               "prøvemateriale": ["Podning"],
+                                               "anatomi": ["Svælg/tonsil"],
+                                               "indikation": [""]})
+        sample_number = "1199123456-0"
+        test_result = summarize_emu.get_lis_information(sample_number, lis_data,
+                                                        self.workflow_config)
+        pd.testing.assert_frame_equal(expected_result, test_result)
+
+
 
 class TestGetNameComponents(unittest.TestCase):
     workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",

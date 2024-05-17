@@ -79,12 +79,13 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
             error_msg = (f"Sample number {name_translate} (original number: {sample_number}) "
                          "not found in LIS report.")
             raise KeyError(error_msg)
-        sample_information = lis_report[lis_report["prøvenr"] == name_translate][["cprnr.",
-                                                                                  "prøvenr",
-                                                                                  "modtaget",
-                                                                                  "prøvekategori",
-                                                                                  "anatomi",
-                                                                                  "Indikation"]]
+        sample_information = lis_report[lis_report["prøvenr"] == name_translate]
+        sample_information = sample_information.reindex(columns = ["cprnr.",
+                                                                   "prøvenr",
+                                                                   "modtaget",
+                                                                   "prøvekategori",
+                                                                   "anatomi",
+                                                                   "Indikation"])
         sample_information = sample_information.rename(columns = {"modtaget": "modtagedato",
                                                                   "prøvekategori":
                                                                       "prøvemateriale",
