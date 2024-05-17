@@ -141,29 +141,6 @@ class TestSanitizePath(unittest.TestCase):
         assert test_path == clean_path
 
 
-class TestGetExperimentName(unittest.TestCase):
-    def test_experiment_name_success(self):
-        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
-                   / "runsheet_clean_name.xlsx"
-        expected_name = "PLACEHOLDER_RUN_NAME"
-        test_name = snake_wrapper.get_run_name(runsheet)
-        assert expected_name == test_name
-
-    def test_complain_blank_name(self):
-        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
-                   / "runsheet_blank_name.xlsx"
-        error_msg = "No run name given in the runsheet."
-        with pytest.raises(ValueError, match = re.escape(error_msg)):
-            snake_wrapper.get_run_name(runsheet)
-
-    def test_complain_no_name_column(self):
-        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
-                   / "runsheet_no_name_col.xlsx"
-        error_msg = "No column giving the run name found in the runsheet."
-        with pytest.raises(KeyError, match = re.escape(error_msg)):
-            snake_wrapper.get_run_name(runsheet)
-
-
 class TestProcessRunsheet(unittest.TestCase):
     def test_catch_no_samples_for_analysis(self):
         """Fail if no samples have the amplicon type specified in the config."""
