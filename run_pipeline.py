@@ -79,28 +79,6 @@ def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.
     return run_dir
 
 
-def get_run_name(runsheet: pathlib.Path) -> str:
-    """Extract the run name from the runsheet (specified in the column RUNxxxx-INI) # TODO - is it?
-
-    Arguments:
-        runsheet:   the path to the runsheet for the run
-
-    Returns:
-        The run's name.
-    Raises:
-        KeyError:   if the runsheet is missing the column for the run name
-        ValueError: if the run name hasn't been given in the runsheet
-    """
-    run_name_col = "RUNxxxx-INI"
-    sheet_data = pd.read_excel(runsheet, skiprows = 1, nrows = 2, usecols="A:D")
-    if run_name_col not in sheet_data.columns:
-        raise KeyError("No column giving the run name found in the runsheet.")
-    run_name = sheet_data[run_name_col].squeeze()
-    if pd.isna(run_name):
-        raise ValueError("No run name given in the runsheet.")
-    return run_name
-
-
 # read runsheet
 def process_runsheet(runsheet_path: pathlib.Path,
                      active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
