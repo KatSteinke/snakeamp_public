@@ -9,6 +9,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 
+import monitor_run
 import run_pipeline as snake_wrapper
 
 
@@ -287,14 +288,14 @@ class TestGetSeqTime(unittest.TestCase):
     def test_success_default_time(self, mock_input):
         """Return the default timespan if no changes are made."""
         mock_input.return_value = "y"
-        expected_time = timedelta(hours = self.default_time)
+        expected_time = self.default_time
         test_time = snake_wrapper.ask_seq_time(self.default_time)
         assert expected_time == test_time
 
     @mock.patch("builtins.input", side_effect = ["n", 1])
     def test_success_different_time(self, mock_input):
         """Change the sequencing time when specified by the user."""
-        expected_time = timedelta(hours = 1)
+        expected_time = 1
         test_time = snake_wrapper.ask_seq_time(self.default_time)
         assert expected_time == test_time
 
@@ -439,3 +440,76 @@ class TestCreateOutputDirs(unittest.TestCase):
             assert log_msg in logged.output
         assert output_dir.exists()
         assert (output_dir / "logs").exists()
+
+
+class TestInitializeRunFromInput(unittest.TestCase):
+    active_config = {"sample_number_settings": {"sample_number_format":
+                                                    '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                "sample_numbers_in": "letter",
+                                                "sample_numbers_out": "letter",
+                                                "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                "number_to_letter": {"70": "P",
+                                                                     "30": "B",
+                                                                     "10": "D",
+                                                                     "50": "T"},
+                                                "date_settings":
+                                                    {"splice_in_date": False,
+                                                     "length_without_date": 8,
+                                                     "splice_after": 2},
+                                                "negative_control": 'NegK[a-zA-Z0-9]*',
+                                                "positive_control": {}},
+                     "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
+                     "barcode_prefix": "NB",
+                     "amplicon_type": "16S",
+                     "debug": False,
+                     "paths": {"output_base_path": "/path/to/output"},
+                     "seq_run_duration_hours": 1}
+
+    @mock.patch("builtins.input", side_effect = ["path/to/indir",  # sequencing directory
+                                                 "y",  # accept sequencing time
+                                                 str((pathlib.Path(__file__).parent / "data"  # runsheet
+                                                      / "utilities_test"
+                                                      / "test_nanopore_runsheet.xlsx"))])
+    def test_success_use_default_time(self, mock_input):
+        """Successfully set up a run using the default sequencing time."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        expected_outdir = pathlib.Path("/path/to/output/NANO_Amplicon_Y20990101_RUN0001_XYZ-16S")
+        expected_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config,
+                                               outdir = expected_outdir,
+                                               sequencing_time = self.active_config["seq_run_duration_hours"])
+        welcome_msg = ("INFO:amplicon_nanopore:### Nanopore 16S analysis\n"
+                       "# Setup analysis -------------------------------")
+        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+            test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
+                                                            configfile = configfile)
+            assert welcome_msg in logged.output
+        assert test_run == expected_run
+
+    @mock.patch("builtins.input", side_effect = ["path/to/indir",  # sequencing directory
+                                                 "n",  # reject default sequencing time
+                                                 1.5,  # set new sequencing time
+                                                 str((pathlib.Path(
+                                                     __file__).parent / "data"  # runsheet
+                                                      / "utilities_test"
+                                                      / "test_nanopore_runsheet.xlsx"))])
+    def test_success_change_time(self, mock_input):
+        """Successfully set up a run with a different sequencing time."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        expected_outdir = pathlib.Path("/path/to/output/NANO_Amplicon_Y20990101_RUN0001_XYZ-16S")
+        expected_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config,
+                                               outdir = expected_outdir,
+                                               sequencing_time = 1.5)
+        test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
+                                                        configfile = configfile)
+        assert test_run == expected_run
