@@ -228,8 +228,8 @@ class TestWaitForFile(unittest.TestCase):
 
     def test_timeout(self):
         """Stop monitoring when the timeout has been reached."""
-        error_msg = ("No file matching pattern test_summary*.txt "
-                     f"found in {self.test_run.sequence_dir.parent}")
+        error_msg = ("No file matching pattern test_summary*.txt found in"
+                     f" {self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}")
         with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
             monitor_run.start_on_file_found(self.test_run, "test_summary*.txt",
                                             watch_interval = 1,
@@ -249,26 +249,7 @@ class TestWaitForFile(unittest.TestCase):
                                            test_run = False)
         error_msg = f"Parent directory {test_run.sequence_dir} does not exist."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
-            monitor_run.start_on_file_found(test_run, "*/final_summary*.txt",
-                                            watch_interval = 1,
-                                            watch_timeout = 5, dry_run = True)
-
-    def test_fail_bad_parent_dir(self):
-        """Don't start monitoring if the parent directory does not have the expected structure."""
-        test_run = monitor_run.AmpliconRun(sequence_dir = pathlib.Path(__file__).parent / "data"
-                                                          / "monitor_run" / "miniondir" / "test3",
-                                           outdir = pathlib.Path(__file__).parent / "data"
-                                                    / "monitor_run" / "test_outdir",
-                                           runsheet = pathlib.Path(__file__).parent / "data"
-                                                      / "utilities_test"
-                                                      / "test_nanopore_runsheet_16s_only.xlsx",
-                                           active_config = self.active_config,
-                                           configfile = self.config_path,
-                                           test_run = False)
-        error_msg = (f"Parent directory {test_run.sequence_dir} "
-                     "does not contain a rawdata directory.")
-        with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
-            monitor_run.start_on_file_found(test_run, "*/final_summary*.txt",
+            monitor_run.start_on_file_found(test_run, "final_summary*.txt",
                                             watch_interval = 1,
                                             watch_timeout = 5, dry_run = True)
 
@@ -279,12 +260,13 @@ class TestWaitForFile(unittest.TestCase):
                                      f'-meta runsheet={self.test_run.runsheet} '
                                      '16s-snake-emu-prod '
                                      f'{str(self.test_run.configfile)}"')]
-        expected_log = ("INFO:launch_run:Found */final_summary*.txt "
-                        f"in {self.test_run.sequence_dir / 'rawdata'} after 0 seconds.")
+        expected_log = ("INFO:launch_run:Found final_summary*.txt in "
+                        f"{self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}"
+                        " after 0 seconds.")
         with self.assertLogs("launch_run", level = "INFO") as logged:
-            test_command = monitor_run.start_on_file_found(self.test_run, "*/final_summary*.txt",
-                                                           dry_run = True, watch_interval = 10,
-                                                           watch_timeout = 30).args
+            test_command = monitor_run.start_on_file_found(self.test_run, "final_summary*.txt",
+                                                           dry_run = True, watch_interval = 1,
+                                                           watch_timeout = 5).args
             assert expected_log in logged.output
         assert test_command == expected_command
 
@@ -295,9 +277,9 @@ class TestWaitForFile(unittest.TestCase):
         """Successfully run the output of the pipeline command builder."""
         mock_command.return_value = ["echo", "Hello"]
         expected_command = ["echo", "Hello"]
-        test_command = monitor_run.start_on_file_found(self.test_run, "*/final_summary*.txt",
-                                                       dry_run = False, watch_interval = 10,
-                                                       watch_timeout = 30).args
+        test_command = monitor_run.start_on_file_found(self.test_run, "final_summary*.txt",
+                                                       dry_run = False, watch_interval = 1,
+                                                       watch_timeout = 5).args
         assert test_command == expected_command
 
 

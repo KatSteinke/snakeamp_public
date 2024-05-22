@@ -155,20 +155,17 @@ def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_ru
     time_watching = 0
     if not run_to_watch.sequence_dir.exists():
         raise FileNotFoundError(f"Parent directory {run_to_watch.sequence_dir} does not exist.")
-    run_basedir = run_to_watch.sequence_dir / "rawdata"
-    if not run_basedir.exists():
-        raise FileNotFoundError(f"Parent directory {run_to_watch.sequence_dir} "
-                                "does not contain a rawdata directory.")
+    fastq_parent_dir = helpers.get_fastq_pass_parent(run_to_watch.sequence_dir)
     # watch for presence of file
     while not (file_found or time_watching >= watch_timeout):
-        file_found = len(list(run_basedir.glob(pattern_to_watch)))
+        file_found = len(list(fastq_parent_dir.glob(pattern_to_watch)))
         if not file_found:  # TODO: we can definitely make this flow more nicely
             time_watching += watch_interval
             time.sleep(watch_interval)
     if not file_found:
         raise FileNotFoundError(f"No file matching pattern {pattern_to_watch} "
-                                f"found in {run_basedir}.")
-    logger.info(f"Found {pattern_to_watch} in {run_basedir} after {time_watching} seconds.")
+                                f"found in {fastq_parent_dir}.")
+    logger.info(f"Found {pattern_to_watch} in {fastq_parent_dir} after {time_watching} seconds.")
     # construct nomad command
     nomad_command = get_pipeline_command(run_to_watch)
     # return only string if in test mode

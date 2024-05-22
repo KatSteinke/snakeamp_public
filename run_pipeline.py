@@ -17,6 +17,7 @@ import pandas as pd
 import yaml
 
 import check_runsheet
+import helpers
 import monitor_run
 import pipeline_config
 import version
@@ -46,38 +47,6 @@ class BadPathError(Exception):
 
 
 # TODO: how long does it take for the run dir to be created?
-def find_rundir(run_dir: pathlib.Path, minion_basedir: pathlib.Path) -> pathlib.Path:
-    """Check whether run directory exists as full path or directory in MinION dir and
-    adjust path of run directory accordingly.
-    Arguments:
-        run_dir:        absolute or relative path to run directory
-        minion_basedir: absolute path to directory of MinION results
-    Returns:
-        The unchanged run directory if it exists, or the full path to the directory
-        within the MinION dir if this was given.
-    """
-    # we only need to do something if the directory doesn't exist:
-    if not run_dir.exists():
-        # ...check in MinION dir
-        if (minion_basedir / run_dir).exists():
-            run_dir = minion_basedir / run_dir
-        # if neither of them exists, complain and stop
-        else:
-            raise FileNotFoundError(f"{str(run_dir)} or {str(minion_basedir / run_dir)} "
-                                    f"does not exist \n"
-                                    f"Aborting pipeline...")
-    # Check if fastq_pass folder exist
-    check_fastq_pass = list(run_dir.glob("rawdata/*/fastq_pass"))
-    if not check_fastq_pass:
-        raise FileNotFoundError(f"fastq_pass folder(s) not found in expected location:\n"
-                                f"{str(run_dir)}/rawdata/*/fastq_pass\n"
-                                f"Ensure correct directory and/or directory structure is used.\n"
-                                f"Aborting pipeline...")
-
-    logger.info(f"Data is retrieved from following folders: \n "
-                f"{str([str(fastq_dir) for fastq_dir in check_fastq_pass])}")
-    return run_dir
-
 
 # read runsheet
 def process_runsheet(runsheet_path: pathlib.Path,
@@ -260,6 +229,7 @@ def initialize_classic_run(active_config: Dict[str, Any],
                 "# Setup analysis -------------------------------")
     run_dir = pathlib.Path(input("Type full path or name of Nanopore "
                                  "sequencing folder and press enter: ").strip().strip("'"))
+    run_dir = helpers.get_fastq_pass_parent(run_dir)
     sequencing_time = ask_seq_time(active_config["seq_run_duration_hours"])
     run_sheet = pathlib.Path(input("Output directory will be based on experiment name."
                                    "\n"
@@ -355,7 +325,7 @@ if __name__ == "__main__":
         if not args.rundir:
             raise ValueError("Nanopore run directory not specified.")
         runsheet = pathlib.Path(args.runsheet).resolve()
-        rundir = pathlib.Path(args.rundir).resolve()
+        rundir = helpers.get_fastq_pass_parent(pathlib.Path(args.rundir))
         if args.run_time:
             seq_time = args.run_time
         current_run = monitor_run.AmpliconRun(sequence_dir = rundir, runsheet = runsheet,
@@ -396,7 +366,7 @@ if __name__ == "__main__":
     # detach here - keep start log
     if os.fork():
         sys.exit()
-    analysis_run = monitor_run.start_on_file_found(current_run, "*/final_summary*.txt",
+    analysis_run = monitor_run.start_on_file_found(current_run, "final_summary*.txt",
                                                    dry_run = args.dry_run,
                                                    watch_timeout = total_time.seconds,
                                                    watch_interval = check_interval)
