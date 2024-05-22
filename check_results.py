@@ -124,27 +124,35 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                  * cols_per_sample],
                                                     "prøvemateriale": [*[""] * cols_per_sample,
                                                         *[""] * cols_per_sample,
-                                                        *["Hjerneventrikelvæske <liquor>"] * cols_per_sample,
+                                                        *["Hjerneventrikelvæske <liquor>"]
+                                                         * cols_per_sample,
                                                         *["Podning"] * cols_per_sample,
                                                         *["Spinalvæske"] * cols_per_sample,
                                                         ],
                                                     "anatomi": [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
-                                                                *["Shunt (hjerneventrikel)"] * cols_per_sample,
+                                                                *["Shunt ""(hjerneventrikel)"]
+                                                                 * cols_per_sample,
                                                                 *["Svælg/tonsil"] * cols_per_sample,
                                                                 *[""] * cols_per_sample
                                                                 ],
                                                     "indikation": [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
+                                                                *["!!!"] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
-                                                                *[""] * cols_per_sample,
-                                                                *[""] * cols_per_sample
+                                                                *["en eller anden lang tekst"
+                                                                  "<Break/>der ikke kan være på en"
+                                                                  " linje i MADS"] * cols_per_sample
                                                                 ],
-                                                    }, index = pd.Index([*["NegK_Sanger"] * cols_per_sample,
+                                                    }, index = pd.Index([*["NegK_Sanger"]
+                                                                          * cols_per_sample,
                                                                     *["PosK"] * cols_per_sample,
-                                                                    *["F99123457"] * cols_per_sample,
-                                                                    *["F99123456"] * cols_per_sample,
-                                                                    *["F99123458"] * cols_per_sample
+                                                                    *["F99123457"]
+                                                                     * cols_per_sample,
+                                                                    *["F99123456"]
+                                                                     * cols_per_sample,
+                                                                    *["F99123458"]
+                                                                     * cols_per_sample
                                                                     ],
                                                                         name="prøvenr"))
             # are the headers correct? use MultiIndex.to_frame(index=False)
