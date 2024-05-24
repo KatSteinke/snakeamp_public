@@ -150,7 +150,7 @@ rule remove_human_reads:
         """
         kraken2 --db "{params.kraken_db}" --unclassified-out "{output.human_depleted}" \
         --output "-" --report "{output.depletion_report}" --threads {threads} \
-        {input.concat_fasta} 2> "{log}"
+        {input.filtered_fastq} 2> "{log}"
         """
 
 rule compress_nanopore_reads:
