@@ -155,10 +155,7 @@ rule remove_human_reads:
 
 rule compress_nanopore_reads:
     input:
-        filtered_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq" \
-                        if config["amplicon_type"] == "18S" \
-                        else "{sample_number}_{barcode}/reads/" \
-                         "{sample_number}_{barcode}.filtered.fastq"
+        filtered_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq"
     output:
         compressed_fastq = "{sample_number}_{barcode}/reads/" \
                            "{sample_number}_{barcode}.filtered.fastq.gz"
