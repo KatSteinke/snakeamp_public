@@ -104,35 +104,11 @@ rule concatenate_fastqs:
          fi
         """
 
-rule remove_human_reads:
-    input:
-        concat_fasta = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
-    output:
-        human_depleted = temp("{sample_number}_{barcode}/reads"
-                              "/{sample_number}_{barcode}.depleted.fastq"),
-        depletion_report = ("{sample_number}_{barcode}/reads"
-                              "/{sample_number}_{barcode}.kraken.tsv")
-    params:
-        kraken_db = pathlib.Path(config['databases']['human_reads']),
-    conda: "kraken_env"
-    log: "logs/kraken/{sample_number}_{barcode}.log"
-    resources:
-        mem_mb = 5000  # database + a bit extra
-    threads: workflow.cores
-    shell:
-        """
-        kraken2 --db "{params.kraken_db}" --unclassified-out "{output.human_depleted}" \
-        --output "-" --report "{output.depletion_report}" --threads {threads} \
-        {input.concat_fasta} 2> "{log}"
-        """
-
 
 rule clean_nanopore_reads:
     # only run depletion for 18S reads
     input:
-        concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq" \
-                        if config["amplicon_type"] == "18S" \
-                        else "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
+        concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
     output:
         filtered_fastq = temp("{sample_number}_{barcode}/reads/"
                               "{sample_number}_{barcode}.filtered.fastq")
@@ -154,9 +130,34 @@ rule clean_nanopore_reads:
         """
 
 
+rule remove_human_reads:
+    input:
+        filtered_fastq = "{sample_number}_{barcode}/reads/"
+                              "{sample_number}_{barcode}.filtered.fastq"
+    output:
+        human_depleted = temp("{sample_number}_{barcode}/reads"
+                              "/{sample_number}_{barcode}.depleted.fastq"),
+        depletion_report = ("{sample_number}_{barcode}/reads"
+                              "/{sample_number}_{barcode}.kraken.tsv")
+    params:
+        kraken_db = pathlib.Path(config['databases']['human_reads']),
+    conda: "kraken_env"
+    log: "logs/kraken/{sample_number}_{barcode}.log"
+    resources:
+        mem_mb = 5000  # database + a bit extra
+    threads: workflow.cores
+    shell:
+        """
+        kraken2 --db "{params.kraken_db}" --unclassified-out "{output.human_depleted}" \
+        --output "-" --report "{output.depletion_report}" --threads {threads} \
+        {input.concat_fasta} 2> "{log}"
+        """
+
 rule compress_nanopore_reads:
     input:
-        filtered_fastq = "{sample_number}_{barcode}/reads/" \
+        filtered_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq" \
+                        if config["amplicon_type"] == "18S" \
+                        else "{sample_number}_{barcode}/reads/" \
                          "{sample_number}_{barcode}.filtered.fastq"
     output:
         compressed_fastq = "{sample_number}_{barcode}/reads/" \
