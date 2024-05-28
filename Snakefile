@@ -145,7 +145,7 @@ rule clean_nanopore_reads:
         {params.max_length} \
         {params.min_quality} \
          --keep_percent 95 \
-         {input.concat_fastq} 1>  "{output.filtered_fastq}" 2>" {log}"
+         {input.concat_fastq} 1>  "{output.filtered_fastq}" 2> "{log}"
         """
 
 
