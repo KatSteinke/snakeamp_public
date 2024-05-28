@@ -5,4 +5,5 @@ channels:
   - defaults
 dependencies:
   - filtlong=0.2.1
+  - nanostat=1.6.0
   - pigz

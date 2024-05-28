@@ -68,7 +68,10 @@ rule all:
         all_results = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
         all_compressed =  expand("{sample_number}_{barcode}/reads/" 
                                  "{sample_number}_{barcode}.filtered.fastq.gz", zip,
-                                 sample_number=ALL_IDS, barcode=ALL_BARCODES)
+                                 sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_pre_cleaning = expand("{sample_number}_{barcode}/reads/"
+                                  "{sample_number}_{barcode}.stats.tsv",
+                                  zip, sample_number=ALL_IDS, barcode=ALL_BARCODES)
 
 rule concatenate_fastqs:
     params:
@@ -104,9 +107,23 @@ rule concatenate_fastqs:
          fi
         """
 
+rule get_qc_statistics:
+    input:
+        concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
+    output:
+        read_stats = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.stats.tsv"
+    conda: "nanopore_qc_env"
+    threads: 2
+    resources:
+        mem_mb = 200
+    shell:
+        """
+        NanoStat --fastq "{input.concat_fastq}" --tsv --threads {threads} > "{output.read_stats}"
+        """
+
+
 
 rule clean_nanopore_reads:
-    # only run depletion for 18S reads
     input:
         concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
     output:
