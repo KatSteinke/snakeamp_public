@@ -120,13 +120,15 @@ rule clean_nanopore_reads:
         min_quality = f"--min_mean_q {config['quality_params']['min_qscore']}" \
                       if config['quality_params']['min_qscore'] else ''
     conda: "nanopore_qc_env" # TODO: set up env!
+    log:
+        "logs/filtlong/{sample_number}_{barcode}.log"
     shell:
         """
         filtlong {params.min_length} \
         {params.max_length} \
         {params.min_quality} \
          --keep_percent 95 \
-         {input.concat_fastq} >  {output.filtered_fastq}
+         {input.concat_fastq} 1>  "{output.filtered_fastq}" 2>" {log}"
         """
 
 
