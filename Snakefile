@@ -71,6 +71,9 @@ rule all:
                                  sample_number=ALL_IDS, barcode=ALL_BARCODES),
         all_pre_cleaning = expand("{sample_number}_{barcode}/reads/"
                                   "{sample_number}_{barcode}.stats.tsv",
+                                  zip, sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_stats_cleaned = expand("{sample_number}_{barcode}/reads/"
+                                  "{sample_number}_{barcode}.depleted.stats.tsv",
                                   zip, sample_number=ALL_IDS, barcode=ALL_BARCODES)
 
 rule concatenate_fastqs:
@@ -171,6 +174,21 @@ rule remove_human_reads:
         --output "-" --report "{output.depletion_report}" --threads {threads} \
         {input.filtered_fastq} 2> "{log}"
         """
+
+rule get_qc_statistics_cleaned:
+    input:
+        depleted_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq"
+    output:
+        read_stats = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.stats.tsv"
+    conda: "nanopore_qc_env"
+    threads: 2
+    resources:
+        mem_mb = 200
+    shell:
+        """
+        NanoStat --fastq "{input.depleted_fastq}" --tsv --threads {threads} > "{output.read_stats}"
+        """
+
 
 rule compress_nanopore_reads:
     input:
