@@ -209,7 +209,7 @@ rule compress_nanopore_reads:
 rule run_emu:
     input:
         filtered_fastq = "{sample_number}_{barcode}/reads/" \
-                         "{sample_number}_{barcode}.filtered.fastq"
+                         "{sample_number}_{barcode}.depleted.fastq"
     output:
         relative_abundance = f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv"
     params:
