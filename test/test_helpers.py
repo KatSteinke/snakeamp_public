@@ -533,6 +533,14 @@ class TestExtractNanoporeRun(unittest.TestCase):
         test_run_name = helpers.extract_nanopore_run_name(test_sheet)
         assert test_run_name == true_run_name
 
+    def test_get_short_run_name(self):
+        """Extract a run name without zero padding."""
+        test_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                     / "test_nanopore_runsheet_short_name.xlsx"
+        true_run_name = "NANO_Amplicon_Y20990101_RUN1_XYZ"
+        test_run_name = helpers.extract_nanopore_run_name(test_sheet)
+        assert test_run_name == true_run_name
+
     def test_check_whitespace_breaks(self):
         test_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                      / "nanopore_bad_name.xlsx"
