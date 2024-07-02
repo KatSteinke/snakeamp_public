@@ -57,8 +57,9 @@ print(ALL_IDS)
 print(sheet_data["prøvenr"].str.match(sample_number_pattern, na=False))
 ALL_BARCODES = list(sheet_data["Barkode"])
 
-# we need to name some files after the experiment name
-EXPERIMENT_NAME = helpers.extract_nanopore_run_name(pathlib.Path(config["runsheet"]))
+# we need to name some files after the experiment name (plus amplicon type so we can distinguish)
+EXPERIMENT_NAME = (f"{helpers.extract_nanopore_run_name(pathlib.Path(config['runsheet']))}"
+                   f"-{config['amplicon_type']}")
 
 rule all:
     input:
