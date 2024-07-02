@@ -100,7 +100,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
             cols_per_sample = int(amount_compared_cols / num_samples)
             # dynamically generate expected headers since some of them might be blank
             expected_headers = pd.DataFrame(data = {"run":
-                                                    ["NANO_Amplicon_Y20990101_RUN0001_XYZ"]
+                                                    ["NANO_Amplicon_Y20990101_RUN0001_XYZ-16S"]
                                                         * amount_compared_cols,
                                                     "barcode": [*["RB62"] * cols_per_sample,
                                                                 *["RB64"] * cols_per_sample,
