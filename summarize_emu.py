@@ -361,7 +361,6 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     # sort here:
     all_merged = sort_report_samples(all_merged, active_config=active_config)
     run_names = all_merged.columns.get_level_values("run").unique().tolist()
-    logger.debug(run_names)
     if len(run_names) > 1:
         log_msg = f"Data appear to be from multiple runs ({run_names})."
         logger.warning(log_msg)
