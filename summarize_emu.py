@@ -377,7 +377,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
                        if re.search(r"run\d{1,4}", run_name, flags =re.IGNORECASE)
                        else "RUNxxxx"
                        for run_name in run_names]
-        all_run_numbers = "".join(run_numbers)
+        all_run_numbers = "_".join(run_numbers)
         patients_to_ids = {patient_id: f"{all_run_numbers}_pt_{patient_index}"
                            for patient_index, patient_id in enumerate(patient_ids)
                            if patient_id}

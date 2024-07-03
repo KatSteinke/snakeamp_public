@@ -1888,6 +1888,102 @@ class TestMergeEmuDir(unittest.TestCase):
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
+    def test_get_different_patients_different_runs(self):
+        """Ensure samples from different patients from different runs are reported correctly."""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "format_output":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK",
+                                                      "sample_numbers_in": "letter",
+                                                      "sample_numbers_out": "letter",
+                                                      "sample_numbers_output": "letter",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_patients.csv")}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "multi_run_patients"
+
+        expected_values = [[20.00, 4, "", 20.00, 4, ""],
+                           [75.00, 15, "", 75.00, 15, ""],
+                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0002",
+                                                       "RUN0002",
+                                                       "RUN0002"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["F99123456",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99654321",
+                                                       "F99654321",
+                                                       "F99654321"],
+                                                      ["2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       ],
+                                                      ["RUN0001_RUN0002_pt_0",
+                                                       "RUN0001_RUN0002_pt_0",
+                                                       "RUN0001_RUN0002_pt_0",
+                                                       "RUN0001_RUN0002_pt_1",
+                                                       "RUN0001_RUN0002_pt_1",
+                                                       "RUN0001_RUN0002_pt_1"],
+                                                      ["Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning"
+                                                       ],
+                                                      ["Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil"],
+                                                      ["", "", "", "", "", ""],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode", "prøvenummer",
+                                                              "modtagedato",
+                                                              "patient",
+                                                              "prøvemateriale",
+                                                              "anatomi",
+                                                              "PhHV",
+                                                              "notes",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+                                                         active_config = workflow_config)
+        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
+
     def test_get_same_patient(self):
         """Ensure samples from the same patient are reported correctly."""
         workflow_config = {"sample_number_settings": {"sample_number_format":
