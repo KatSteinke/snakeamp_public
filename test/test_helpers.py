@@ -36,6 +36,18 @@ class TestGetControls(unittest.TestCase):
         assert expected_negative.pattern == test_negative.pattern
         assert expected_positive.pattern == test_positive.pattern
 
+    def test_get_both_controls(self):
+        """Return the correct pattern if both positive and negative controls are present."""
+        expected_negative = re.compile('NegK')
+        expected_positive = re.compile('PosK|PosK2')
+        test_negative, test_positive = helpers.get_control_patterns(negative_control = "NegK",
+                                                                    positive_control = {"PosK":
+                                                                                            "Placeholderia bielefeldensis",
+                                                                                        "PosK2":
+                                                                                            "Placeholderia fakeorum"})
+        assert expected_negative.pattern == test_negative.pattern
+        assert expected_positive.pattern == test_positive.pattern
+
 
 class TestGetPatterns(unittest.TestCase):
     def test_samples_only(self):
@@ -81,7 +93,6 @@ class TestGetPatterns(unittest.TestCase):
 
     def test_all_control_types(self):
         """Create a sample number pattern with both positive and negative controls."""
-        """Create a sample number pattern with multiple positive controls."""
         expected_pattern = re.compile(r"(test(?P<suffix>A|BC)|NegK|(PosK|PosK2))")
         sample_number_pattern = "test(?P<suffix>A|BC)"
         negative_control = "NegK"
@@ -537,6 +548,14 @@ class TestExtractNanoporeRun(unittest.TestCase):
         test_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                      / "test_nanopore_runsheet.xlsx"
         true_run_name = "NANO_Amplicon_Y20990101_RUN0001_XYZ"
+        test_run_name = helpers.extract_nanopore_run_name(test_sheet)
+        assert test_run_name == true_run_name
+
+    def test_get_short_run_name(self):
+        """Extract a run name without zero padding."""
+        test_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                     / "test_nanopore_runsheet_short_name.xlsx"
+        true_run_name = "NANO_Amplicon_Y20990101_RUN1_XYZ"
         test_run_name = helpers.extract_nanopore_run_name(test_sheet)
         assert test_run_name == true_run_name
 

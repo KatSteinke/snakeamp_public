@@ -316,6 +316,11 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     Raises:
         FileNotFoundError:  if the directory does not contain any Emu reports
     """
+    if not emu_dir.exists():
+        raise FileNotFoundError(f"Emu report directory {emu_dir} does not exist")
+    if not emu_dir.is_dir():
+        raise NotADirectoryError(f"{emu_dir} is a single file. "
+                                 f"Please specify the directory containing all Emu reports.")
     emu_reports = list(emu_dir.glob("*_rel-abundance.tsv"))
     if not emu_reports:
         raise FileNotFoundError(f"No Emu reports found in {emu_dir}.")
@@ -398,11 +403,12 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
         # we want to make it clear that this is the ID for this batch of *results*
         # -> use run number from all runs
         # shorter run name - only extract RUNXXXX from names since it's a one-off ID
-        run_numbers = [re.search(r"run\d{4}", run_name, flags = re.IGNORECASE).group(0)
-                       if re.search(r"run\d{4}", run_name, flags =re.IGNORECASE)
+        # we no longer have zero-padded run numbers
+        run_numbers = [re.search(r"run\d{1,4}", run_name, flags = re.IGNORECASE).group(0)
+                       if re.search(r"run\d{1,4}", run_name, flags =re.IGNORECASE)
                        else "RUNxxxx"
                        for run_name in run_names]
-        all_run_numbers = "".join(run_numbers)
+        all_run_numbers = "_".join(run_numbers)
         patients_to_ids = {patient_id: f"{all_run_numbers}_pt_{patient_index}"
                            for patient_index, patient_id in enumerate(patient_ids)
                            if patient_id}
