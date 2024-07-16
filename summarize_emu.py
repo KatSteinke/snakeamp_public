@@ -98,6 +98,114 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
     return sample_information
 
 
+def extract_nanostat_read_count(nanostat_file: pathlib.Path) -> int:
+    """Extract read count from nanostat.
+
+    Arguments:
+        nanostat_file:  the nanostat output to extract read number from, in tsv format
+
+    Returns:
+        The read count (number_of_reads)
+
+    Raises:
+        FileNotFoundError:  if the nanostat file does not exist
+    """
+    if not nanostat_file.exists():
+        raise FileNotFoundError(f"Nanostat report {nanostat_file} not found.")
+    nanostat_data = pd.read_csv(nanostat_file, sep = "\t", skiprows = 1, index_col = 0,
+                                header = None, names = ["QC_value"])
+    try:
+        nanostat_read_count = int(nanostat_data.loc["number_of_reads"].squeeze())
+    except KeyError as key_err:
+        raise KeyError("Nanostat report is malformed - cannot find number_of_reads.") from key_err
+    return nanostat_read_count
+
+
+def get_kraken_read_stats(kraken_file: pathlib.Path) -> pd.DataFrame:
+    """Get total reads after filtlong filtering, human reads and remaining reads from Kraken report
+    for a given sample (sample number extracted from the filename).
+
+    Arguments:
+        kraken_file:    the Kraken report file for the sample
+
+    Returns:
+        Amount of removed human reads, remaining bacterial reads,
+         and the total after quality filtering.
+
+     Raises:
+         FileNotFoundError: if the Kraken report file does not exist
+    """
+    if not kraken_file.exists():
+        raise FileNotFoundError(f"Kraken report {kraken_file} not found.")
+    try:
+        kraken_data = pd.read_csv(kraken_file, sep = "\t", header = None,
+                                  names = ["percent_reads_covered",
+                                           "number_reads_covered",
+                                           "number_reads_exactly_in_tax",
+                                           "taxonomic_level",
+                                           "NCBI_rank_ID",
+                                           "taxon_name"],
+                                  dtype = {"NCBI_rank_ID": str, "percent_reads_covered": float,
+                                           "number_reads_covered": int})
+    except ValueError as value_err:
+        if re.search("could not convert string to float", value_err.args[0]):
+            raise KeyError("Kraken report is malformed. "
+                           "Check that you are supplying a --report file.") from value_err
+        else:
+            raise value_err
+    kraken_data["taxon_name"] = kraken_data["taxon_name"].str.strip()
+    human_reads = kraken_data.query("taxon_name == 'Homo sapiens'")["number_reads_covered"].squeeze()
+    # if there are no matches for the query this will return an empty Series, otherwise an int
+    # but checking an int for empty state will fail
+    if pd.Series(human_reads).empty:
+        human_reads = 0
+    bact_reads = kraken_data.query("taxon_name == 'unclassified'")["number_reads_covered"].squeeze()
+    total_reads = human_reads + bact_reads
+    if not human_reads:
+        logger.info(f"No human reads reported in {kraken_file}.")
+    if not bact_reads:
+        logger.info(f"No remaining reads reported in {kraken_file}.")
+    read_counts = pd.DataFrame(data={"human": [human_reads],
+                                     "remaining": [bact_reads],
+                                     "total": [total_reads]})
+    return read_counts
+
+
+def get_stats_from_sample_dir(sample_dir: pathlib.Path) -> pd.DataFrame:
+    """Get relevant QC stats from result directory for a sample containing a "reads" subdir with
+    Kraken and NanoStat results.
+
+    Arguments:
+        sample_dir: the result directory for the sample in question
+
+    Returns:
+        Reads before QC, after QC and the latter's proportion of human reads for merging with Emu
+        report.
+    """
+    # TODO: is it enough that we let the kraken/nanostat functions complain?
+    sample_name = sample_dir.name
+    nanostats_report = sample_dir / "reads" / f"{sample_name}.stats.tsv"
+    kraken_report = sample_dir / "reads" / f"{sample_name}.kraken.tsv"
+    # TODO: check for both?
+    qc_read_counts = get_kraken_read_stats(kraken_report)
+    qc_read_counts["total_before_qc"] = extract_nanostat_read_count(nanostats_report)
+    # now we have the counts, get them into a format that can be merged
+    qc_read_counts = qc_read_counts.rename(columns = {"total": "total_after_qc"})
+    qc_read_counts = qc_read_counts.loc[:, ["total_before_qc", "total_after_qc", "human"]]
+    # we're going to add this to the counts in the species column, so flip this
+    qc_read_counts = qc_read_counts.T
+    # our colnames wound up in the index, but for now we need them to be a column
+    qc_read_counts = qc_read_counts.reset_index()
+    qc_read_counts.columns = ["species", "estimated counts"]
+    # this needs a non-default NA fill...
+    qc_read_counts["medtages"] = ""
+    # rearrange to match the order of emu reports and fill abundance_from_all
+    qc_read_counts = qc_read_counts.reindex(columns=["species", "abundance_from_all [%]",
+                                                     "estimated counts", "medtages"],
+                                            fill_value = pd.NA)
+    return qc_read_counts
+
+
 class SampleNameComponents(NamedTuple):
     """Run, sample/isolate number and barcode for a given sample."""
     run_name: str
@@ -141,7 +249,7 @@ def extract_name_components(report_name: str, active_config: Dict[str, Any] = wo
                      " Sample name components could not be extracted.")
 
 
-def report_species_per_barcode(emu_counts: pathlib.Path,
+def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
                                active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
     """Extract estimated species counts from Emu output (with estimated counts, --keep_counts)
      and recalculate read percentage to include unclassified reads.
@@ -149,6 +257,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
 
     Arguments:
         emu_counts:     the path to Emu's SAMPLE_rel-abundance.tsv file
+        base_dir:       the base directory for all pipeline results
         active_config:  the config file to use
 
 
@@ -186,6 +295,14 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     # output as percent
     emu_read_counts['abundance_from_all [%]'] = ((emu_read_counts['estimated counts'] / total_reads)
                                                  * 100)
+    # add pre-filtering read counts
+    # TODO: can we just assume it's the emu file's parent's parent if nothing else is given?
+    name_with_barcode = f"{sample_name_components.sample_name}_{sample_name_components.barcode}"
+    sample_dir = base_dir / name_with_barcode
+    qc_read_counts = get_stats_from_sample_dir(sample_dir)
+    # combine
+    emu_read_counts = pd.concat([emu_read_counts, qc_read_counts])
+    # TODO: sanity check if( after_qc - human) differs from total? Could catch mismatched files
     # round for easier legibility
     emu_read_counts = emu_read_counts.round({"estimated counts": 0, "abundance_from_all [%]": 2})
     emu_read_counts = emu_read_counts.astype({"estimated counts": "Int64"})
@@ -307,13 +424,14 @@ def sort_report_samples(emu_report: pd.DataFrame,
     return emu_report
 
 
-def merge_all_in_emu_dir(emu_dir: pathlib.Path,
+def merge_all_in_emu_dir(emu_dir: pathlib.Path, base_dir: pathlib.Path,
                          active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
     """Merge all Emu reports in the supplied directory.
 
     Arguments:
         emu_dir:        the directory containing all Emu reports
                         (name format: SAMPLE_rel-abundance.tsv)
+        base_dir:       the base dir containing read QC reports for all samples
         active_config:  the config file to use
 
     Returns:
@@ -357,9 +475,8 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
                           "indikation"] + fallback_names
     for emu_report in emu_reports:
         try:
-            emu_data = report_species_per_barcode(emu_report, active_config)
+            emu_data = report_species_per_barcode(emu_report, base_dir, active_config)
         except ValueError as value_err:
-            # here's the bastard - no translation, somehow run/barcode/samplenumber are already added?
             logger.error(f"Error in {emu_report}:\n"
                          f"{value_err}\n"
                          "Empty results will be added to the merged summary.")
@@ -396,7 +513,25 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
             emu_data = pd.DataFrame(index = pd.Index(data = ["unassigned"], name = "species"),
                                     columns = fallback_headers,
                                     data = [[np.nan, np.nan, ""]])
-
+            # try adding read counts for troubleshooting here
+            # TODO: can we be a bit more clever?
+            try:
+                # make sure we're using the untranslated sample name when getting files...
+                read_stats = get_stats_from_sample_dir(base_dir
+                                                       / f"{sample_name_components.sample_name}"
+                                                         f"_{barcode}")
+                read_stats["abundance_from_all [%]"] = read_stats["abundance_from_all [%]"].fillna(0)
+                # ...but translated when we're setting the header
+                read_stats = read_stats.set_index(["species"])
+                read_stats.columns = fallback_headers
+                # fill any blanks for abundance_from_all here
+                print(read_stats.to_string())
+                emu_data = pd.concat([emu_data, read_stats])
+            # if read data is missing or malformed, alert but carry on
+            except (KeyError, FileNotFoundError) as qc_err:
+                logger.error(f"Error extracting QC data for {sample_name_components.sample_name}:\n"
+                             f"{qc_err}\n"
+                             "No QC data will be added.")
         all_reports.append(emu_data)
 
     all_merged = merge_emu(all_reports)
@@ -456,6 +591,9 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description = "Combine all Emu reports in a given directory")
     arg_parser.add_argument("indir", help = "Directory containing all Emu reports to summarize")
+    arg_parser.add_argument("--base_dir",
+                            help="Base directory containing read QC data for all samples in the run"
+                                 " (default: Emu directory's parent dir)", default=None)
     arg_parser.add_argument("--outfile",
                             help = "File to write Emu results to (default: emu_summarized.xlsx)",
                             default = "emu_summarized.xlsx")
@@ -473,6 +611,10 @@ if __name__ == "__main__":
     input_dir = pathlib.Path(args.indir)
     output_file = pathlib.Path(args.outfile)
     output_file_raw = pathlib.Path(args.outfile_raw)
-    merged_emu = merge_all_in_emu_dir(input_dir, active_config = workflow_config)
+    base_dir = args.base_dir
+    if args.base_dir is None:
+        base_dir = input_dir.parent
+    base_dir = pathlib.Path(base_dir)
+    merged_emu = merge_all_in_emu_dir(input_dir, base_dir, active_config = workflow_config)
     write_to_sheets(merged_emu, output_file)
     merged_emu.to_csv(output_file_raw, sep="\t")

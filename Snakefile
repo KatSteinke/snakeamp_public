@@ -235,7 +235,14 @@ rule combine_emu:
     input:
         all_relative_abundance = expand(f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv",
                                         zip,
-                                        sample_number=ALL_IDS, barcode=ALL_BARCODES)
+                                        sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_read_qc = expand("{sample_number}_{barcode}/reads/{sample_number}_{barcode}.stats.tsv",
+                            zip,
+                            sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_kraken = expand("{sample_number}_{barcode}/reads"
+                              "/{sample_number}_{barcode}.kraken.tsv",
+                            zip,
+                            sample_number = ALL_IDS,barcode = ALL_BARCODES)
     output:
         counts_combined = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
         counts_raw = f"{EXPERIMENT_NAME}_emu-combined.tsv"

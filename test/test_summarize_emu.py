@@ -1,6 +1,7 @@
 import pathlib
 import re
 import unittest
+from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -156,12 +157,29 @@ class TestGetNameComponents(unittest.TestCase):
         assert expected_barcode == test_components.barcode
 
 
+class TestGetReadQC(unittest.TestCase):
+    def test_success_all_qc(self):
+        """Successfully extract Kraken and NanoStat results in a format that can be combined
+        with Emu reports."""
+        sample_dir = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                      / "result_base_dir" / "barcode01_RB01")
+        expected_results = pd.DataFrame(data={"species": ["total_before_qc", "total_after_qc",
+                                                          "human"],
+                                              "abundance_from_all [%]": [pd.NA, pd.NA, pd.NA],
+                                              "estimated counts": [6176, 100, 10],
+                                              "medtages": ["", "", ""]})
+        test_results = summarize_emu.get_stats_from_sample_dir(sample_dir)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+
 class TestExtractCounts(unittest.TestCase):
     workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": False}}
+    base_dir = pathlib.Path(
+        __file__).parent / "data" / "summarize_emu" / "result_base_dir"
 
     def test_bad_name_format(self):
         """Ensure the function complains if the name doesn't match the expected Emu output format
@@ -172,7 +190,8 @@ class TestExtractCounts(unittest.TestCase):
                     "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)." \
                     " Sample name components could not be extracted."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+            summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                     self.workflow_config)
 
     def test_bad_sample_name(self):
         """Ensure the function complains if the name doesn't match the expected sample name format
@@ -184,7 +203,8 @@ class TestExtractCounts(unittest.TestCase):
                     "([RUN]_[SAMPLE]_[BARCODE]_rel-abundance.tsv)." \
                     " Sample name components could not be extracted."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+            summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                     self.workflow_config)
 
     def test_fail_wrong_abundance(self):
         """Ensure a relative abundance that does not sum to 100% (suggesting a corrupted file)
@@ -194,7 +214,8 @@ class TestExtractCounts(unittest.TestCase):
         error_msg = "Relative abundance does not sum to 100%. " \
                     "This suggests the result file is broken (missing/extra lines)."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+            summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                     self.workflow_config)
 
     def test_fail_wrong_abundance_single_taxid(self):
         """Ensure a relative abundance that does not sum to 100% (suggesting a corrupted file)
@@ -204,17 +225,24 @@ class TestExtractCounts(unittest.TestCase):
         error_msg = "Relative abundance does not sum to 100%. " \
                     "This suggests the result file is broken (missing/extra lines)."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+            summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                     self.workflow_config)
 
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode01_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts" : [4, 15, 10, 100, 6176, 1],
+                                                "med": ["", "", "", "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "unassigned"], name = "species"))
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
+                                                                 "unassigned"],
+                                                         name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
@@ -233,7 +261,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_get_counts_success_short_name(self):
@@ -271,10 +300,15 @@ class TestExtractCounts(unittest.TestCase):
         """Successfully parse a fallback file created when Emu fails."""
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu" / "fallback_test"
                        / "RUN0001_barcode01_RB01_rel-abundance.tsv")
-        expected_results = pd.DataFrame(data = {"abundance": [100.00],
-                                                "counts": [100],
-                                                "med": [""]},
-                                        index = pd.Index(data = ["unassigned"], name = "species"))
+        expected_results = pd.DataFrame(data = {"abundance": [0.00, 0.00, 0.00,
+                                                              100.0],
+                                                "counts": [10, 100, 6176, 100],
+                                                "med": ["", "", "", ""]},
+                                        index = pd.Index(data = ["human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
+                                                                 "unassigned"],
+                                                         name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
@@ -295,7 +329,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       None])
         log_msg = "INFO:summarize_emu:All reads for sample barcode01 are unassigned."
         with self.assertLogs("summarize_emu") as logged:
-            test_results = summarize_emu.report_species_per_barcode(sample_path,
+            test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
                                                                     self.workflow_config)
             assert log_msg in logged.output
         pd.testing.assert_frame_equal(expected_results, test_results)
@@ -311,10 +345,15 @@ class TestExtractCounts(unittest.TestCase):
                            "lab_info_system": {"use_lis_features": False}}
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu" / "merge_one_empty"
                        / "RUN0001_1199123456-1_RB01_rel-abundance.tsv")
-        expected_results = pd.DataFrame(data = {"abundance": [0.00],
-                                                "counts": [0],
-                                                "med": [""]},
-                                        index = pd.Index(data = ["unassigned"], name = "species"))
+        expected_results = pd.DataFrame(data = {"abundance": [0.00, 0.00, 0.00,
+                                                              0.00],
+                                                "counts": [100, 100, 6176, 0],
+                                                "med": ["", "", "", ""]},
+                                        index = pd.Index(data = ["human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
+                                                                 "unassigned"],
+                                                         name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["1199123456-1"] * len(expected_results.columns)
@@ -335,20 +374,27 @@ class TestExtractCounts(unittest.TestCase):
                                                                       None])
         log_msg = "INFO:summarize_emu:All reads for sample 1199123456-1 are unassigned."
         with self.assertLogs("summarize_emu") as logged:
-            test_results = summarize_emu.report_species_per_barcode(sample_path,
+            test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
                                                                     workflow_config)
             assert log_msg in logged.output
-        pd.testing.assert_frame_equal(expected_results, test_results)
+        pd.testing.assert_frame_equal(expected_results, test_results, check_dtype = False)
 
     def test_handle_duplicate_orgs_success(self):
-        sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "duplicate_orgs" / "RUN0001_barcode01_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        sample_path = (pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "duplicate_orgs"
+                       / "RUN0001_barcode01_RB01_rel-abundance.tsv")
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts":[4, 15, 10, 100, 6176, 1],
+                                                "med": ["", "", "", "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "unassigned"], name = "species"))
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
+                                                                 "unassigned"],
+                                                         name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
@@ -367,7 +413,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_isolate_number(self):
@@ -379,14 +426,21 @@ class TestExtractCounts(unittest.TestCase):
                                                       "negative_control": ""},
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": False}}
-        sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "RUN0001_F99123456-0_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        sample_path = (pathlib.Path(
+            __file__).parent / "data" / "summarize_emu"
+                       / "RUN0001_F99123456-0_RB01_rel-abundance.tsv")
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts": [4, 15, 10, 100, 6176, 1],
+                                                "med": ["", "", "", "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "unassigned"], name = "species"))
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
+                                                                 "unassigned"],
+                                                         name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456-0"] * len(expected_results.columns)
@@ -404,7 +458,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_get_data_from_lis(self):
@@ -430,14 +485,21 @@ class TestExtractCounts(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
-        sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "RUN0001_F99123456-0_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        sample_path = (pathlib.Path(
+            __file__).parent / "data" / "summarize_emu"
+                       / "RUN0001_F99123456-0_RB01_rel-abundance.tsv")
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts": [4, 15, 10, 100, 6176, 1],
+                                                "med": ["", "", "", "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "unassigned"], name = "species"))
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
+                                                                 "unassigned"],
+                                                         name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456"] * len(expected_results.columns)
@@ -473,7 +535,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None]
                                                              )
-        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_translate_number(self):
@@ -499,14 +562,22 @@ class TestExtractCounts(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
-        sample_path = pathlib.Path(
-            __file__).parent / "data" / "summarize_emu" / "RUN0001_1199123456-0_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        sample_path = (pathlib.Path(
+            __file__).parent / "data" / "summarize_emu"
+                       / "RUN0001_1199123456-0_RB01_rel-abundance.tsv")
+
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts":[4, 15, 10, 100, 6176, 1],
+                                                "med": ["", "", "", "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "unassigned"], name = "species"))
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
+                                                                 "unassigned"],
+                                                         name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456"] * len(expected_results.columns)
@@ -541,7 +612,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None]
                                                              )
-        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_control_material(self):
@@ -569,11 +641,16 @@ class TestExtractCounts(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts": [4, 15, 10, 100, 6176, 1],
+                                                "med": ["", "", "", "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
 
@@ -608,7 +685,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_negative_control(self):
@@ -622,11 +700,16 @@ class TestExtractCounts(unittest.TestCase):
                            "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts": [4, 15, 10, 100, 6176, 1],
+                                                "med": ["", "", "", "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
 
@@ -648,7 +731,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None]
                                                              )
-        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_positive_control(self):
@@ -662,11 +746,16 @@ class TestExtractCounts(unittest.TestCase):
                            "lab_info_system": {"use_lis_features": False}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_PosK_RB03_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts": [4, 15, 10, 100, 6176, 1],
+                                                "med": ["", "", "", "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
 
@@ -686,7 +775,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        test_results = summarize_emu.report_species_per_barcode(sample_path, workflow_config)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
 
@@ -1358,6 +1448,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": False}}
+    base_dir = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "result_base_dir"
 
     def test_fail_missing_dir(self):
         """Complain informatively when the directory to merge doesn't exist."""
@@ -1385,10 +1476,16 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", 80.00, 16, ""],
                            [np.nan, np.nan, np.nan, 20.00, 4, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 0.00, 0, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1422,7 +1519,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = self.workflow_config)
         print(expected_merged)
         print(test_merged)
@@ -1432,11 +1529,19 @@ class TestMergeEmuDir(unittest.TestCase):
         """Test if a single file is parsed and returned properly."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "single_sample"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts": [4, 15,
+                                                           10, 100, 6176,
+                                                           1],
+                                                "med": ["", "", "",
+                                                             "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
@@ -1455,9 +1560,139 @@ class TestMergeEmuDir(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_merged)
+
+    def test_handle_bad_read_data(self):
+        """Handle a file for which both read QC data and emu report are broken."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "one_broken"
+        base_dir =  pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "bad_qc"
+        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
+                           [75.00, 15, "", np.nan, np.nan, np.nan],
+                           [0.0, 10, "", np.nan, np.nan, np.nan],
+                           [0.0, 100, "", np.nan, np.nan, np.nan],
+                           [0.0, 6176, "", np.nan, np.nan, np.nan],
+                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode03",
+                                                       "barcode03",
+                                                       "barcode03"],
+                                                      ["", "", "", "", "", ""],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode",
+                                                              "prøvenummer", "PhHV",
+                                                              "notes",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        with self.assertLogs("summarize_emu") as logged:
+            log_msg = "ERROR:summarize_emu:Error in " \
+                      f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
+                      "Relative abundance does not sum to 100%. " \
+                      "This suggests the result file is broken (missing/extra lines).\n" \
+                      "Empty results will be added to the merged summary."
+            bad_output_msg = ("ERROR:summarize_emu:Error extracting QC data for barcode03:\n"
+                              "'Kraken report is malformed. "
+                              "Check that you are supplying a --report file.'\n"
+                              "No QC data will be added.")
+            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, base_dir,
+                                                             active_config = self.workflow_config)
+        print("\n".join(logged.output))
+        assert log_msg in logged.output
+        assert bad_output_msg in logged.output
+        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
+
+    def test_handle_missing_read_data(self):
+        """Handle a file for which the emu report is broken and read data is missing."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "one_broken"
+        base_dir =  pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "missing_qc"
+        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
+                           [75.00, 15, "", np.nan, np.nan, np.nan],
+                           [0.0, 10, "", np.nan, np.nan, np.nan],
+                           [0.0, 100, "", np.nan, np.nan, np.nan],
+                           [0.0, 6176, "", np.nan, np.nan, np.nan],
+                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode03",
+                                                       "barcode03",
+                                                       "barcode03"],
+                                                      ["", "", "", "", "", ""],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance_from_all [%]", "estimated counts",
+                                                       "medtages",
+                                                       "abundance_from_all [%]", "estimated counts",
+                                                       "medtages"]],
+                                                     names = ["run", "barcode",
+                                                              "prøvenummer", "PhHV",
+                                                              "notes",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        with self.assertLogs("summarize_emu") as logged:
+            log_msg = "ERROR:summarize_emu:Error in " \
+                      f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
+                      "Relative abundance does not sum to 100%. " \
+                      "This suggests the result file is broken (missing/extra lines).\n" \
+                      "Empty results will be added to the merged summary."
+            missing_data_msg = ("ERROR:summarize_emu:Error extracting QC data for barcode03:\n"
+                                "Kraken report"
+                                f" {base_dir / 'barcode03_RB03' / 'reads' / 'barcode03_RB03.kraken.tsv'}"
+                                " not found.\n"
+                                "No QC data will be added.")
+            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, base_dir,
+                                                             active_config = self.workflow_config)
+        assert log_msg in logged.output
+        assert missing_data_msg in logged.output
+        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_handle_broken_file(self):
         """Ensure that an invalid file is handled properly (log error and return fake empty df)"""
@@ -1465,9 +1700,15 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "one_broken"
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", np.nan, np.nan, np.nan],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", np.nan, np.nan, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1505,9 +1746,8 @@ class TestMergeEmuDir(unittest.TestCase):
                       "Relative abundance does not sum to 100%. " \
                       "This suggests the result file is broken (missing/extra lines).\n" \
                       "Empty results will be added to the merged summary."
-            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                              active_config = self.workflow_config)
-        print("\n".join(logged.output))
         assert log_msg in logged.output
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -1518,10 +1758,16 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", 80.00, 16, ""],
                            [np.nan, np.nan, np.nan, 20.00, 4, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 0.00, 0, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001", "RUN0001", "RUN0001",
                                                        "RUN0002", "RUN0002", "RUN0002"],
@@ -1552,7 +1798,7 @@ class TestMergeEmuDir(unittest.TestCase):
         with self.assertLogs("summarize_emu") as logged:
             log_msg = ("WARNING:summarize_emu:Data appear to be from multiple runs "
                        "(['RUN0001', 'RUN0002']).")
-            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                              active_config = self.workflow_config)
         print("\n".join(logged.output))
         assert log_msg in logged.output
@@ -1585,9 +1831,15 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "one_broken_lis"
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", np.nan, np.nan, np.nan],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", np.nan, np.nan, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1664,7 +1916,7 @@ class TestMergeEmuDir(unittest.TestCase):
                       "Relative abundance does not sum to 100%. " \
                       "This suggests the result file is broken (missing/extra lines).\n" \
                       "Empty results will be added to the merged summary."
-            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+            test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                              active_config = workflow_config)
         print("\n".join(logged.output))
         assert log_msg in logged.output
@@ -1683,9 +1935,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1716,7 +1974,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "notes", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -1733,9 +1991,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, "", 75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1778,7 +2042,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -1810,9 +2074,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, 20.00, 4, ""],
                            [75.00, 15, "", np.nan, np.nan, np.nan,  75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 100, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 0.00, 0.00, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1911,7 +2181,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -1943,9 +2213,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2018,7 +2294,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -2050,9 +2326,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2236,7 +2518,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -2268,9 +2550,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2345,7 +2633,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -2377,9 +2665,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["Y20990101_Run0001",
                                                        "Y20990101_Run0001",
@@ -2563,7 +2857,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -2595,9 +2889,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["Y20990101_0001",
                                                        "Y20990101_0001",
@@ -2672,7 +2972,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -2682,7 +2982,8 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "blank_dir"
         error_msg = f"No Emu reports found in {sample_path}."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
-            summarize_emu.merge_all_in_emu_dir(sample_path, active_config = self.workflow_config)
+            summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                               active_config = self.workflow_config)
 
 
 class TestWriteToSheets(unittest.TestCase):
@@ -2942,3 +3243,83 @@ class TestWriteToSheets(unittest.TestCase):
         pd.testing.assert_frame_equal(test_merged, expected_merged)
         pd.testing.assert_frame_equal(test_abundance, expected_abundance)
         pd.testing.assert_frame_equal(test_count, expected_count)
+
+
+class TestGetNanostatCount(unittest.TestCase):
+    def test_fail_file_not_found(self):
+        """Fail if the Nanostat result file does not exist."""
+        nanostat_file = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "no_such_file"
+        error_msg = f"Nanostat report {nanostat_file} not found."
+        with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
+            summarize_emu.extract_nanostat_read_count(nanostat_file)
+
+    def test_fail_bad_format(self):
+        """Fail informatively for an invalid file format."""
+        nanostat_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                         / "nanostat_bad_format.tsv")
+        error_msg = "Nanostat report is malformed - cannot find number_of_reads."
+        with pytest.raises(KeyError, match = re.escape(error_msg)):
+            summarize_emu.extract_nanostat_read_count(nanostat_file)
+
+    def test_success_get_read_count(self):
+        """Successfully extract the read count from the Nanostat result file."""
+        nanostat_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                         / "nanostat_success.tsv")
+        expected_reads = 6176
+        test_reads = summarize_emu.extract_nanostat_read_count(nanostat_file)
+        assert test_reads == expected_reads
+
+
+class TestGetKrakenReadCount(unittest.TestCase):
+    def test_fail_file_not_found(self):
+        """Fail if the Kraken result file does not exist."""
+        kraken_file = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "no_such_file"
+        error_msg = f"Kraken report {kraken_file} not found."
+        with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
+            summarize_emu.get_kraken_read_stats(kraken_file)
+
+    def test_fail_bad_format(self):
+        """Fail informatively for an invalid file format."""
+        kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                         / "kraken_bad_format.tsv")
+        error_msg = "Kraken report is malformed. Check that you are supplying a --report file."
+        with pytest.raises(KeyError, match = re.escape(error_msg)):
+            summarize_emu.get_kraken_read_stats(kraken_file)
+
+    def test_fail_other_error(self):
+        """Don't override other value errors."""
+        kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                     / "kraken_bad_encoding.tsv")  # IBM500 encoded to make utf-8 reader complain
+        error_msg = "'utf-8' codec can't decode"
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            summarize_emu.get_kraken_read_stats(kraken_file)
+
+    def test_success_get_read_count(self):
+        """Successfully extract the read counts from the Kraken result file."""
+        kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                       / "kraken_success.tsv")
+        expected_results = pd.DataFrame(data={"human": [10], "remaining": [90], "total": [100]})
+        test_results = summarize_emu.get_kraken_read_stats(kraken_file)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_success_log_no_human(self):
+        """Log if no human reads were removed."""
+        kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                       / "kraken_no_human.tsv")
+        expected_results = pd.DataFrame(data = {"human": [0], "remaining": [100], "total": [100]})
+        log_msg = f"INFO:summarize_emu:No human reads reported in {kraken_file}."
+        with self.assertLogs("summarize_emu", level="INFO") as logged:
+            test_results = summarize_emu.get_kraken_read_stats(kraken_file)
+            assert log_msg in logged.output
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_success_log_no_remaining(self):
+        """Log if no reads remain after human depletion."""
+        kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                       / "kraken_no_remaining.tsv")
+        expected_results = pd.DataFrame(data = {"human": [100], "remaining": [0], "total": [100]})
+        log_msg = f"INFO:summarize_emu:No remaining reads reported in {kraken_file}."
+        with self.assertLogs("summarize_emu", level = "INFO") as logged:
+            test_results = summarize_emu.get_kraken_read_stats(kraken_file)
+            assert log_msg in logged.output
+        pd.testing.assert_frame_equal(expected_results, test_results)
