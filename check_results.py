@@ -92,7 +92,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         # for each sheet:
         for sheet in tabs_found:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
-                                       header = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+                                       header = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
             # if it's the overview sheet it'll have a PhHV column, the others don't need one
             # we're not going to compare everything in the PhHV column
             # so don't count this when generating expected data
@@ -124,21 +124,35 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                  * cols_per_sample],
                                                     "prøvemateriale": [*[""] * cols_per_sample,
                                                         *[""] * cols_per_sample,
-                                                        *["Hjerneventrikelvæske <liquor>"] * cols_per_sample,
+                                                        *["Hjerneventrikelvæske <liquor>"]
+                                                         * cols_per_sample,
                                                         *["Podning"] * cols_per_sample,
                                                         *["Spinalvæske"] * cols_per_sample,
                                                         ],
                                                     "anatomi": [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
-                                                                *["Shunt (hjerneventrikel)"] * cols_per_sample,
+                                                                *["Shunt ""(hjerneventrikel)"]
+                                                                 * cols_per_sample,
                                                                 *["Svælg/tonsil"] * cols_per_sample,
                                                                 *[""] * cols_per_sample
-                                                                ]
-                                                    }, index = pd.Index([*["NegK_Sanger"] * cols_per_sample,
+                                                                ],
+                                                    "indikation": [*[""] * cols_per_sample,
+                                                                *[""] * cols_per_sample,
+                                                                *["!!!"] * cols_per_sample,
+                                                                *[""] * cols_per_sample,
+                                                                *["en eller anden lang tekst"
+                                                                  "<Break/>der ikke kan være på en"
+                                                                  " linje i MADS"] * cols_per_sample
+                                                                ],
+                                                    }, index = pd.Index([*["NegK_Sanger"]
+                                                                          * cols_per_sample,
                                                                     *["PosK"] * cols_per_sample,
-                                                                    *["F99123457"] * cols_per_sample,
-                                                                    *["F99123456"] * cols_per_sample,
-                                                                    *["F99123458"] * cols_per_sample
+                                                                    *["F99123457"]
+                                                                     * cols_per_sample,
+                                                                    *["F99123456"]
+                                                                     * cols_per_sample,
+                                                                    *["F99123458"]
+                                                                     * cols_per_sample
                                                                     ],
                                                                         name="prøvenr"))
             # are the headers correct? use MultiIndex.to_frame(index=False)
@@ -153,7 +167,8 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                       "modtagedato",
                                                                       "patient",
                                                                       "prøvemateriale",
-                                                                      "anatomi"]]
+                                                                      "anatomi",
+                                                                      "indikation"]]
             header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
             header_cols = header_cols.set_index("prøvenr")
             header_cols["modtagedato"] = pd.to_datetime(header_cols["modtagedato"]).apply(lambda x:

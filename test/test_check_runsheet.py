@@ -78,6 +78,23 @@ class TestCheckSinglePrefix(unittest.TestCase):
                                            active_config = self.test_config)
             assert success_msg in logged.output
 
+    def test_success_new_format(self):
+        fake_mads = pathlib.Path(
+            __file__).parent / "data" / "sample_sheet_test" / "fake_mads_new_format.csv"
+
+        lab_info_data = pd.read_csv(fake_mads, encoding = "latin1",
+                                    dtype = {"afsendt": str, "cprnr.": str,
+                                             "modtaget": str})
+        test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
+                                   dtype = {"Prøvenummer": str})
+        sheet_data = sheet_data.dropna()
+        success_msg = "DEBUG:check_runsheet:All samples with prefix 30 found in LIS."
+        with self.assertLogs("check_runsheet", level="DEBUG") as logged:
+            check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "30", "B",
+                                           active_config = self.test_config)
+            assert success_msg in logged.output
+
     def test_success_controls(self):
         """Ensure comparison against controls is performed"""
         test_config = {"sample_number_settings": {"sample_number_format":
@@ -147,6 +164,20 @@ class TestCheckRunsheetFormat(unittest.TestCase):
     def test_success(self):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
         fake_mads = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "fake_mads_data.csv"
+        sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"Prøvenummer": str})
+        sheet_data = sheet_data.dropna()
+        success_msg = "INFO:check_runsheet:The runsheet is correct."
+        with self.assertLogs("check_runsheet") as logged:
+            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
+            assert success_msg in logged.output
+
+    def test_success_new_format(self):
+        """Successfully handle a LIS report with new columns."""
+        test_runsheet = (pathlib.Path(__file__).parent / "data" / "sample_sheet_test"
+                         / "test_translate_runsheet.xlsx")
+        fake_mads = (pathlib.Path(__file__).parent / "data" / "sample_sheet_test"
+                     / "fake_mads_new_format.csv")
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
@@ -779,3 +810,40 @@ class TestCheckRunsheet(unittest.TestCase):
             assert check_lis_msg in logged.output
         assert runsheet_pass
 
+    def test_success_use_new_lis(self):
+        """Successfully check the runsheet while using a LIS report with additional columns."""
+        runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" \
+                   / "test_translate_runsheet.xlsx"
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": True,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": '',
+                                                  "positive_control": {}},
+                       "lab_info_system": {"use_lis_features": True,
+                                           "lis_report": str(pathlib.Path(__file__).parent
+                                                             / "data" / "sample_sheet_test"
+                                                             / "fake_mads_new_format.csv")},
+                       "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "NB"
+                       # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        loading_sheet_msg = "INFO:check_runsheet:Loading runsheet..."
+        check_sheet_msg = "INFO:check_runsheet:Checking runsheet format...."
+        check_lis_msg = "INFO:check_runsheet:Comparing to samples in MADS......"
+        with self.assertLogs("check_runsheet", level="INFO") as logged:
+            runsheet_pass = check_runsheet.check_runsheet(runsheet, active_config = test_config)
+            assert loading_sheet_msg in logged.output
+            assert check_sheet_msg in logged.output
+            assert check_lis_msg in logged.output
+        assert runsheet_pass

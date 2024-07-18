@@ -48,7 +48,9 @@ class TestGetLISData(unittest.TestCase):
                                              "prøvenr": ["F99123456"],
                                              "modtagedato": ["2021-01-02"],
                                              "prøvemateriale": ["Podning"],
-                                             "anatomi": ["Svælg/tonsil"]})
+                                             "anatomi": ["Svælg/tonsil"],
+                                             "indikation": ["en eller anden lang tekst<Break/>"
+                                                            "der ikke kan være på en linje i MADS"]})
         sample_number = "1199123456-0"
         test_result = summarize_emu.get_lis_information(sample_number, self.lis_data,
                                                         self.workflow_config)
@@ -60,7 +62,9 @@ class TestGetLISData(unittest.TestCase):
                                              "prøvenr": ["F99654321"],
                                              "modtagedato": ["2021-01-02"],
                                              "prøvemateriale": ["Spinalvæske"],
-                                             "anatomi": [""]})
+                                             "anatomi": [""],
+                                             "indikation": ["en eller anden lang tekst<Break/>"
+                                                            "der ikke kan være på en linje i MADS"]})
         sample_number = "1199654321-0"
         lis_data = pd.read_csv((pathlib.Path(__file__).parent / "data"/"summarize_emu"
                                 /"fake_mads_material_blank.csv"),
@@ -76,7 +80,8 @@ class TestGetLISData(unittest.TestCase):
                                              "prøvenr": ["NegK"],
                                              "modtagedato": [""],
                                              "prøvemateriale": [""],
-                                             "anatomi": [""]})
+                                             "anatomi": [""],
+                                             "indikation": [""]})
         sample_number = "NegK"
         test_result = summarize_emu.get_lis_information(sample_number, self.lis_data,
                                                         self.workflow_config)
@@ -86,11 +91,30 @@ class TestGetLISData(unittest.TestCase):
                                                  "prøvenr": ["PosK"],
                                                  "modtagedato": [""],
                                                  "prøvemateriale": [""],
-                                                 "anatomi": [""]})
+                                                 "anatomi": [""],
+                                                 "indikation": [""]})
         sample_number = "PosK"
         positive_test = summarize_emu.get_lis_information(sample_number, self.lis_data,
                                                           self.workflow_config)
         pd.testing.assert_frame_equal(positive_expected, positive_test)
+
+    def test_handle_old_format(self):
+        """Handle an older report without additional information on indication etc."""
+        lis_data = pd.read_csv((pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                               / "test_mads_old.csv"),
+                               encoding = "latin1", dtype = {"modtaget": str,
+                                                             "cprnr.": str})
+        expected_result = pd.DataFrame(data = {"patient": ["0000000000"],
+                                               "prøvenr": ["F99123456"],
+                                               "modtagedato": ["2021-01-02"],
+                                               "prøvemateriale": ["Podning"],
+                                               "anatomi": ["Svælg/tonsil"],
+                                               "indikation": [""]})
+        sample_number = "1199123456-0"
+        test_result = summarize_emu.get_lis_information(sample_number, lis_data,
+                                                        self.workflow_config)
+        pd.testing.assert_frame_equal(expected_result, test_result)
+
 
 
 class TestGetNameComponents(unittest.TestCase):
@@ -421,6 +445,8 @@ class TestExtractCounts(unittest.TestCase):
         patient_header = ["0000000000"] * len(expected_results.columns)
         material_header = ["Podning"] * len(expected_results.columns)
         anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
+        indication_header = ["en eller anden lang tekst<Break/>"
+                             "der ikke kan være på en linje i MADS"] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
@@ -430,6 +456,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               patient_header,
                                                               material_header,
                                                               anatomy_header,
+                                                              indication_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
@@ -440,6 +467,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "patient",
                                                                       "prøvemateriale",
                                                                       "anatomi",
+                                                                      "indikation",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None]
@@ -486,6 +514,8 @@ class TestExtractCounts(unittest.TestCase):
         patient_header = ["0000000000"] * len(expected_results.columns)
         material_header = ["Podning"] * len(expected_results.columns)
         anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
+        indication_header = ["en eller anden lang tekst<Break/>"
+                             "der ikke kan være på en linje i MADS"] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
@@ -494,6 +524,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               patient_header,
                                                               material_header,
                                                               anatomy_header,
+                                                              indication_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
@@ -504,6 +535,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "patient",
                                                                       "prøvemateriale",
                                                                       "anatomi",
+                                                                      "indikation",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None]
@@ -551,6 +583,7 @@ class TestExtractCounts(unittest.TestCase):
         patient_header = [""] * len(expected_results.columns)
         material_header = [""] * len(expected_results.columns)
         anatomy_header = [""] * len(expected_results.columns)
+        indication_header = [""] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
@@ -559,6 +592,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               patient_header,
                                                               material_header,
                                                               anatomy_header,
+                                                              indication_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
@@ -569,6 +603,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                     "patient",
                                                                     "prøvemateriale",
                                                                     "anatomi",
+                                                                    "indikation",
                                                                     "PhHV",
                                                                     "notes",
                                                                     None])
@@ -654,8 +689,6 @@ class TestExtractCounts(unittest.TestCase):
         pd.testing.assert_frame_equal(expected_results, test_results)
 
 
-
-
 class TestMergeEmu(unittest.TestCase):
     def test_merge_identical_species(self):
         """Ensure dataframes with identical indexes can be merged."""
@@ -686,7 +719,6 @@ class TestMergeEmu(unittest.TestCase):
         name_2_header = ["barcode02"] * len(barcode_2.columns)
         barcode_2_header = ["RB02"] * len(barcode_2.columns)
         phhv_header_2 = [""] * len(barcode_2.columns)
-
 
         barcode_2.columns = pd.MultiIndex.from_arrays([barcode_2_header,
                                                        name_2_header,
@@ -1597,6 +1629,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "",
                                                        "",
                                                        ""],
+                                                      ["en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "",
+                                                       "",
+                                                       ""],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
@@ -1609,6 +1650,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "patient",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "indikation",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -1832,8 +1874,21 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
-                                                       "Svælg/tonsil"
+                                                       "Svælg/tonsil",
                                                        ],
+                                                      ["", "", "",
+                                                          "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
                                                       ["", "", "", "", "", "", "", "", ""],
                                                       ["", "", "", "", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
@@ -1847,6 +1902,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "patient",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "indikation",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -1932,6 +1988,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        ],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
@@ -1943,6 +2008,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "patient",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "indikation",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2028,6 +2094,18 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil"],
+                                                      ["en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
@@ -2039,6 +2117,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "patient",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "indikation",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2124,6 +2203,18 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil"],
+                                                      ["en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
@@ -2135,6 +2226,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "patient",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "indikation",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2220,6 +2312,18 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil"],
+                                                      ["en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
@@ -2231,6 +2335,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "patient",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "indikation",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2316,6 +2421,18 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil"],
+                                                      ["en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
@@ -2327,6 +2444,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "patient",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "indikation",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2412,6 +2530,18 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil"],
+                                                      ["en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
@@ -2423,6 +2553,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "patient",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "indikation",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2431,7 +2562,6 @@ class TestMergeEmuDir(unittest.TestCase):
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
-
 
     def test_handle_broken_run_name(self):
         """Ensure a run name not matching the expected format is handled."""
@@ -2509,6 +2639,18 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil",
                                                        "Svælg/tonsil"],
+                                                      ["en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance_from_all [%]", "estimated counts",
@@ -2520,6 +2662,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "patient",
                                                               "prøvemateriale",
                                                               "anatomi",
+                                                              "indikation",
                                                               "PhHV",
                                                               "notes",
                                                               None])
