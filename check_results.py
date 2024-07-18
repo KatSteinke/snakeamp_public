@@ -186,7 +186,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                 # TODO: can we handle the slicing more nicely?
                 amount_header_cols = sheet_data.columns.nlevels - 1
                 header_col_slice = [slice(None)] * amount_header_cols
-                abundances = sheet_data.loc[:, (*header_col_slice, "abundance_from_all [%]")]
+                abundances = sheet_data.loc[:, (*header_col_slice, "abundance")]
                 # we don't need the extra information now - just keep sample numbers
                 abundances.columns = abundances.columns.get_level_values("prøvenummer")
                 # for the routine samples, is the highest scoring organism what we should expect?
