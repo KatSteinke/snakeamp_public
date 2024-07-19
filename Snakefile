@@ -68,7 +68,13 @@ rule all:
         all_results = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
         all_compressed =  expand("{sample_number}_{barcode}/reads/" 
                                  "{sample_number}_{barcode}.filtered.fastq.gz", zip,
-                                 sample_number=ALL_IDS, barcode=ALL_BARCODES)
+                                 sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_pre_cleaning = expand("{sample_number}_{barcode}/reads/"
+                                  "{sample_number}_{barcode}.stats.tsv",
+                                  zip, sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_stats_cleaned = expand("{sample_number}_{barcode}/reads/"
+                                  "{sample_number}_{barcode}.depleted.stats.tsv",
+                                  zip, sample_number=ALL_IDS, barcode=ALL_BARCODES)
 
 rule concatenate_fastqs:
     params:
@@ -104,9 +110,52 @@ rule concatenate_fastqs:
          fi
         """
 
+rule get_qc_statistics:
+    input:
+        concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
+    output:
+        read_stats = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.stats.tsv"
+    conda: "nanopore_qc_env"
+    threads: 2
+    resources:
+        mem_mb = 200
+    shell:
+        """
+        NanoStat --fastq "{input.concat_fastq}" --tsv --threads {threads} > "{output.read_stats}"
+        """
+
+
+
+rule clean_nanopore_reads:
+    input:
+        concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
+    output:
+        filtered_fastq = temp("{sample_number}_{barcode}/reads/"
+                              "{sample_number}_{barcode}.filtered.fastq")
+    params:
+        min_length = f"--min_length {config['quality_params']['min_length']}" \
+                      if config['quality_params']['min_length'] else '',
+        max_length= f"--max_length {config['quality_params']['max_length']}" \
+                    if config['quality_params']['max_length'] else '',
+        min_quality = f"--min_mean_q {config['quality_params']['min_qscore']}" \
+                      if config['quality_params']['min_qscore'] else ''
+    conda: "nanopore_qc_env" # TODO: set up env!
+    log:
+        "logs/filtlong/{sample_number}_{barcode}.log"
+    shell:
+        """
+        filtlong {params.min_length} \
+        {params.max_length} \
+        {params.min_quality} \
+         --keep_percent 95 \
+         {input.concat_fastq} 1>  "{output.filtered_fastq}" 2> "{log}"
+        """
+
+
 rule remove_human_reads:
     input:
-        concat_fasta = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
+        filtered_fastq = "{sample_number}_{barcode}/reads/"
+                              "{sample_number}_{barcode}.filtered.fastq"
     output:
         human_depleted = temp("{sample_number}_{barcode}/reads"
                               "/{sample_number}_{barcode}.depleted.fastq"),
@@ -123,32 +172,27 @@ rule remove_human_reads:
         """
         kraken2 --db "{params.kraken_db}" --unclassified-out "{output.human_depleted}" \
         --output "-" --report "{output.depletion_report}" --threads {threads} \
-        {input.concat_fasta} 2> "{log}"
+        {input.filtered_fastq} 2> "{log}"
         """
 
-
-rule clean_nanopore_reads:
-    # only run depletion for 18S reads
+rule get_qc_statistics_cleaned:
     input:
-        concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq" \
-                        if config["amplicon_type"] == "18S" \
-                        else "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
+        depleted_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq"
     output:
-        filtered_fastq = temp("{sample_number}_{barcode}/reads/"
-                              "{sample_number}_{barcode}.filtered.fastq")
-    params:
-        min_length = 100
-    conda: "nanopore_qc_env" # TODO: set up env!
+        read_stats = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.stats.tsv"
+    conda: "nanopore_qc_env"
+    threads: 2
+    resources:
+        mem_mb = 200
     shell:
         """
-        filtlong --min_length {params.min_length} --keep_percent 95 {input.concat_fastq} >  {output.filtered_fastq}
+        NanoStat --fastq "{input.depleted_fastq}" --tsv --threads {threads} > "{output.read_stats}"
         """
 
 
 rule compress_nanopore_reads:
     input:
-        filtered_fastq = "{sample_number}_{barcode}/reads/" \
-                         "{sample_number}_{barcode}.filtered.fastq"
+        filtered_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq"
     output:
         compressed_fastq = "{sample_number}_{barcode}/reads/" \
                            "{sample_number}_{barcode}.filtered.fastq.gz"
@@ -165,7 +209,7 @@ rule compress_nanopore_reads:
 rule run_emu:
     input:
         filtered_fastq = "{sample_number}_{barcode}/reads/" \
-                         "{sample_number}_{barcode}.filtered.fastq"
+                         "{sample_number}_{barcode}.depleted.fastq"
     output:
         relative_abundance = f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv"
     params:
@@ -191,7 +235,14 @@ rule combine_emu:
     input:
         all_relative_abundance = expand(f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv",
                                         zip,
-                                        sample_number=ALL_IDS, barcode=ALL_BARCODES)
+                                        sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_read_qc = expand("{sample_number}_{barcode}/reads/{sample_number}_{barcode}.stats.tsv",
+                            zip,
+                            sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_kraken = expand("{sample_number}_{barcode}/reads"
+                              "/{sample_number}_{barcode}.kraken.tsv",
+                            zip,
+                            sample_number = ALL_IDS,barcode = ALL_BARCODES)
     output:
         counts_combined = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
         counts_raw = f"{EXPERIMENT_NAME}_emu-combined.tsv"

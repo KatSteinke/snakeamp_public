@@ -42,6 +42,12 @@ check_interval_seconds: 30
 paths:
   output_base_path: "/data/test_data/16S/pipeline_test"
 
+# quality settings - expected minimum and maximum length and average Q score
+quality_params:
+  min_length: 700
+  max_length: 1600
+  min_qscore: 15
+
 databases:
   emu_db: /path/to/emu_db
   human_reads: /path/to/human_reads
