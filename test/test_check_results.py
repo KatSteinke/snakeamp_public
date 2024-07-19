@@ -254,8 +254,6 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
-            for message in logged.output:
-                print(message)
             assert warn_msg in logged.output
         assert not check_report
 

@@ -269,11 +269,16 @@ class TestExtractCounts(unittest.TestCase):
         """Handle a run name without zero padding."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN1_barcode01_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00, 5.00],
-                                                "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+        expected_results = pd.DataFrame(data ={"abundance": [20.00, 75.00,
+                                                              0.00, 0.00, 0.00,
+                                                              5.00],
+                                                "counts" : [4, 15, 10, 100, 6176, 1],
+                                                "med": ["", "", "", "", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
+                                                                 "human",
+                                                                 "total_after_qc",
+                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN1"] * len(expected_results.columns)
@@ -293,7 +298,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        test_results = summarize_emu.report_species_per_barcode(sample_path, self.workflow_config)
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_failed_sample_success(self):
@@ -1456,7 +1462,7 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "no_such_dir"
         error_msg = f"Emu report directory {sample_path} does not exist"
         with pytest.raises(FileNotFoundError, match = error_msg):
-            summarize_emu.merge_all_in_emu_dir(sample_path,
+            summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                active_config = self.workflow_config)
 
     def test_fail_not_a_dir_dir(self):
@@ -1466,7 +1472,7 @@ class TestMergeEmuDir(unittest.TestCase):
         error_msg = (f"{sample_path} is a single file. "
                      "Please specify the directory containing all Emu reports.")
         with pytest.raises(NotADirectoryError, match = error_msg):
-            summarize_emu.merge_all_in_emu_dir(sample_path,
+            summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                active_config = self.workflow_config)
 
     def test_success_merge(self):
@@ -1568,7 +1574,7 @@ class TestMergeEmuDir(unittest.TestCase):
         """Handle a file for which both read QC data and emu report are broken."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "one_broken"
-        base_dir =  pathlib.Path(
+        base_dir = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "bad_qc"
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", np.nan, np.nan, np.nan],
@@ -1602,10 +1608,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "barcode03"],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
-                                                      ["abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "abundance_from_all [%]", "estimated counts",
-                                                       "medtages"]],
+                                                      ["abundance", "counts",
+                                                       "med",
+                                                       "abundance", "counts",
+                                                       "med"]],
                                                      names = ["run", "barcode",
                                                               "prøvenummer", "PhHV",
                                                               "notes",
@@ -1667,10 +1673,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "barcode03"],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
-                                                      ["abundance_from_all [%]", "estimated counts",
-                                                       "medtages",
-                                                       "abundance_from_all [%]", "estimated counts",
-                                                       "medtages"]],
+                                                      ["abundance", "counts",
+                                                       "med",
+                                                       "abundance", "counts",
+                                                       "med"]],
                                                      names = ["run", "barcode",
                                                               "prøvenummer", "PhHV",
                                                               "notes",
@@ -2409,7 +2415,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -2441,9 +2447,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2748,7 +2760,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path,
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -2780,9 +2792,15 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
+                           [0.0, 10, "", 0.0, 10, ""],
+                           [0.0, 100, "", 0.0, 100, ""],
+                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
+                                          "human",
+                                          "total_after_qc",
+                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["Y20990101_Run001",
                                                        "Y20990101_Run001",
