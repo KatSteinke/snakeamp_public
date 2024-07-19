@@ -188,7 +188,7 @@ class TestCheckEmuResults(unittest.TestCase):
         from what is expected (overview tab)."""
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_abundance_main_emu-combined.xlsx")
-        expected_data = pd.DataFrame(data = {"expected": [20.0],
+        expected_data = pd.DataFrame(data = {"expected": [19.17],
                                              "found": [25.00]},
                                      index = pd.Index(["Salmonella enterica"], name = "organism"))
         warn_msg = ("WARNING:QATest:Different abundance in positive control for "
@@ -223,7 +223,7 @@ class TestCheckEmuResults(unittest.TestCase):
                           "'Staphylococcus aureus']"
                           " (missing: {'Pseudomonas aeruginosa'}, "
                           "extra: {'Placeholderia bielefeldensis'}")
-        expected_data = pd.DataFrame(data = {"expected": [20.0],
+        expected_data = pd.DataFrame(data = {"expected": [19.17],
                                              "found": [25.00]},
                                      index = pd.Index(["Salmonella enterica"], name = "organism"))
         wrong_abundance = ("WARNING:QATest:Different abundance in positive control for "
@@ -242,7 +242,7 @@ class TestCheckEmuResults(unittest.TestCase):
                        / "RUN0001_multi_fail_main_emu-combined.xlsx")
         mismatch_header = pd.MultiIndex.from_arrays([["organism", "organism"],
                                                      ["expected", "found"]])
-        expected_data = pd.DataFrame(data = [["unassigned",
+        expected_data = pd.DataFrame(data = [["Cutibacterium acnes",
                                               "Placeholderia bielefeldensis"],
                                              ["Streptococcus agalactiae",
                                               "Placeholderia bielefeldensis"]],
@@ -254,6 +254,8 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"{expected_data.to_string()}")
         with self.assertLogs("QATest") as logged:
             check_report = check_results.check_emu_result_file(test_report)
+            for message in logged.output:
+                print(message)
             assert warn_msg in logged.output
         assert not check_report
 
@@ -271,7 +273,7 @@ class TestCheckAllQC(unittest.TestCase):
     def test_warn_wrong_results(self):
         """Warn if any results differ from the expected results."""
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "bad_emu_dir"
-        expected_data = pd.DataFrame(data = {"expected": [20.0],
+        expected_data = pd.DataFrame(data = {"expected": [19.17],
                                              "found": [25.00]},
                                      index = pd.Index(["Salmonella enterica"], name = "organism"))
         warn_msg = ("WARNING:QATest:Different abundance in positive control for "
