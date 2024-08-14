@@ -121,7 +121,8 @@ rule get_qc_statistics:
         mem_mb = 200
     shell:
         """
-        NanoStat --fastq "{input.concat_fastq}" --tsv --threads {threads} > "{output.read_stats}"
+        NanoStat --fastq "{input.concat_fastq}" --tsv --threads {threads} > "{output.read_stats}" \
+         || printf "Empty dataset\nnumber_of_reads 0" > "{output.read_stats}"
         """
 
 
@@ -186,7 +187,8 @@ rule get_qc_statistics_cleaned:
         mem_mb = 200
     shell:
         """
-        NanoStat --fastq "{input.depleted_fastq}" --tsv --threads {threads} > "{output.read_stats}"
+        NanoStat --fastq "{input.depleted_fastq}" --tsv --threads {threads} > "{output.read_stats}" \
+         || printf "Empty dataset\nnumber_of_reads 0" > "{output.read_stats}"
         """
 
 
