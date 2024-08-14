@@ -160,6 +160,9 @@ def get_kraken_read_stats(kraken_file: pathlib.Path) -> pd.DataFrame:
     if pd.Series(human_reads).empty:
         human_reads = 0
     bact_reads = kraken_data.query("taxon_name == 'unclassified'")["number_reads_covered"].squeeze()
+    # this might also be absent
+    if pd.Series(bact_reads).empty:
+        bact_reads = 0
     total_reads = human_reads + bact_reads
     if not human_reads:
         logger.info(f"No human reads reported in {kraken_file}.")
@@ -368,7 +371,8 @@ def merge_emu(emu_reports: List[pd.DataFrame]) -> pd.DataFrame:
                                                                 left_index = True,
                                                                 right_index = True),
                              emu_reports)
-    combined_report = combined_report.sort_index(level = 0, axis = "columns")
+    # sort both multiindex columns and index to ensure consistent order
+    combined_report = combined_report.sort_index(level = 0, axis = "columns").sort_index()
     return combined_report
 
 
