@@ -163,11 +163,9 @@ class TestGetReadQC(unittest.TestCase):
         with Emu reports."""
         sample_dir = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                       / "result_base_dir" / "barcode01_RB01")
-        expected_results = pd.DataFrame(data={"species": ["total_before_qc", "total_after_qc",
-                                                          "human"],
-                                              "abundance_from_all [%]": [pd.NA, pd.NA, pd.NA],
-                                              "estimated counts": [6176, 100, 10],
-                                              "medtages": ["", "", ""]})
+        expected_results = pd.DataFrame(data={"total_before_qc": [6176],
+                                              "total_after_qc": [100],
+                                              "human": [10]})
         test_results = summarize_emu.get_stats_from_sample_dir(sample_dir)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -232,32 +230,37 @@ class TestExtractCounts(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode01_RB01_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
                                                               5.00],
-                                                "counts" : [4, 15, 10, 100, 6176, 1],
-                                                "med": ["", "", "", "", "", ""]},
+                                                "counts" : [4, 15, 1],
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header,
                                                               name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
                                                                       "prøvenummer",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
@@ -269,32 +272,37 @@ class TestExtractCounts(unittest.TestCase):
         """Handle a run name without zero padding."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN1_barcode01_RB01_rel-abundance.tsv"
-        expected_results = pd.DataFrame(data ={"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
-                                                "counts" : [4, 15, 10, 100, 6176, 1],
-                                                "med": ["", "", "", "", "", ""]},
+                                                "counts": [4, 15, 1],
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN1"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header,
                                                               name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
                                                                       "prøvenummer",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
@@ -306,30 +314,35 @@ class TestExtractCounts(unittest.TestCase):
         """Successfully parse a fallback file created when Emu fails."""
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu" / "fallback_test"
                        / "RUN0001_barcode01_RB01_rel-abundance.tsv")
-        expected_results = pd.DataFrame(data = {"abundance": [0.00, 0.00, 0.00,
-                                                              100.0],
-                                                "counts": [10, 100, 6176, 100],
-                                                "med": ["", "", "", ""]},
-                                        index = pd.Index(data = ["human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
-                                                                 "unassigned"],
+        expected_results = pd.DataFrame(data = {"abundance": [100.0],
+                                                "counts": [100],
+                                                "med": [""]},
+                                        index = pd.Index(data = ["unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header,
                                                               name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
                                                                       "prøvenummer",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
@@ -344,37 +357,41 @@ class TestExtractCounts(unittest.TestCase):
         """Successfully parse a blank fallback file created when Emu fails."""
         workflow_config = {"sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
-                                                      # TODO: replace with 0-9
                                                       "positive_control": {},
                                                       "negative_control": ""},
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": False}}
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu" / "merge_one_empty"
                        / "RUN0001_1199123456-1_RB01_rel-abundance.tsv")
-        expected_results = pd.DataFrame(data = {"abundance": [0.00, 0.00, 0.00,
-                                                              0.00],
-                                                "counts": [100, 100, 6176, 0],
-                                                "med": ["", "", "", ""]},
-                                        index = pd.Index(data = ["human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
-                                                                 "unassigned"],
+        expected_results = pd.DataFrame(data = {"abundance": [0.00],
+                                                "counts": [0],
+                                                "med": [""]},
+                                        index = pd.Index(data = ["unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["1199123456-1"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [100] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header,
                                                               name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
                                                                       "prøvenummer",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
@@ -390,32 +407,37 @@ class TestExtractCounts(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "duplicate_orgs"
                        / "RUN0001_barcode01_RB01_rel-abundance.tsv")
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
                                                               5.00],
-                                                "counts":[4, 15, 10, 100, 6176, 1],
-                                                "med": ["", "", "", "", "", ""]},
+                                                "counts":[4, 15, 1],
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header,
                                                               name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
                                                                       "prøvenummer",
+                                                                       "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
@@ -436,31 +458,36 @@ class TestExtractCounts(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu"
                        / "RUN0001_F99123456-0_RB01_rel-abundance.tsv")
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
                                                               5.00],
-                                                "counts": [4, 15, 10, 100, 6176, 1],
-                                                "med": ["", "", "", "", "", ""]},
+                                                "counts": [4, 15, 1],
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["F99123456-0"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header, name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
                                                                       "prøvenummer",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
@@ -495,15 +522,11 @@ class TestExtractCounts(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu"
                        / "RUN0001_F99123456-0_RB01_rel-abundance.tsv")
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
                                                               5.00],
-                                                "counts": [4, 15, 10, 100, 6176, 1],
-                                                "med": ["", "", "", "", "", ""]},
+                                                "counts": [4, 15, 1],
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
@@ -516,6 +539,9 @@ class TestExtractCounts(unittest.TestCase):
         anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
         indication_header = ["en eller anden lang tekst<Break/>"
                              "der ikke kan være på en linje i MADS"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
@@ -526,6 +552,9 @@ class TestExtractCounts(unittest.TestCase):
                                                               material_header,
                                                               anatomy_header,
                                                               indication_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
@@ -537,6 +566,9 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "prøvemateriale",
                                                                       "anatomi",
                                                                       "indikation",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None]
@@ -573,15 +605,11 @@ class TestExtractCounts(unittest.TestCase):
                        / "RUN0001_1199123456-0_RB01_rel-abundance.tsv")
 
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
                                                               5.00],
-                                                "counts":[4, 15, 10, 100, 6176, 1],
-                                                "med": ["", "", "", "", "", ""]},
+                                                "counts":[4, 15, 1],
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
@@ -594,6 +622,9 @@ class TestExtractCounts(unittest.TestCase):
         anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
         indication_header = ["en eller anden lang tekst<Break/>"
                              "der ikke kan være på en linje i MADS"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
@@ -603,6 +634,9 @@ class TestExtractCounts(unittest.TestCase):
                                                               material_header,
                                                               anatomy_header,
                                                               indication_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
@@ -614,6 +648,9 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "prøvemateriale",
                                                                       "anatomi",
                                                                       "indikation",
+                                                                       "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None]
@@ -648,15 +685,11 @@ class TestExtractCounts(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
                                                               5.00],
-                                                "counts": [4, 15, 10, 100, 6176, 1],
-                                                "med": ["", "", "", "", "", ""]},
+                                                "counts": [4, 15, 1],
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
 
@@ -668,6 +701,9 @@ class TestExtractCounts(unittest.TestCase):
         material_header = [""] * len(expected_results.columns)
         anatomy_header = [""] * len(expected_results.columns)
         indication_header = [""] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
@@ -677,6 +713,9 @@ class TestExtractCounts(unittest.TestCase):
                                                               material_header,
                                                               anatomy_header,
                                                               indication_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
@@ -688,6 +727,9 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "prøvemateriale",
                                                                       "anatomi",
                                                                       "indikation",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
@@ -707,32 +749,37 @@ class TestExtractCounts(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
                                                               5.00],
-                                                "counts": [4, 15, 10, 100, 6176, 1],
-                                                "med": ["", "", "", "", "", ""]},
+                                                "counts": [4, 15, 1],
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
 
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["NegK"] * len(expected_results.columns)
         barcode_header = ["RB02"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header,
                                                               name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
                                                                       "prøvenummer",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None]
@@ -753,31 +800,36 @@ class TestExtractCounts(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_PosK_RB03_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
                                                               5.00],
-                                                "counts": [4, 15, 10, 100, 6176, 1],
-                                                "med": ["", "", "", "", "", ""]},
+                                                "counts": [4, 15, 1],
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
 
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["PosK"] * len(expected_results.columns)
         barcode_header = ["RB03"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header, name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
                                                                       "prøvenummer",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
@@ -1482,16 +1534,10 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", 80.00, 16, ""],
                            [np.nan, np.nan, np.nan, 20.00, 4, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 0.00, 0, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1511,6 +1557,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "barcode02",
                                                        "barcode02",
                                                        "barcode02"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -1520,6 +1569,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                      names = ["run",
                                                               "barcode",
                                                               "prøvenummer",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -1536,33 +1588,36 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "single_sample"
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
-                                                              0.00, 0.00, 0.00,
                                                               5.00],
                                                 "counts": [4, 15,
-                                                           10, 100, 6176,
                                                            1],
-                                                "med": ["", "", "",
-                                                             "", "", ""]},
+                                                "med": ["", "", ""]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
-                                                                 "human",
-                                                                 "total_after_qc",
-                                                                 "total_before_qc",
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
                                                               barcode_header, name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
                                                               phhv_header,
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
                                                                       "barcode",
                                                                       "prøvenummer",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
@@ -1578,15 +1633,9 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "bad_qc"
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [0.0, 10, "", np.nan, np.nan, np.nan],
-                           [0.0, 100, "", np.nan, np.nan, np.nan],
-                           [0.0, 6176, "", np.nan, np.nan, np.nan],
                            [5.00, 1, "", np.nan, np.nan, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1606,6 +1655,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "barcode03",
                                                        "barcode03",
                                                        "barcode03"],
+                                                      [6176, 6176, 6176, np.nan, np.nan, np.nan],
+                                                      [100, 100, 100, np.nan, np.nan, np.nan],
+                                                      [10, 10, 10, np.nan, np.nan, np.nan],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -1613,7 +1665,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "abundance", "counts",
                                                        "med"]],
                                                      names = ["run", "barcode",
-                                                              "prøvenummer", "PhHV",
+                                                              "prøvenummer",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                               "PhHV",
                                                               "notes",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
@@ -1633,7 +1689,8 @@ class TestMergeEmuDir(unittest.TestCase):
         print("\n".join(logged.output))
         assert log_msg in logged.output
         assert bad_output_msg in logged.output
-        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
+        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False,
+                                      check_column_type = False)
 
     def test_handle_missing_read_data(self):
         """Handle a file for which the emu report is broken and read data is missing."""
@@ -1643,15 +1700,9 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "missing_qc"
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [0.0, 10, "", np.nan, np.nan, np.nan],
-                           [0.0, 100, "", np.nan, np.nan, np.nan],
-                           [0.0, 6176, "", np.nan, np.nan, np.nan],
                            [5.00, 1, "", np.nan, np.nan, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1671,6 +1722,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "barcode03",
                                                        "barcode03",
                                                        "barcode03"],
+                                                      [6176, 6176, 6176, np.nan, np.nan, np.nan],
+                                                      [100, 100, 100, np.nan, np.nan, np.nan],
+                                                      [10, 10, 10, np.nan, np.nan, np.nan],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -1678,7 +1732,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "abundance", "counts",
                                                        "med"]],
                                                      names = ["run", "barcode",
-                                                              "prøvenummer", "PhHV",
+                                                              "prøvenummer",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                              "PhHV",
                                                               "notes",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
@@ -1698,7 +1756,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                              active_config = self.workflow_config)
         assert log_msg in logged.output
         assert missing_data_msg in logged.output
-        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
+        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False,
+                                      check_column_type = False)
 
     def test_handle_broken_file(self):
         """Ensure that an invalid file is handled properly (log error and return fake empty df)"""
@@ -1706,15 +1765,9 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "one_broken"
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", np.nan, np.nan, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1734,6 +1787,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "barcode03",
                                                        "barcode03",
                                                        "barcode03"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -1741,7 +1797,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "abundance", "counts",
                                                        "med"]],
                                                      names = ["run", "barcode",
-                                                              "prøvenummer", "PhHV",
+                                                              "prøvenummer",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                              "PhHV",
                                                               "notes",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
@@ -1764,16 +1824,10 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", 80.00, 16, ""],
                            [np.nan, np.nan, np.nan, 20.00, 4, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 0.00, 0, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001", "RUN0001", "RUN0001",
                                                        "RUN0002", "RUN0002", "RUN0002"],
@@ -1789,6 +1843,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "barcode02",
                                                        "barcode02",
                                                        "barcode02"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -1796,6 +1853,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "abundance", "counts",
                                                        "med"]],
                                                      names = ["run", "barcode", "prøvenummer",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -1837,15 +1897,9 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "one_broken_lis"
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
                            [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", np.nan, np.nan, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1898,6 +1952,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "",
                                                        "",
                                                        ""],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -1911,6 +1968,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -1941,15 +2001,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -1969,6 +2023,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "F99123456-0",
                                                        "F99123456-0",
                                                        "F99123456-0"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -1976,7 +2033,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "abundance", "counts",
                                                        "med"]],
                                                      names = ["run", "barcode",
-                                                              "prøvenummer", "PhHV",
+                                                              "prøvenummer",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                               "PhHV",
                                                               "notes", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
@@ -1997,15 +2058,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, "", 75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2034,6 +2089,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "F99123456-0",
                                                        "F99123456-0",
                                                        "F99123456-0"],
+                                                      [6176, 6176, 6176,
+                                                       6176, 6176, 6176,
+                                                       6176, 6176, 6176],
+                                                      [100, 100, 100,
+                                                       100, 100, 100,
+                                                       100, 100, 100],
+                                                      [10, 10, 10,
+                                                       10, 10, 10,
+                                                       10, 10, 10],
                                                       ["", "", "", "", "", "", "", "", ""],
                                                       ["", "", "", "", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -2043,7 +2107,11 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "abundance", "counts",
                                                        "med"]],
                                                      names = ["run", "barcode",
-                                                              "prøvenummer", "PhHV",
+                                                              "prøvenummer",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                               "PhHV",
                                                               "notes",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
@@ -2080,15 +2148,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, 20.00, 4, ""],
                            [75.00, 15, "", np.nan, np.nan, np.nan,  75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 100, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 0.00, 0.00, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2168,6 +2230,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "der ikke kan være på en linje i MADS",
                                                        "en eller anden lang tekst<Break/>"
                                                        "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176,
+                                                       6176, 6176, 6176,
+                                                       6176, 6176, 6176],
+                                                      [100, 100, 100,
+                                                       100, 100, 100,
+                                                       100, 100, 100],
+                                                      [10, 10, 10,
+                                                       100, 100, 100,
+                                                       10, 10, 10],
                                                       ["", "", "", "", "", "", "", "", ""],
                                                       ["", "", "", "", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -2182,6 +2253,155 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                              "PhHV",
+                                                              "notes",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         active_config = workflow_config)
+        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
+
+
+    def test_handle_multi_blank(self):
+        """Handle multiple blank sample files."""
+        workflow_config = {"sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "format_output":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK",
+                                                      "sample_numbers_in": "number",
+                                                      "sample_numbers_out": "letter",
+                                                      "sample_numbers_output": "number",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material.csv")}}
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "merge_two_empty"
+
+        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, "", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, "", 0.00, 0.00, "", 0.00, 0, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["NegK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99123456"],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02"],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0"],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning"
+                                                       ],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       ],
+                                                      ["", "", "",
+                                                          "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176,
+                                                       6176, 6176, 6176,
+                                                       6176, 6176, 6176],
+                                                      [100, 100, 100,
+                                                       100, 100, 100,
+                                                       100, 100, 100],
+                                                      [10, 10, 10,
+                                                       100, 100, 100,
+                                                       10, 10, 10],
+                                                      ["", "", "", "", "", "", "", "", ""],
+                                                      ["", "", "", "", "", "", "", "", ""],
+                                                      ["abundance", "counts",
+                                                       "med",
+                                                       "abundance", "counts",
+                                                       "med",
+                                                       "abundance", "counts",
+                                                       "med"]],
+                                                     names = ["run", "barcode", "prøvenummer",
+                                                              "modtagedato",
+                                                              "patient",
+                                                              "prøvemateriale",
+                                                              "anatomi",
+                                                              "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2219,15 +2439,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2283,6 +2497,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "der ikke kan være på en linje i MADS",
                                                        "en eller anden lang tekst<Break/>"
                                                        "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -2295,6 +2512,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2332,15 +2552,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2398,6 +2612,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "der ikke kan være på en linje i MADS",
                                                        "en eller anden lang tekst<Break/>"
                                                        "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -2410,6 +2627,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2447,15 +2667,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2513,6 +2727,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "der ikke kan være på en linje i MADS",
                                                        "en eller anden lang tekst<Break/>"
                                                        "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -2525,6 +2742,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2562,15 +2782,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
                                                        "RUN0001",
@@ -2628,6 +2842,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "der ikke kan være på en linje i MADS",
                                                        "en eller anden lang tekst<Break/>"
                                                        "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -2640,6 +2857,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2677,15 +2897,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["Y20990101_Run0001",
                                                        "Y20990101_Run0001",
@@ -2743,6 +2957,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "der ikke kan være på en linje i MADS",
                                                        "en eller anden lang tekst<Break/>"
                                                        "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -2755,6 +2972,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2792,15 +3012,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["Y20990101_Run001",
                                                        "Y20990101_Run001",
@@ -2858,6 +3072,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "der ikke kan være på en linje i MADS",
                                                        "en eller anden lang tekst<Break/>"
                                                        "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -2870,6 +3087,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
@@ -2907,15 +3127,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
         expected_values = [[20.00, 4, "", 20.00, 4, ""],
                            [75.00, 15, "", 75.00, 15, ""],
-                           [0.0, 10, "", 0.0, 10, ""],
-                           [0.0, 100, "", 0.0, 100, ""],
-                           [0.0, 6176, "", 0.0, 6176, ""],
                            [5.00, 1, "", 5.00, 1, ""]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
-                                          "human",
-                                          "total_after_qc",
-                                          "total_before_qc",
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["Y20990101_0001",
                                                        "Y20990101_0001",
@@ -2973,6 +3187,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "der ikke kan være på en linje i MADS",
                                                        "en eller anden lang tekst<Break/>"
                                                        "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
                                                       ["", "", "", "", "", ""],
                                                       ["", "", "", "", "", ""],
                                                       ["abundance", "counts",
@@ -2985,6 +3202,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
                                                               "PhHV",
                                                               "notes",
                                                               None])
