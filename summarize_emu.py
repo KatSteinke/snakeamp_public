@@ -368,7 +368,8 @@ def merge_emu(emu_reports: List[pd.DataFrame]) -> pd.DataFrame:
                                                                 left_index = True,
                                                                 right_index = True),
                              emu_reports)
-    combined_report = combined_report.sort_index(level = 0, axis = "columns")
+    # sort both multiindex columns and index to ensure consistent order
+    combined_report = combined_report.sort_index(level = 0, axis = "columns").sort_index()
     return combined_report
 
 
