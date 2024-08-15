@@ -1,9 +1,7 @@
 name: 16s_pipeline_dev_env
 channels:
   - conda-forge
-  - anaconda
   - bioconda
-  - defaults
 dependencies:
   - biopython
   - coverage
