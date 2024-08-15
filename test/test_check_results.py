@@ -106,7 +106,10 @@ class TestCheckEmuResults(unittest.TestCase):
                                   "patient",
                                   "prøvemateriale",
                                   "anatomi",
-                                  "indikation"])
+                                  "indikation",
+                                  "total_before_qc",
+                                  "total_after_qc",
+                                  "human"])
         found_index = pd.Index([*["PosK"] * cols_per_sample,
                                 *["NegK_Sanger"] * cols_per_sample,
                                 *["F99123457"] * cols_per_sample,
@@ -120,7 +123,10 @@ class TestCheckEmuResults(unittest.TestCase):
                                "patient",
                                "prøvemateriale",
                                "anatomi",
-                               "indikation"])
+                               "indikation",
+                               "total_before_qc",
+                               "total_after_qc",
+                               "human"])
         warn_msg = ("WARNING:QATest:Sample metadata labels differ from expected sample metadata"
                     " - could not compare. \n"
                     f"Expected index: {expected_index}\n"
