@@ -92,7 +92,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         # for each sheet:
         for sheet in tabs_found:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
-                                       header = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+                                       header = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
             # if it's the overview sheet it'll have a PhHV column, the others don't need one
             # we're not going to compare everything in the PhHV column
             # so don't count this when generating expected data
@@ -144,6 +144,31 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                   "<Break/>der ikke kan være på en"
                                                                   " linje i MADS"] * cols_per_sample
                                                                 ],
+                                                    "total_before_qc": [*[3953] * cols_per_sample,
+                                                                         *[167662]
+                                                                          * cols_per_sample,
+                                                                         *[136886]
+                                                                          * cols_per_sample,
+                                                                         *[1592] * cols_per_sample,
+                                                                        *[21876] * cols_per_sample,
+                                                                        ],
+                                                    "total_after_qc":
+                                                        [*[294] * cols_per_sample,
+                                                         *[91561]
+                                                          * cols_per_sample,
+                                                         *[64426]
+                                                          * cols_per_sample,
+                                                         *[373] * cols_per_sample,
+                                                         *[6831] * cols_per_sample,
+                                                         ],
+                                                        "human": [*[2] * cols_per_sample,
+                                                                  *[6]
+                                                                   * cols_per_sample,
+                                                                  *[10850]
+                                                                   * cols_per_sample,
+                                                                  *[0] * cols_per_sample,
+                                                                  *[655] * cols_per_sample
+                                                                  ]
                                                     }, index = pd.Index([*["NegK_Sanger"]
                                                                           * cols_per_sample,
                                                                     *["PosK"] * cols_per_sample,
@@ -168,7 +193,10 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                       "patient",
                                                                       "prøvemateriale",
                                                                       "anatomi",
-                                                                      "indikation"]]
+                                                                      "indikation",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human"]]
             header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
             header_cols = header_cols.set_index("prøvenr")
             header_cols["modtagedato"] = pd.to_datetime(header_cols["modtagedato"]).apply(lambda x:
@@ -216,7 +244,8 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                                "found"))
                 if not compare_organisms.empty:
                     results_okay = False
-                    logger.warning("Incorrect organism for one or more samples. Expected organism(s):\n"
+                    logger.warning("Incorrect organism for one or more samples. "
+                                   "Expected organism(s):\n"
                                    f"{compare_organisms.sort_index().to_string()}")
                 # for the positive control, are the n highest what we would expect?
                 n_expected_species = len(expected_positive_control.index)
