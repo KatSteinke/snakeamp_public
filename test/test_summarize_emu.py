@@ -178,6 +178,7 @@ class TestExtractCounts(unittest.TestCase):
                        "lab_info_system": {"use_lis_features": False}}
     base_dir = pathlib.Path(
         __file__).parent / "data" / "summarize_emu" / "result_base_dir"
+    version_text = f"Version_{summarize_emu.__version__}"
 
     def test_bad_name_format(self):
         """Ensure the function complains if the name doesn't match the expected Emu output format
@@ -239,6 +240,7 @@ class TestExtractCounts(unittest.TestCase):
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         pre_qc_header = [6176] * len(expected_results.columns)
@@ -247,6 +249,7 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
                                                               barcode_header,
                                                               name_header,
                                                               pre_qc_header,
@@ -256,6 +259,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "total_before_qc",
@@ -281,6 +285,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN1"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         pre_qc_header = [6176] * len(expected_results.columns)
@@ -289,6 +294,7 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
                                                               barcode_header,
                                                               name_header,
                                                               pre_qc_header,
@@ -298,6 +304,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "total_before_qc",
@@ -321,6 +328,7 @@ class TestExtractCounts(unittest.TestCase):
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         pre_qc_header = [6176] * len(expected_results.columns)
@@ -329,6 +337,7 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
                                                               barcode_header,
                                                               name_header,
                                                               pre_qc_header,
@@ -338,6 +347,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "total_before_qc",
@@ -370,6 +380,7 @@ class TestExtractCounts(unittest.TestCase):
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["1199123456-1"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         pre_qc_header = [6176] * len(expected_results.columns)
@@ -378,6 +389,7 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
                                                               barcode_header,
                                                               name_header,
                                                               pre_qc_header,
@@ -387,6 +399,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "total_before_qc",
@@ -416,6 +429,7 @@ class TestExtractCounts(unittest.TestCase):
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         pre_qc_header = [6176] * len(expected_results.columns)
@@ -424,6 +438,7 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
                                                               barcode_header,
                                                               name_header,
                                                               pre_qc_header,
@@ -433,6 +448,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                        "total_before_qc",
@@ -467,6 +483,7 @@ class TestExtractCounts(unittest.TestCase):
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["F99123456-0"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         pre_qc_header = [6176] * len(expected_results.columns)
@@ -475,7 +492,9 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
-                                                              barcode_header, name_header,
+                                                              version_header,
+                                                              barcode_header,
+                                                              name_header,
                                                               pre_qc_header,
                                                               post_qc_header,
                                                               human_header,
@@ -483,6 +502,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "total_before_qc",
@@ -531,6 +551,7 @@ class TestExtractCounts(unittest.TestCase):
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["F99123456"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         date_header = ["2021-01-02"] * len(expected_results.columns)
@@ -545,6 +566,7 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
                                                               barcode_header,
                                                               name_header,
                                                               date_header,
@@ -559,6 +581,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "modtagedato",
@@ -614,6 +637,7 @@ class TestExtractCounts(unittest.TestCase):
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["F99123456"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         date_header = ["2021-01-02"] * len(expected_results.columns)
@@ -628,7 +652,9 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
-                                                              barcode_header, name_header,
+                                                              version_header,
+                                                              barcode_header,
+                                                              name_header,
                                                               date_header,
                                                               patient_header,
                                                               material_header,
@@ -641,6 +667,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "modtagedato",
@@ -694,6 +721,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = expected_results.astype({"counts": "Int64"})
 
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["NegK"] * len(expected_results.columns)
         barcode_header = ["RB02"] * len(expected_results.columns)
         date_header = [""] * len(expected_results.columns)
@@ -707,7 +735,9 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
-                                                              barcode_header, name_header,
+                                                              version_header,
+                                                              barcode_header,
+                                                              name_header,
                                                               date_header,
                                                               patient_header,
                                                               material_header,
@@ -720,6 +750,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "modtagedato",
@@ -758,6 +789,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = expected_results.astype({"counts": "Int64"})
 
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["NegK"] * len(expected_results.columns)
         barcode_header = ["RB02"] * len(expected_results.columns)
         pre_qc_header = [6176] * len(expected_results.columns)
@@ -766,6 +798,7 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
                                                               barcode_header,
                                                               name_header,
                                                               pre_qc_header,
@@ -775,6 +808,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "total_before_qc",
@@ -809,6 +843,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = expected_results.astype({"counts": "Int64"})
 
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["PosK"] * len(expected_results.columns)
         barcode_header = ["RB03"] * len(expected_results.columns)
         pre_qc_header = [6176] * len(expected_results.columns)
@@ -817,7 +852,9 @@ class TestExtractCounts(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
-                                                              barcode_header, name_header,
+                                                              version_header,
+                                                              barcode_header,
+                                                              name_header,
                                                               pre_qc_header,
                                                               post_qc_header,
                                                               human_header,
@@ -825,6 +862,7 @@ class TestExtractCounts(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "total_before_qc",
@@ -1507,6 +1545,7 @@ class TestMergeEmuDir(unittest.TestCase):
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": False}}
     base_dir = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "result_base_dir"
+    version_text = f"Version_{summarize_emu.__version__}"
 
     def test_fail_missing_dir(self):
         """Complain informatively when the directory to merge doesn't exist."""
@@ -1545,6 +1584,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1567,6 +1612,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "abundance", "counts",
                                                        "med"]],
                                                      names = ["run",
+                                                              "pipeline_version",
                                                               "barcode",
                                                               "prøvenummer",
                                                               "total_before_qc",
@@ -1597,6 +1643,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                                  "unassigned"], name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
         run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
         name_header = ["barcode01"] * len(expected_results.columns)
         barcode_header = ["RB01"] * len(expected_results.columns)
         pre_qc_header = [6176] * len(expected_results.columns)
@@ -1605,6 +1652,7 @@ class TestMergeEmuDir(unittest.TestCase):
         phhv_header = [""] * len(expected_results.columns)
         note_header = [""] * len(expected_results.columns)
         expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
                                                               barcode_header, name_header,
                                                               pre_qc_header,
                                                               post_qc_header,
@@ -1613,6 +1661,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               note_header,
                                                               expected_results.columns],
                                                              names = ["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "total_before_qc",
@@ -1643,6 +1692,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1664,7 +1719,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
                                                               "prøvenummer",
                                                               "total_before_qc",
                                                               "total_after_qc",
@@ -1710,6 +1767,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1731,7 +1794,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
                                                               "prøvenummer",
                                                               "total_before_qc",
                                                               "total_after_qc",
@@ -1775,6 +1840,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1796,7 +1867,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
                                                               "prøvenummer",
                                                               "total_before_qc",
                                                               "total_after_qc",
@@ -1831,6 +1904,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                           "unassigned"], name = "species")
         expected_columns = pd.MultiIndex.from_arrays([["RUN0001", "RUN0001", "RUN0001",
                                                        "RUN0002", "RUN0002", "RUN0002"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1852,7 +1931,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "total_before_qc",
                                                               "total_after_qc",
                                                               "human",
@@ -1907,6 +1989,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1961,7 +2049,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
                                                               "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
@@ -2011,6 +2101,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB02",
                                                        "RB02",
                                                        "RB02",
@@ -2032,7 +2128,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
                                                               "prøvenummer",
                                                               "total_before_qc",
                                                               "total_after_qc",
@@ -2071,6 +2169,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB02",
                                                        "RB02",
                                                        "RB02",
@@ -2106,12 +2213,14 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
                                                               "prøvenummer",
                                                               "total_before_qc",
                                                               "total_after_qc",
                                                               "human",
-                                                               "PhHV",
+                                                              "PhHV",
                                                               "notes",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
@@ -2161,6 +2270,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB02",
                                                        "RB02",
                                                        "RB02",
@@ -2247,7 +2365,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
                                                               "prøvemateriale",
@@ -2307,6 +2428,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB02",
                                                        "RB02",
                                                        "RB02",
@@ -2393,7 +2523,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
                                                               "prøvemateriale",
@@ -2449,6 +2582,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB02",
                                                        "RB02",
                                                        "RB02",
@@ -2506,7 +2645,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
                                                               "prøvemateriale",
@@ -2562,6 +2704,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -2621,7 +2769,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
                                                               "prøvemateriale",
@@ -2677,6 +2828,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0002",
                                                        "RUN0002",
                                                        "RUN0002"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -2736,7 +2893,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
                                                               "prøvemateriale",
@@ -2792,6 +2952,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -2851,7 +3017,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
                                                               "prøvemateriale",
@@ -2907,6 +3076,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Y20990101_Run0001",
                                                        "Y20990101_Run0001",
                                                        "Y20990101_Run0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -2966,7 +3141,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
                                                               "prøvemateriale",
@@ -3022,6 +3200,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Y20990101_Run001",
                                                        "Y20990101_Run001",
                                                        "Y20990101_Run001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -3081,7 +3265,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
                                                               "prøvemateriale",
@@ -3137,6 +3324,12 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "Y20990101_0001",
                                                        "Y20990101_0001",
                                                        "Y20990101_0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -3196,7 +3389,10 @@ class TestMergeEmuDir(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode", "prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
                                                               "modtagedato",
                                                               "patient",
                                                               "prøvemateriale",
