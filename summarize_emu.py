@@ -310,11 +310,12 @@ def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
     emu_read_counts = emu_read_counts.groupby(by="species").sum()
     # note down relevant information
     run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
+    version_header = [f"Version_{__version__}"] * len(emu_read_counts.columns)
     barcode_header = [sample_name_components.barcode] * len(emu_read_counts.columns)
     name_header = [sample_name_components.sample_name] * len(emu_read_counts.columns)
 
-    report_headers = [run_header, barcode_header, name_header]
-    header_names = ["run", "barcode", "prøvenummer"]
+    report_headers = [run_header, version_header, barcode_header, name_header]
+    header_names = ["run", "pipeline_version", "barcode", "prøvenummer"]
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
                                encoding = "latin1", dtype = {"modtaget": str,
@@ -462,10 +463,10 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
     # ... but we don't want to have to check whether we're using LIS features for every sample
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_cols = [["", "", ""],
-                         ["", "", ""],
-                         ["", "", ""],
-                         ["", "", ""],
-                         ["", "", ""]]
+                    ["", "", ""],
+                    ["", "", ""],
+                    ["", "", ""],
+                    ["", "", ""]]
         lis_names = ["modtagedato",
                      "patient",
                      "prøvemateriale",
@@ -528,12 +529,15 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                                                                   positive_control_pattern,
                                                                   negative_control_pattern)
             current_fallback_cols = ([[run_name, run_name, run_name],
+                                      [f"Version_{__version__}",
+                                       f"Version_{__version__}",
+                                       f"Version_{__version__}"],
                                      [barcode, barcode, barcode],
                                      [sample_name, sample_name, sample_name]]
                                      + lis_cols  # blank if we don't have LIS
                                      + qc_cols
                                      + base_cols)
-            current_fallback_names = (["run", "barcode", "prøvenummer"]
+            current_fallback_names = (["run", "pipeline_version", "barcode", "prøvenummer"]
                                       + lis_names  # blank if we don't have LIS
                                       + qc_names
                                       + base_names)
