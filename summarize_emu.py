@@ -56,7 +56,8 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
                                               "prøvenr": [sample_number],
                                               "modtagedato": [""],
                                               "prøvemateriale": [""],
-                                              "anatomi": [""]})
+                                              "anatomi": [""],
+                                              "indikation": [""]})
     if not (re.match(positive_control_pattern, sample_number)
             or re.match(negative_control_pattern, sample_number)):
         prefix_mapping = helpers.get_number_letter_combination(
@@ -78,20 +79,122 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
             error_msg = (f"Sample number {name_translate} (original number: {sample_number}) "
                          "not found in LIS report.")
             raise KeyError(error_msg)
-        sample_information = lis_report[lis_report["prøvenr"] == name_translate][["cprnr.",
-                                                                                  "prøvenr",
-                                                                                  "modtaget",
-                                                                                  "prøvekategori",
-                                                                                  "anatomi"]]
+        sample_information = lis_report[lis_report["prøvenr"] == name_translate]
+        sample_information = sample_information.reindex(columns = ["cprnr.",
+                                                                   "prøvenr",
+                                                                   "modtaget",
+                                                                   "prøvekategori",
+                                                                   "anatomi",
+                                                                   "Indikation"])
         sample_information = sample_information.rename(columns = {"modtaget": "modtagedato",
                                                                   "prøvekategori":
                                                                       "prøvemateriale",
-                                                                  "cprnr.": "patient"})
+                                                                  "cprnr.": "patient",
+                                                                  "Indikation": "indikation"})
         sample_information["modtagedato"] = sample_information["modtagedato"].apply(lambda x:
                                                                               datetime.strptime(x,
                                                                                         "%d%m%Y").strftime("%Y-%m-%d"))
         sample_information = sample_information.fillna("").reset_index(drop=True)
     return sample_information
+
+
+def extract_nanostat_read_count(nanostat_file: pathlib.Path) -> int:
+    """Extract read count from nanostat.
+
+    Arguments:
+        nanostat_file:  the nanostat output to extract read number from, in tsv format
+
+    Returns:
+        The read count (number_of_reads)
+
+    Raises:
+        FileNotFoundError:  if the nanostat file does not exist
+    """
+    if not nanostat_file.exists():
+        raise FileNotFoundError(f"Nanostat report {nanostat_file} not found.")
+    nanostat_data = pd.read_csv(nanostat_file, sep = "\t", skiprows = 1, index_col = 0,
+                                header = None, names = ["QC_value"])
+    try:
+        nanostat_read_count = int(nanostat_data.loc["number_of_reads"].squeeze())
+    except KeyError as key_err:
+        raise KeyError("Nanostat report is malformed - cannot find number_of_reads.") from key_err
+    return nanostat_read_count
+
+
+def get_kraken_read_stats(kraken_file: pathlib.Path) -> pd.DataFrame:
+    """Get total reads after filtlong filtering, human reads and remaining reads from Kraken report
+    for a given sample (sample number extracted from the filename).
+
+    Arguments:
+        kraken_file:    the Kraken report file for the sample
+
+    Returns:
+        Amount of removed human reads, remaining bacterial reads,
+         and the total after quality filtering.
+
+     Raises:
+         FileNotFoundError: if the Kraken report file does not exist
+    """
+    if not kraken_file.exists():
+        raise FileNotFoundError(f"Kraken report {kraken_file} not found.")
+    try:
+        kraken_data = pd.read_csv(kraken_file, sep = "\t", header = None,
+                                  names = ["percent_reads_covered",
+                                           "number_reads_covered",
+                                           "number_reads_exactly_in_tax",
+                                           "taxonomic_level",
+                                           "NCBI_rank_ID",
+                                           "taxon_name"],
+                                  dtype = {"NCBI_rank_ID": str, "percent_reads_covered": float,
+                                           "number_reads_covered": int})
+    except ValueError as value_err:
+        if re.search("could not convert string to float", value_err.args[0]):
+            raise KeyError("Kraken report is malformed. "
+                           "Check that you are supplying a --report file.") from value_err
+        else:
+            raise value_err
+    kraken_data["taxon_name"] = kraken_data["taxon_name"].str.strip()
+    human_reads = kraken_data.query("taxon_name == 'Homo sapiens'")["number_reads_covered"].squeeze()
+    # if there are no matches for the query this will return an empty Series, otherwise an int
+    # but checking an int for empty state will fail
+    if pd.Series(human_reads).empty:
+        human_reads = 0
+    bact_reads = kraken_data.query("taxon_name == 'unclassified'")["number_reads_covered"].squeeze()
+    # this might also be absent
+    if pd.Series(bact_reads).empty:
+        bact_reads = 0
+    total_reads = human_reads + bact_reads
+    if not human_reads:
+        logger.info(f"No human reads reported in {kraken_file}.")
+    if not bact_reads:
+        logger.info(f"No remaining reads reported in {kraken_file}.")
+    read_counts = pd.DataFrame(data={"human": [human_reads],
+                                     "remaining": [bact_reads],
+                                     "total": [total_reads]})
+    return read_counts
+
+
+def get_stats_from_sample_dir(sample_dir: pathlib.Path) -> pd.DataFrame:
+    """Get relevant QC stats from result directory for a sample containing a "reads" subdir with
+    Kraken and NanoStat results.
+
+    Arguments:
+        sample_dir: the result directory for the sample in question
+
+    Returns:
+        Reads before QC, after QC and the latter's proportion of human reads for merging with Emu
+        report.
+    """
+    # TODO: is it enough that we let the kraken/nanostat functions complain?
+    sample_name = sample_dir.name
+    nanostats_report = sample_dir / "reads" / f"{sample_name}.stats.tsv"
+    kraken_report = sample_dir / "reads" / f"{sample_name}.kraken.tsv"
+    # TODO: check for both?
+    qc_read_counts = get_kraken_read_stats(kraken_report)
+    qc_read_counts["total_before_qc"] = extract_nanostat_read_count(nanostats_report)
+    qc_read_counts = qc_read_counts.rename(columns = {"total": "total_after_qc"})
+    qc_read_counts = qc_read_counts.loc[:, ["total_before_qc", "total_after_qc", "human"]]
+    return qc_read_counts
 
 
 class SampleNameComponents(NamedTuple):
@@ -137,7 +240,7 @@ def extract_name_components(report_name: str, active_config: Dict[str, Any] = wo
                      " Sample name components could not be extracted.")
 
 
-def report_species_per_barcode(emu_counts: pathlib.Path,
+def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
                                active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
     """Extract estimated species counts from Emu output (with estimated counts, --keep_counts)
      and recalculate read percentage to include unclassified reads.
@@ -145,6 +248,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
 
     Arguments:
         emu_counts:     the path to Emu's SAMPLE_rel-abundance.tsv file
+        base_dir:       the base directory for all pipeline results
         active_config:  the config file to use
 
 
@@ -159,6 +263,11 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     sample_name_components = extract_name_components(emu_counts.name, active_config)
     # get read counts per species
     emu_read_counts = pd.read_csv(emu_counts, sep = "\t")
+    # create a fallback if it's empty
+    if emu_read_counts.empty:
+        emu_read_counts = pd.DataFrame(data={"tax_id": ["unassigned"],
+                                             "abundance": [0],
+                                             "estimated counts": [0]})
     # check if something is wrong with the abundance as is
     if not math.isclose(sum(emu_read_counts['abundance'].dropna()), 1):
         # this might be legit if a fallback file was generated (all reads are unassigned)
@@ -177,36 +286,46 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
     # output as percent
     emu_read_counts['abundance_from_all [%]'] = ((emu_read_counts['estimated counts'] / total_reads)
                                                  * 100)
+    # add pre-filtering read counts
+    # TODO: can we just assume it's the emu file's parent's parent if nothing else is given?
+    name_with_barcode = f"{sample_name_components.sample_name}_{sample_name_components.barcode}"
+    sample_dir = base_dir / name_with_barcode
+    # combine
+    #emu_read_counts = pd.concat([emu_read_counts, qc_read_counts])
+    # TODO: sanity check if( after_qc - human) differs from total? Could catch mismatched files
     # round for easier legibility
     emu_read_counts = emu_read_counts.round({"estimated counts": 0, "abundance_from_all [%]": 2})
     emu_read_counts = emu_read_counts.astype({"estimated counts": "Int64"})
     # cut down to required columns and add approval column
-    cols_for_report = ["species", "abundance_from_all [%]", "estimated counts", "medtages"]
+    cols_for_report = ["species", "abundance_from_all [%]", "estimated counts", "med"]
     emu_read_counts = emu_read_counts.reindex(columns = cols_for_report)
+    emu_read_counts = emu_read_counts.rename(columns={"abundance_from_all [%]": "abundance",
+                                                      "estimated counts": "counts"})
     # "unassigned" is only noted on the taxid level - fill it in on the species level
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
     # "medtages" should be a blank string
-    emu_read_counts["medtages"] = emu_read_counts["medtages"].fillna(value = "")
+    emu_read_counts["med"] = emu_read_counts["med"].fillna(value = "")
     # deduplicate species names
     # this also sets species as index so we keep it out of the multiindexed columns
     emu_read_counts = emu_read_counts.groupby(by="species").sum()
-    print(emu_read_counts.to_string())
     # note down relevant information
     run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
+    version_header = [f"Version_{__version__}"] * len(emu_read_counts.columns)
     barcode_header = [sample_name_components.barcode] * len(emu_read_counts.columns)
     name_header = [sample_name_components.sample_name] * len(emu_read_counts.columns)
-    report_headers = [run_header, barcode_header, name_header]
-    header_names = ["run", "barcode", "prøvenummer"]
+
+    report_headers = [run_header, version_header, barcode_header, name_header]
+    header_names = ["run", "pipeline_version", "barcode", "prøvenummer"]
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
                                encoding = "latin1", dtype = {"modtaget": str,
                                                              "cprnr.": str})
         data_from_lis = get_lis_information(sample_name_components.sample_name, lis_data,
                                             active_config)
-        # rename sample number if needed - TODO: more prettily!
+        # rename sample number if needed - TODO: more prettily! Or just avoid it?
         name_header = [data_from_lis["prøvenr"].squeeze()] * len(emu_read_counts.columns)
         report_headers[-1] = name_header
-        lis_data_cols = ["modtagedato", "patient", "prøvemateriale", "anatomi"]
+        lis_data_cols = ["modtagedato", "patient", "prøvemateriale", "anatomi", "indikation"]
         lis_headers = [[data_from_lis[sample_metadata].squeeze()] * len(emu_read_counts.columns)
                        if pd.notna(data_from_lis[sample_metadata].squeeze())
                        else [""] * len(emu_read_counts.columns)
@@ -214,6 +333,12 @@ def report_species_per_barcode(emu_counts: pathlib.Path,
         for lis_header in lis_headers:  # TODO: there has to be a prettier solution
             report_headers.append(lis_header)
         header_names.extend(lis_data_cols)
+    # add qc data
+    qc_read_counts = get_stats_from_sample_dir(sample_dir)
+    qc_headers = [[qc_value] * len(emu_read_counts.columns)
+                  for qc_value in qc_read_counts.to_numpy().squeeze().tolist()]
+    header_names.extend(qc_read_counts.columns)
+    report_headers.extend(qc_headers)
     # add blank PhHV header row
     header_names.append("PhHV")
     report_headers.append([""] * len(emu_read_counts.columns))
@@ -241,7 +366,8 @@ def merge_emu(emu_reports: List[pd.DataFrame]) -> pd.DataFrame:
                                                                 left_index = True,
                                                                 right_index = True),
                              emu_reports)
-    combined_report = combined_report.sort_index(level = 0, axis = "columns")
+    # sort both multiindex columns and index to ensure consistent order
+    combined_report = combined_report.sort_index(level = 0, axis = "columns").sort_index()
     return combined_report
 
 
@@ -297,13 +423,14 @@ def sort_report_samples(emu_report: pd.DataFrame,
     return emu_report
 
 
-def merge_all_in_emu_dir(emu_dir: pathlib.Path,
+def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                          active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
     """Merge all Emu reports in the supplied directory.
 
     Arguments:
         emu_dir:        the directory containing all Emu reports
                         (name format: SAMPLE_rel-abundance.tsv)
+        basedir:       the base dir containing read QC reports for all samples
         active_config:  the config file to use
 
     Returns:
@@ -320,24 +447,37 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
     emu_reports = list(emu_dir.glob("*_rel-abundance.tsv"))
     if not emu_reports:
         raise FileNotFoundError(f"No Emu reports found in {emu_dir}.")
+    # establish controls here if needed
+    (negative_control_pattern,
+     positive_control_pattern) = helpers.get_control_patterns(
+        active_config["sample_number_settings"]["negative_control"],
+        active_config["sample_number_settings"]["positive_control"])
     all_reports = []
     # set up fallbacks - sample number is easiest to set up only when we have it..
-    fallback_cols = [["", "", ""],
-                     ["", "", ""],
-                     ["abundance_from_all [%]",
-                      "estimated counts",
-                      "medtages"]]
-    fallback_names = ["PhHV", "notes", None]
+    base_cols = [["", "", ""],
+                 ["", "", ""],
+                 ["abundance",
+                  "counts",
+                  "med"]]
+    base_names = ["PhHV", "notes", None]
     # ... but we don't want to have to check whether we're using LIS features for every sample
     if active_config["lab_info_system"]["use_lis_features"]:
-        fallback_cols = [["", "", ""],
-                         ["", "", ""],
-                         ["", "", ""],
-                         ["", "", ""]] + fallback_cols
-        fallback_names = ["modtagedato", "patient", "prøvemateriale", "anatomi"] + fallback_names
+        lis_cols = [["", "", ""],
+                    ["", "", ""],
+                    ["", "", ""],
+                    ["", "", ""],
+                    ["", "", ""]]
+        lis_names = ["modtagedato",
+                     "patient",
+                     "prøvemateriale",
+                     "anatomi",
+                     "indikation"]
+    else:
+        lis_cols = []
+        lis_names = []
     for emu_report in emu_reports:
         try:
-            emu_data = report_species_per_barcode(emu_report, active_config)
+            emu_data = report_species_per_barcode(emu_report, basedir, active_config)
         except ValueError as value_err:
             logger.error(f"Error in {emu_report}:\n"
                          f"{value_err}\n"
@@ -346,15 +486,66 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path,
             run_name = sample_name_components.run_name
             sample_name = sample_name_components.sample_name
             barcode = sample_name_components.barcode
-            fallback_cols = [[run_name, run_name, run_name],
-                             [barcode, barcode, barcode],
-                             [sample_name, sample_name, sample_name]] + fallback_cols
-            fallback_names = ["run", "barcode", "prøvenummer"] + fallback_names
-            fallback_headers = pd.MultiIndex.from_arrays(fallback_cols, names=fallback_names)
+            # try adding read counts for troubleshooting here
+            # TODO: can we be a bit more clever?
+            fallback_col_length = 3
+            try:
+                # make sure we're using the untranslated sample name when getting files...
+                read_stats = get_stats_from_sample_dir(basedir
+                                                       / f"{sample_name_components.sample_name}"
+                                                         f"_{barcode}")
+                qc_cols = [[qc_value] * fallback_col_length
+                           for qc_value in read_stats.to_numpy().squeeze().tolist()]
+
+                qc_names = read_stats.columns.tolist()
+            # if read data is missing or malformed, alert but carry on
+            except (KeyError, FileNotFoundError) as qc_err:
+                qc_cols = [[np.nan, np.nan, np.nan],
+                           [np.nan, np.nan, np.nan],
+                           [np.nan, np.nan, np.nan]]
+                qc_names = ["total_before_qc", "total_after_qc", "human"]
+                logger.error(f"Error extracting QC data for {sample_name_components.sample_name}:\n"
+                             f"{qc_err}\n"
+                             "No QC data will be added.")
+            # if we can we'll translate sample number here - only when using LIS for now
+            if active_config["lab_info_system"]["use_lis_features"]:
+                if not (re.match(positive_control_pattern, sample_name)
+                        or re.match(negative_control_pattern, sample_name)):
+                    prefix_mapping = helpers.get_number_letter_combination(
+                        active_config["sample_number_settings"][
+                            "number_to_letter"],
+                        active_config["sample_number_settings"][
+                            "sample_numbers_output"],
+                        active_config["sample_number_settings"][
+                            "sample_numbers_out"])
+
+                    sample_format_results = re.compile(
+                        active_config["sample_number_settings"]["format_output"])
+                    sample_format_lis = re.compile(
+                        active_config["sample_number_settings"]["format_in_lis"])
+                    sample_name = helpers.translate_sample_number(sample_name,
+                                                                  sample_format_results,
+                                                                  sample_format_lis, prefix_mapping,
+                                                                  positive_control_pattern,
+                                                                  negative_control_pattern)
+            current_fallback_cols = ([[run_name, run_name, run_name],
+                                      [f"Version_{__version__}",
+                                       f"Version_{__version__}",
+                                       f"Version_{__version__}"],
+                                     [barcode, barcode, barcode],
+                                     [sample_name, sample_name, sample_name]]
+                                     + lis_cols  # blank if we don't have LIS
+                                     + qc_cols
+                                     + base_cols)
+            current_fallback_names = (["run", "pipeline_version", "barcode", "prøvenummer"]
+                                      + lis_names  # blank if we don't have LIS
+                                      + qc_names
+                                      + base_names)
+            fallback_headers = pd.MultiIndex.from_arrays(current_fallback_cols,
+                                                         names=current_fallback_names)
             emu_data = pd.DataFrame(index = pd.Index(data = ["unassigned"], name = "species"),
                                     columns = fallback_headers,
                                     data = [[np.nan, np.nan, ""]])
-
         all_reports.append(emu_data)
 
     all_merged = merge_emu(all_reports)
@@ -402,13 +593,11 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
         amount_header_cols = merged_report.columns.nlevels - 1
         header_col_slice = [slice(None)] * amount_header_cols
         merged_report.loc[:, (*header_col_slice,
-                              "abundance_from_all [%]")].to_excel(outfile_writer,
-                                                              sheet_name = "abundance")
+                              "abundance")].to_excel(outfile_writer, sheet_name = "abundance")
         merged_report.loc[:, (*header_col_slice,
-                              "estimated counts")].to_excel(outfile_writer,
-                                                            sheet_name = "count")
-        notes = pd.DataFrame(index=pd.Index(merged_report.columns.get_level_values("prøvenummer").unique(),
-                                            name="Prøvenummer"),
+                              "counts")].to_excel(outfile_writer, sheet_name = "count")
+        unique_samples = merged_report.columns.get_level_values("prøvenummer").unique()
+        notes = pd.DataFrame(index=pd.Index(unique_samples, name="Prøvenummer"),
                              columns = ["notes"])
         notes.to_excel(outfile_writer, sheet_name = "notes")
 
@@ -416,6 +605,9 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description = "Combine all Emu reports in a given directory")
     arg_parser.add_argument("indir", help = "Directory containing all Emu reports to summarize")
+    arg_parser.add_argument("--base_dir",
+                            help="Base directory containing read QC data for all samples in the run"
+                                 " (default: Emu directory's parent dir)", default=None)
     arg_parser.add_argument("--outfile",
                             help = "File to write Emu results to (default: emu_summarized.xlsx)",
                             default = "emu_summarized.xlsx")
@@ -433,6 +625,10 @@ if __name__ == "__main__":
     input_dir = pathlib.Path(args.indir)
     output_file = pathlib.Path(args.outfile)
     output_file_raw = pathlib.Path(args.outfile_raw)
-    merged_emu = merge_all_in_emu_dir(input_dir, active_config = workflow_config)
+    base_dir = args.base_dir
+    if args.base_dir is None:
+        base_dir = input_dir.parent
+    base_dir = pathlib.Path(base_dir)
+    merged_emu = merge_all_in_emu_dir(input_dir, base_dir, active_config = workflow_config)
     write_to_sheets(merged_emu, output_file)
     merged_emu.to_csv(output_file_raw, sep="\t")

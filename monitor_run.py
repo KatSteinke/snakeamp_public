@@ -7,8 +7,10 @@ import pathlib
 import subprocess
 import time
 
-from typing import Any, Dict, NamedTuple, Optional, List
+from datetime import timedelta
+from typing import Any, Dict, Optional, List
 
+import helpers
 import pipeline_config
 import version
 
@@ -26,23 +28,83 @@ console_log.setLevel(logging.INFO)
 logger.addHandler(console_log)
 
 
-class AmpliconRun(NamedTuple):
+class AmpliconRun:
     """Parameters for an amplicon sequencing run.
 
     Attributes:
-        sequence_dir:   the directory containing input files for the pipeline
-        outdir:         the directory to which results should be output
-        runsheet:       the runsheet used for the run
-        configfile:     the file containing the configuration for the pipeline
-        active_config:  the configuration to use for the pipeline
-        test_run:       whether to run the pipeline in test mode (overrides config setting)
+        sequence_dir:       the directory containing input files for the pipeline
+        outdir:             the directory to which results should be output
+        runsheet:           the runsheet used for the run
+        configfile:         the file containing the configuration for the pipeline
+        active_config:      the configuration to use for the pipeline
+        outdir:             the output directory to which results should be output
+                            (inferred from experiment name if not given)
+        sequencing_time:    the expected duration of the run in hours
+                            (taken from config if not given)
+        test_run:           whether to run the pipeline in test mode (overrides config setting)
     """
-    sequence_dir: pathlib.Path
-    outdir: pathlib.Path
-    runsheet: pathlib.Path
-    configfile: pathlib.Path
-    active_config: Dict[str, Any]
-    test_run: Optional[bool] = None
+    def __init__(self, sequence_dir: pathlib.Path, runsheet: pathlib.Path, configfile: pathlib.Path,
+                 active_config: Dict[str, Any], outdir: Optional[pathlib.Path] = None,
+                 sequencing_time: Optional[float] = None,
+                 test_run: Optional[bool] = None):
+        """Initialize an AmpliconRun with the supplied parameters, setting the output dir to one
+        based on the experiment name.
+
+        Arguments:
+            sequence_dir:       the directory containing input files for the pipeline
+            runsheet:           the runsheet used for the run
+            configfile:         the file containing the configuration for the pipeline
+            active_config:      the configuration to use for the pipeline
+            outdir:             the output directory to which results should be output
+                                (inferred from experiment name if not given)
+            sequencing_time:    the expected duration of the run in hours
+                                (taken from config if not given)
+            test_run:           whether to run the pipeline in test mode (overrides config setting)
+        """
+        self.sequence_dir = sequence_dir
+        self.runsheet = runsheet
+        self.configfile = configfile
+        self.active_config = active_config
+        self.test_run = test_run
+        if outdir:
+            self.outdir = outdir
+        else:
+            self.outdir = (pathlib.Path(active_config['paths']['output_base_path'])
+                           / f"{helpers.extract_nanopore_run_name(runsheet)}"
+                             f"-{active_config['amplicon_type']}")
+        seq_time = float(active_config['seq_run_duration_hours'])
+        if sequencing_time:
+            seq_time = float(sequencing_time)
+        if seq_time < 0:
+            raise ValueError("Expected sequencing time must be greater than 0 hours.")
+        self.sequencing_time = timedelta(hours=seq_time)
+
+    def __repr__(self):
+        return (f"AmpliconRun(sequence_dir={self.sequence_dir}, runsheet={self.runsheet}, "
+                f"configfile={self.configfile}, active_config={self.active_config}, "
+                f"outdir={self.outdir}, sequencing_time={self.sequencing_time})")
+
+    def __eq__(self, other):
+        if isinstance(other, AmpliconRun):
+            return ((self.sequence_dir == other.sequence_dir
+                    and self.runsheet == other.runsheet
+                    and self.configfile == other.configfile
+                    and self.active_config == other.active_config
+                    and self.outdir == other.outdir
+                    and self.sequencing_time == other.sequencing_time
+                    and self.test_run == other.test_run))
+        return False
+
+    def __ne__(self, other):
+        if isinstance(other, AmpliconRun):
+            return (~(self.sequence_dir == other.sequence_dir
+                    and self.runsheet == other.runsheet
+                    and self.configfile == other.configfile
+                    and self.active_config == other.active_config
+                    and self.outdir == other.outdir
+                    and self.sequencing_time == other.sequencing_time
+                    and self.test_run == other.test_run))
+        return True
 
 
 def get_pipeline_command(sequencing_run: AmpliconRun) -> List[str]:
@@ -68,7 +130,7 @@ def get_pipeline_command(sequencing_run: AmpliconRun) -> List[str]:
     return nomad_command
 
 
-# convenience function to allow user to specify duration
+# allow user to specify duration
 
 def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_run: bool = False,
                         watch_interval: int = 300,
@@ -91,17 +153,19 @@ def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_ru
     """
     file_found = 0
     time_watching = 0
-    run_basedir = run_to_watch.sequence_dir / "rawdata"
+    if not run_to_watch.sequence_dir.exists():
+        raise FileNotFoundError(f"Parent directory {run_to_watch.sequence_dir} does not exist.")
+    fastq_parent_dir = helpers.get_fastq_pass_parent(run_to_watch.sequence_dir)
     # watch for presence of file
     while not (file_found or time_watching >= watch_timeout):
-        file_found = len(list(run_basedir.glob(pattern_to_watch)))
+        file_found = len(list(fastq_parent_dir.glob(pattern_to_watch)))
         if not file_found:  # TODO: we can definitely make this flow more nicely
             time_watching += watch_interval
             time.sleep(watch_interval)
     if not file_found:
         raise FileNotFoundError(f"No file matching pattern {pattern_to_watch} "
-                                f"found in {run_basedir}.")
-    logger.info(f"Found {pattern_to_watch} in {run_basedir} after {time_watching} seconds.")
+                                f"found in {fastq_parent_dir}.")
+    logger.info(f"Found {pattern_to_watch} in {fastq_parent_dir} after {time_watching} seconds.")
     # construct nomad command
     nomad_command = get_pipeline_command(run_to_watch)
     # return only string if in test mode

@@ -1,3 +1,3 @@
-cprnr.,"KØN","Alder","navn","prøvenr","afsender","Ydernr/SKSnr","afsendt","klokken","modtaget","besvaret","prøvekategori","anatomi","Bemærkninger"
-0000000000,"U","42","Testy McTestface","F99123456","O KMA","4202320","01012021","2359","02012021","02012021","Podning","Svælg/tonsil",""
-0000000000,"U","42","Testy McTestface","F99654321","O KMA","4202320","01012021","2359","02012021","02012021","Spinalvæske","",""
+cprnr.,"KØN","Alder","navn","prøvenr","afsender","Ydernr/SKSnr","afsendt","klokken","modtaget","besvaret","prøvekategori","anatomi","Bemærkninger","Grund Syg","Aktuel Diag","Indgreb","Fremmed Lgm","Indikation","Antibiotika før"
+0000000000,"U","42","Testy McTestface","F99123456","O KMA","4202320","01012021","2359","02012021","02012021","Podning","Svælg/tonsil","","","","","","en eller anden lang tekst<Break/>der ikke kan være på en linje i MADS",""
+0000000000,"U","42","Testy McTestface","F99654321","O KMA","4202320","01012021","2359","02012021","02012021","Spinalvæske","","","","","","","en eller anden lang tekst<Break/>der ikke kan være på en linje i MADS",""

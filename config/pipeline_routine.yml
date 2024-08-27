@@ -42,6 +42,13 @@ check_interval_seconds: 300
 paths:
   output_base_path: "/path/to/analysis_outputs"
 
+# quality settings - expected minimum and maximum length and average Q score
+quality_params:
+  min_length: 700
+  max_length: 1600
+  min_qscore: 15
+
+
 databases:
   emu_db: /path/to/emu_db
   human_reads: /path/to/human_reads

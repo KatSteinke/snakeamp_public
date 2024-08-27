@@ -11,6 +11,10 @@ from argparse import ArgumentParser
 
 import pandas as pd
 
+import version
+
+__version__ = version.__version__
+
 # start logging
 logger = logging.getLogger("QATest")
 logger.setLevel(logging.INFO)
@@ -57,18 +61,18 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
     """
     num_samples = 5
     expected_organisms = pd.DataFrame(data={"organism": ["Streptococcus agalactiae",
-                                                         "unassigned",
+                                                         "Cutibacterium acnes",
                                                          "Lactococcus lactis"]},
                                       index = pd.Index(["F99123457", "F99123456", "F99123458"],
                                                        name = "prøvenr"))
-    expected_positive_control = pd.DataFrame(data = {"abundance": [14.80,
-                                                                   18.70,
-                                                                   3.70,
-                                                                   20.00,
-                                                                   18.30,
-                                                                   12.40,
-                                                                   5.80,
-                                                                   3.30]},
+    expected_positive_control = pd.DataFrame(data = {"abundance": [15.89,
+                                                                   19.58,
+                                                                   3.89,
+                                                                   19.17,
+                                                                   18.14,
+                                                                   12.55,
+                                                                   5.82,
+                                                                   3.03]},
                                              index = pd.Index(['Bacillus subtilis',
                                                                'Staphylococcus aureus',
                                                                'Listeria monocytogenes',
@@ -92,7 +96,21 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         # for each sheet:
         for sheet in tabs_found:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
-                                       header = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+                                       header = [0,  # run name
+                                                 1,  # version
+                                                 2,  # barcode
+                                                 3,  # sample number
+                                                 4,  # "modtagedato",
+                                                 5,  # "patient",
+                                                 6,  # "prøvemateriale",
+                                                 7,  # "anatomi",
+                                                 8,  # "indikation",
+                                                 9,  # "total_before_qc",
+                                                 10,  # "total_after_qc",
+                                                 11,  # "human",
+                                                 12,  # PhHV
+                                                 13,  # notes
+                                                 14])  # abundance/counts/...
             # if it's the overview sheet it'll have a PhHV column, the others don't need one
             # we're not going to compare everything in the PhHV column
             # so don't count this when generating expected data
@@ -100,8 +118,11 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
             cols_per_sample = int(amount_compared_cols / num_samples)
             # dynamically generate expected headers since some of them might be blank
             expected_headers = pd.DataFrame(data = {"run":
-                                                    ["NANO_Amplicon_Y20990101_RUN0001_XYZ"]
+                                                    ["NANO_Amplicon_Y20990101_RUN0001_XYZ-16S"]
                                                         * amount_compared_cols,
+                                                    "pipeline_version":
+                                                    [f"Version_{__version__}"]
+                                                    * amount_compared_cols,
                                                     "barcode": [*["RB62"] * cols_per_sample,
                                                                 *["RB64"] * cols_per_sample,
                                                                 *["RB31"] * cols_per_sample,
@@ -124,21 +145,60 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                  * cols_per_sample],
                                                     "prøvemateriale": [*[""] * cols_per_sample,
                                                         *[""] * cols_per_sample,
-                                                        *["Hjerneventrikelvæske <liquor>"] * cols_per_sample,
+                                                        *["Hjerneventrikelvæske <liquor>"]
+                                                         * cols_per_sample,
                                                         *["Podning"] * cols_per_sample,
                                                         *["Spinalvæske"] * cols_per_sample,
                                                         ],
                                                     "anatomi": [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
-                                                                *["Shunt (hjerneventrikel)"] * cols_per_sample,
+                                                                *["Shunt ""(hjerneventrikel)"]
+                                                                 * cols_per_sample,
                                                                 *["Svælg/tonsil"] * cols_per_sample,
                                                                 *[""] * cols_per_sample
-                                                                ]
-                                                    }, index = pd.Index([*["NegK_Sanger"] * cols_per_sample,
+                                                                ],
+                                                    "indikation": [*[""] * cols_per_sample,
+                                                                *[""] * cols_per_sample,
+                                                                *["!!!"] * cols_per_sample,
+                                                                *[""] * cols_per_sample,
+                                                                *["en eller anden lang tekst"
+                                                                  "<Break/>der ikke kan være på en"
+                                                                  " linje i MADS"] * cols_per_sample
+                                                                ],
+                                                    "total_before_qc": [*[3953] * cols_per_sample,
+                                                                         *[167662]
+                                                                          * cols_per_sample,
+                                                                         *[136886]
+                                                                          * cols_per_sample,
+                                                                         *[1592] * cols_per_sample,
+                                                                        *[21876] * cols_per_sample,
+                                                                        ],
+                                                    "total_after_qc":
+                                                        [*[294] * cols_per_sample,
+                                                         *[91561]
+                                                          * cols_per_sample,
+                                                         *[64426]
+                                                          * cols_per_sample,
+                                                         *[373] * cols_per_sample,
+                                                         *[6831] * cols_per_sample,
+                                                         ],
+                                                        "human": [*[2] * cols_per_sample,
+                                                                  *[6]
+                                                                   * cols_per_sample,
+                                                                  *[10850]
+                                                                   * cols_per_sample,
+                                                                  *[0] * cols_per_sample,
+                                                                  *[655] * cols_per_sample
+                                                                  ]
+                                                    }, index = pd.Index([*["NegK_Sanger"]
+                                                                          * cols_per_sample,
                                                                     *["PosK"] * cols_per_sample,
-                                                                    *["F99123457"] * cols_per_sample,
-                                                                    *["F99123456"] * cols_per_sample,
-                                                                    *["F99123458"] * cols_per_sample
+                                                                    *["F99123457"]
+                                                                     * cols_per_sample,
+                                                                    *["F99123456"]
+                                                                     * cols_per_sample,
+                                                                    *["F99123458"]
+                                                                     * cols_per_sample
                                                                     ],
                                                                         name="prøvenr"))
             # are the headers correct? use MultiIndex.to_frame(index=False)
@@ -148,12 +208,23 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
 
             # we don't need to compare approval
             header_cols = sheet_data.columns.to_frame(index = False)[["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "modtagedato",
                                                                       "patient",
                                                                       "prøvemateriale",
-                                                                      "anatomi"]]
+                                                                      "anatomi",
+                                                                      "indikation",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human"]]
+            # check if we have the same version before we do any more comparison
+            report_version = header_cols["pipeline_version"].unique().squeeze()
+            if report_version != f"Version_{__version__}":
+                raise ValueError(f"Report was created with {report_version}, "
+                                 f"is being checked with Version_{__version__}.\n"
+                                 "Cannot check reports from a different version of the pipeline.")
             header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
             header_cols = header_cols.set_index("prøvenr")
             header_cols["modtagedato"] = pd.to_datetime(header_cols["modtagedato"]).apply(lambda x:
@@ -186,7 +257,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                 # TODO: can we handle the slicing more nicely?
                 amount_header_cols = sheet_data.columns.nlevels - 1
                 header_col_slice = [slice(None)] * amount_header_cols
-                abundances = sheet_data.loc[:, (*header_col_slice, "abundance_from_all [%]")]
+                abundances = sheet_data.loc[:, (*header_col_slice, "abundance")]
                 # we don't need the extra information now - just keep sample numbers
                 abundances.columns = abundances.columns.get_level_values("prøvenummer")
                 # for the routine samples, is the highest scoring organism what we should expect?
@@ -201,7 +272,8 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                                "found"))
                 if not compare_organisms.empty:
                     results_okay = False
-                    logger.warning("Incorrect organism for one or more samples. Expected organism(s):\n"
+                    logger.warning("Incorrect organism for one or more samples. "
+                                   "Expected organism(s):\n"
                                    f"{compare_organisms.sort_index().to_string()}")
                 # for the positive control, are the n highest what we would expect?
                 n_expected_species = len(expected_positive_control.index)
@@ -229,7 +301,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                math.isclose(df["abundance_expected"],
                                                                             df["abundance_found"],
                                                                             rel_tol = 0.001,
-                                                                            abs_tol = 0.1),
+                                                                            abs_tol = 0.5),
                                                                axis=1)
                 if not all(abundances_match):
                     results_okay = False

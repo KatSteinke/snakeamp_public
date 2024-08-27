@@ -2,8 +2,7 @@ name: nanopore_qc_env
 channels:
   - bioconda
   - conda-forge
-  - defaults
 dependencies:
   - filtlong=0.2.1
+  - nanostat=1.6.0
   - pigz
-  - seqtk=1.3
