@@ -11,6 +11,10 @@ from argparse import ArgumentParser
 
 import pandas as pd
 
+import version
+
+__version__ = version.__version__
+
 # start logging
 logger = logging.getLogger("QATest")
 logger.setLevel(logging.INFO)
@@ -92,7 +96,21 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
         # for each sheet:
         for sheet in tabs_found:
             sheet_data = pd.read_excel(report_sheet, sheet_name = sheet, index_col = 0,
-                                       header = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+                                       header = [0,  # run name
+                                                 1,  # version
+                                                 2,  # barcode
+                                                 3,  # sample number
+                                                 4,  # "modtagedato",
+                                                 5,  # "patient",
+                                                 6,  # "prøvemateriale",
+                                                 7,  # "anatomi",
+                                                 8,  # "indikation",
+                                                 9,  # "total_before_qc",
+                                                 10,  # "total_after_qc",
+                                                 11,  # "human",
+                                                 12,  # PhHV
+                                                 13,  # notes
+                                                 14])  # abundance/counts/...
             # if it's the overview sheet it'll have a PhHV column, the others don't need one
             # we're not going to compare everything in the PhHV column
             # so don't count this when generating expected data
@@ -102,6 +120,9 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
             expected_headers = pd.DataFrame(data = {"run":
                                                     ["NANO_Amplicon_Y20990101_RUN0001_XYZ-16S"]
                                                         * amount_compared_cols,
+                                                    "pipeline_version":
+                                                    [f"Version_{__version__}"]
+                                                    * amount_compared_cols,
                                                     "barcode": [*["RB62"] * cols_per_sample,
                                                                 *["RB64"] * cols_per_sample,
                                                                 *["RB31"] * cols_per_sample,
@@ -187,6 +208,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
 
             # we don't need to compare approval
             header_cols = sheet_data.columns.to_frame(index = False)[["run",
+                                                                      "pipeline_version",
                                                                       "barcode",
                                                                       "prøvenummer",
                                                                       "modtagedato",
@@ -197,6 +219,12 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                       "total_before_qc",
                                                                       "total_after_qc",
                                                                       "human"]]
+            # check if we have the same version before we do any more comparison
+            report_version = header_cols["pipeline_version"].unique().squeeze()
+            if report_version != f"Version_{__version__}":
+                raise ValueError(f"Report was created with {report_version}, "
+                                 f"is being checked with Version_{__version__}.\n"
+                                 "Cannot check reports from a different version of the pipeline.")
             header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
             header_cols = header_cols.set_index("prøvenr")
             header_cols["modtagedato"] = pd.to_datetime(header_cols["modtagedato"]).apply(lambda x:

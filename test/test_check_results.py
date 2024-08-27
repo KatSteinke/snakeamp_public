@@ -1,5 +1,10 @@
+import io
 import pathlib
+import re
 import unittest
+
+from unittest import mock
+from unittest.mock import PropertyMock
 
 import pandas as pd
 import pytest
@@ -43,25 +48,39 @@ class TestCheckFilePresence(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_files
 
-
+@mock.patch(f"{check_results.__name__}.__version__")
 class TestCheckEmuResults(unittest.TestCase):
-    def test_all_good(self):
+    def test_fail_version_mismatch(self, mock_version):
+        """Fail if a report is being checked with a different version of the pipeline than the
+        one that generated it."""
+        mock_version.__str__.return_value = "0.4.2"
+        test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
+                       / "RUN0001_bad_version_emu-combined.xlsx")
+        error_msg = ("Report was created with Version_1.2.3, is being checked with Version_0.4.2.\n"
+                     "Cannot check reports from a different version of the pipeline.")
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            check_results.check_emu_result_file(test_report)
+
+    def test_all_good(self, mock_version):
         """Don't complain for an Emu report without any issues."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir"
                        / "RUN0001_emu-combined.xlsx")
         check_report = check_results.check_emu_result_file(test_report)
         assert check_report
 
-    def test_success_minor_abundance_diff(self):
+    def test_success_minor_abundance_diff(self, mock_version):
         """Report success if there is a small difference in abundance in the positive control
         (<0.5 percent points)."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_minor_diff_emu-combined.xlsx")
         check_report = check_results.check_emu_result_file(test_report)
         assert check_report
 
-    def test_warn_missing_tabs(self):
+    def test_warn_missing_tabs(self, mock_version):
         """Complain if one or more of the output sheets are missing."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_missing_tab_emu-combined.xlsx")
         warn_msg = ("WARNING:QATest:Tab(s) ['abundance', 'count'] not found in Emu report. "
@@ -71,8 +90,9 @@ class TestCheckEmuResults(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_report
 
-    def test_warn_wrong_header(self):
+    def test_warn_wrong_header(self, mock_version):
         """Warn if the header rows don't match what is expected."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_header_emu-combined.xlsx")
         mismatch_header = pd.MultiIndex.from_arrays([["anatomi", "anatomi"],
@@ -88,8 +108,9 @@ class TestCheckEmuResults(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_report
 
-    def test_warn_broken_header(self):
+    def test_warn_broken_header(self, mock_version):
         """Warn if the format of the header differs from the expected format."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_cols_emu-combined.xlsx")
         cols_per_sample = 3
@@ -101,6 +122,7 @@ class TestCheckEmuResults(unittest.TestCase):
                                    ],
                                   name = "prøvenr")
         expected_cols = pd.Index(["run",
+                                  "pipeline_version",
                                   "barcode",
                                   "modtagedato",
                                   "patient",
@@ -118,6 +140,7 @@ class TestCheckEmuResults(unittest.TestCase):
                                 ],
                                name = "prøvenr")
         found_cols = pd.Index(["run",
+                               "pipeline_version",
                                "barcode",
                                "modtagedato",
                                "patient",
@@ -139,8 +162,9 @@ class TestCheckEmuResults(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_report
 
-    def test_warn_wrong_organism_main_tab(self):
+    def test_warn_wrong_organism_main_tab(self, mock_version):
         """Warn if one of the test samples isn't the organism we expect it to be (overview tab)."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_organism_main_emu-combined.xlsx")
         mismatch_header = pd.MultiIndex.from_arrays([["organism", "organism"],
@@ -161,8 +185,9 @@ class TestCheckEmuResults(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_report
 
-    def test_warn_wrong_positive_control_main(self):
+    def test_warn_wrong_positive_control_main(self, mock_version):
         """Warn if the positive control does not contain the expected species (overview tab)."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_positive_control_main_emu-combined.xlsx")
         warn_msg = ("WARNING:QATest:Positive control should contain "
@@ -189,9 +214,10 @@ class TestCheckEmuResults(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_report
 
-    def test_warn_wrong_abundance_main(self):
+    def test_warn_wrong_abundance_main(self, mock_version):
         """Warn if the relative abundance of positive control organisms varies too much
         from what is expected (overview tab)."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_abundance_main_emu-combined.xlsx")
         expected_data = pd.DataFrame(data = {"expected": [19.17],
@@ -206,8 +232,9 @@ class TestCheckEmuResults(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_report
 
-    def test_multiple_mismatches_one_sample(self):
+    def test_multiple_mismatches_one_sample(self, mock_version):
         """Report on multiple issues with one samples."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_positive_control_abundance_main_emu-combined.xlsx")
         wrong_organism = ("WARNING:QATest:Positive control should contain "
@@ -242,8 +269,9 @@ class TestCheckEmuResults(unittest.TestCase):
             assert wrong_abundance in logged.output
         assert not check_report
 
-    def test_multi_sample_mismatches(self):
+    def test_multi_sample_mismatches(self, mock_version):
         """Report on multiple issues with multiple samples."""
+        mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_multi_fail_main_emu-combined.xlsx")
         mismatch_header = pd.MultiIndex.from_arrays([["organism", "organism"],
@@ -264,9 +292,11 @@ class TestCheckEmuResults(unittest.TestCase):
         assert not check_report
 
 
+@mock.patch(f"{check_results.__name__}.__version__")
 class TestCheckAllQC(unittest.TestCase):
-    def test_warn_missing_files(self):
+    def test_warn_missing_files(self, mock_version):
         """Warn if there are missing files."""
+        mock_version.__str__.return_value = "0.4.2"
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "empty_dir"
         warn_msg = "WARNING:QATest:Emu report is missing. Cannot evaluate Emu results."
         with self.assertLogs("QATest") as logged:
@@ -274,8 +304,9 @@ class TestCheckAllQC(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_files
 
-    def test_warn_wrong_results(self):
+    def test_warn_wrong_results(self, mock_version):
         """Warn if any results differ from the expected results."""
+        mock_version.__str__.return_value = "0.4.2"
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "bad_emu_dir"
         expected_data = pd.DataFrame(data = {"expected": [19.17],
                                              "found": [25.00]},
@@ -289,8 +320,9 @@ class TestCheckAllQC(unittest.TestCase):
             assert warn_msg in logged.output
         assert not check_report
 
-    def test_success(self):
+    def test_success(self, mock_version):
         """Report success if all checks pass."""
+        mock_version.__str__.return_value = "0.4.2"
         test_dir = pathlib.Path(__file__).parent / "data"/"check_results"/"success_emu_dir"
         success_msg = "INFO:QATest:All QC checks passed"
         with self.assertLogs("QATest") as logged:
