@@ -1,0 +1,32 @@
+### Sheet and column name settings for input data ###
+### Suggested Danish version ###
+# !!!!! NOTE !!!!!
+# LIS column names will likely have to be altered to match output from your LIS
+
+# metadata "runsheet" - required
+run_sheet:
+  # name of sheet with sample information
+  # columns in sheet with sample information
+  sample_number: "Prøvenummer"
+  barcode: "Barkode"
+  experiment_name: "RUNxxxx-INI"
+  amplicon_type: "Analyse"
+
+# data from LIS - optional
+# TODO: adapt to existing
+lis_columns:
+  sample_number: "prv_nr"
+  # sample type (as part of unique sample identifier)
+  sample_type: "p_type"
+  # isolate number (as part of unique isolate identifier)
+  isolate_number: "bakt_nr"
+    # patient identifier
+  patient_id: "cpr"
+  # date the sample was received
+  date_received: "modtaget"
+  # sample material
+  material: "lokal_mat_tekst"
+  # anatomical site sampled
+  anatomy: "lokal_anat_tekst"
+  # sampling indication
+  indication: "indikation"

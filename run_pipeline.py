@@ -26,6 +26,7 @@ import yaml
 
 import check_runsheet
 import helpers
+import input_names
 import monitor_run
 import pipeline_config
 import set_log
@@ -37,6 +38,8 @@ __version__ = version.__version__
 # import parameters
 DEFAULT_CONFIG_FILE = pipeline_config.default_config_file
 WORKFLOW_CONFIG = pipeline_config.WORKFLOW_DEFAULT_CONF
+
+sheet_names, lis_names = input_names.load_input_from_config(WORKFLOW_CONFIG)
 
 # start logging
 # TODO: capture warnings etc
@@ -56,12 +59,14 @@ class BadPathError(Exception):
 
 # read runsheet
 def process_runsheet(runsheet_path: pathlib.Path,
+                     runsheet_names: input_names.RunsheetNames = sheet_names,
                      active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> pd.DataFrame:
     """Read a runsheet, filter it down to the samples for which the analysis specified in config
     should be performed and check the format.
 
     Arguments:
         runsheet_path:  the path to the runsheet to process
+        runsheet_names: column names in the runsheet
         active_config:  the config in use
 
     Returns:
@@ -71,14 +76,15 @@ def process_runsheet(runsheet_path: pathlib.Path,
         KeyError:   if there are no samples for which the analysis should be performed
     """
     run_data = pd.read_excel(runsheet_path, usecols = "A:D", skiprows = 3,  # don't check CP for now
-                             dtype = {"Prøvenummer": str, "Eluat nr.": str})
-    run_data = run_data.dropna(subset = "Prøvenummer")
+                             dtype = {runsheet_names.sample_number: str, "Eluat nr.": str})
+    run_data = run_data.dropna(subset = runsheet_names.sample_number)
     # filter down to correct analysis
-    run_data = run_data[run_data["Analyse"] == active_config["amplicon_type"]]
+    run_data = run_data.query(f"{runsheet_names.amplicon_type} == @active_config['amplicon_type']")
     if run_data.empty:
         raise KeyError(f"No samples with amplicon type {active_config['amplicon_type']} "
                        "found in runsheet")
     check_runsheet.check_sheet_format(run_data, check_barcodes = True,
+                                      runsheet_names = runsheet_names,
                                       active_config = active_config)
     return run_data
 
@@ -434,6 +440,7 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
         config_file = pathlib.Path(args.workflow_config_file).resolve()
         with open(config_file, "r", encoding = "utf-8") as read_config:
             active_config = yaml.safe_load(read_config)
+    runsheet_names, lis_report_names = input_names.load_input_from_config(active_config)
     manual_mode = check_if_classic_mode(args, arg_parser,
                                         classic_mode_args = ["workflow_config_file"])
 
@@ -454,11 +461,14 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
         current_run = initialize_commandline_run(args, active_config, config_file)
 
     # check runsheet
-    runsheet_data = process_runsheet(current_run.runsheet, active_config)
+    runsheet_data = process_runsheet(current_run.runsheet,  runsheet_names = runsheet_names,
+                                     active_config = active_config)
     # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_report = active_config["lab_info_system"]["lis_report"]
-        check_runsheet.check_against_lis(runsheet_data, lis_report, active_config = active_config)
+        check_runsheet.check_against_lis(runsheet_data, lis_report, runsheet_names = runsheet_names,
+                                         lis_report_names = lis_report_names, active_config = active_config)
+
 
     # manual mode has set up the output dir, commandline may still have to
     if args.outdir:  # can only be given in commandline mode

@@ -8,11 +8,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import input_names
 import summarize_emu
 
 
 class TestGetLISData(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format":
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format":
                                                       r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                   "format_in_sheet":
                                                       r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -36,6 +39,7 @@ class TestGetLISData(unittest.TestCase):
     lis_data = pd.read_csv(workflow_config["lab_info_system"]["lis_report"],
                            encoding = "latin1", dtype = {"modtaget": str,
                                                          "cprnr.": str})
+    sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
 
     def test_fail_missing_number(self):
         """Fail if the sample number cannot be found in the LIS report."""
@@ -43,7 +47,8 @@ class TestGetLISData(unittest.TestCase):
         error_msg = ("Sample number F99123457 (original number: 1199123457-0)"
                      " not found in LIS report.")
         with pytest.raises(KeyError, match = re.escape(error_msg)):
-            summarize_emu.get_lis_information(sample_number, self.lis_data, self.workflow_config)
+            summarize_emu.get_lis_information(sample_number, self.lis_data, self.lis_names,
+                                              self.workflow_config)
 
     def test_get_data_success(self):
         """Correctly retrieve and convert data from LIS report."""
@@ -56,6 +61,7 @@ class TestGetLISData(unittest.TestCase):
                                                             "der ikke kan være på en linje i MADS"]})
         sample_number = "1199123456-0"
         test_result = summarize_emu.get_lis_information(sample_number, self.lis_data,
+                                                        self.lis_names,
                                                         self.workflow_config)
         pd.testing.assert_frame_equal(expected_result, test_result)
 
@@ -74,6 +80,7 @@ class TestGetLISData(unittest.TestCase):
                                encoding = "latin1", dtype = {"modtaget": str,
                                                              "cprnr.": str})
         test_result = summarize_emu.get_lis_information(sample_number, lis_data,
+                                                        self.lis_names,
                                                         self.workflow_config)
         pd.testing.assert_frame_equal(expected_result, test_result)
 
@@ -87,6 +94,7 @@ class TestGetLISData(unittest.TestCase):
                                              "indikation": [""]})
         sample_number = "NegK"
         test_result = summarize_emu.get_lis_information(sample_number, self.lis_data,
+                                                        self.lis_names,
                                                         self.workflow_config)
         pd.testing.assert_frame_equal(expected_result, test_result)
 
@@ -98,6 +106,7 @@ class TestGetLISData(unittest.TestCase):
                                                  "indikation": [""]})
         sample_number = "PosK"
         positive_test = summarize_emu.get_lis_information(sample_number, self.lis_data,
+                                                          self.lis_names,
                                                           self.workflow_config)
         pd.testing.assert_frame_equal(positive_expected, positive_test)
 
@@ -115,13 +124,16 @@ class TestGetLISData(unittest.TestCase):
                                                "indikation": [""]})
         sample_number = "1199123456-0"
         test_result = summarize_emu.get_lis_information(sample_number, lis_data,
+                                                        self.lis_names,
                                                         self.workflow_config)
         pd.testing.assert_frame_equal(expected_result, test_result)
 
 
 
 class TestGetNameComponents(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",
@@ -186,7 +198,7 @@ class TestGetNameComponents(unittest.TestCase):
         assert expected_negk_run == test_components.run_name
         assert expected_negk_name == test_components.sample_name
         assert expected_negk_barcode == test_components.barcode
-        
+
         # and now with one that overlaps with the sample format
         tricky_negk_name_test = "kørsel0001-Y20231009-16S_NegK__barcode01_RB01_rel-abundance.tsv"
         expected_tricky_negk_run = "kørsel0001-Y20231009-16S"
@@ -214,11 +226,14 @@ class TestGetReadQC(unittest.TestCase):
 
 
 class TestExtractCounts(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": False}}
+    sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
     base_dir = pathlib.Path(
         __file__).parent / "data" / "summarize_emu" / "result_base_dir"
     version_text = f"Version_{summarize_emu.__version__}"
@@ -237,7 +252,7 @@ class TestExtractCounts(unittest.TestCase):
                     " Sample name components could not be extracted."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                     self.workflow_config)
+                                                     active_config = self.workflow_config)
 
     def test_bad_sample_name(self):
         """Ensure the function complains if the name doesn't match the expected sample name format
@@ -250,7 +265,7 @@ class TestExtractCounts(unittest.TestCase):
                     " Sample name components could not be extracted."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                     self.workflow_config)
+                                                     active_config = self.workflow_config)
 
     def test_fail_wrong_abundance(self):
         """Ensure a relative abundance that does not sum to 100% (suggesting a corrupted file)
@@ -261,7 +276,7 @@ class TestExtractCounts(unittest.TestCase):
                     "This suggests the result file is broken (missing/extra lines)."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                     self.workflow_config)
+                                                     active_config = self.workflow_config)
 
     def test_fail_wrong_abundance_single_taxid(self):
         """Ensure a relative abundance that does not sum to 100% (suggesting a corrupted file)
@@ -272,7 +287,7 @@ class TestExtractCounts(unittest.TestCase):
                     "This suggests the result file is broken (missing/extra lines)."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                     self.workflow_config)
+                                                     active_config = self.workflow_config)
 
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
@@ -316,7 +331,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                self.workflow_config)
+                                                                active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_get_counts_success_short_name(self):
@@ -361,7 +376,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                self.workflow_config)
+                                                                active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_failed_sample_success(self):
@@ -406,7 +421,7 @@ class TestExtractCounts(unittest.TestCase):
         log_msg = "All reads for sample barcode01 are unassigned."
         with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                    self.workflow_config)
+                                                                    active_config = self.workflow_config)
             assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results)
 
@@ -458,7 +473,7 @@ class TestExtractCounts(unittest.TestCase):
         log_msg = "All reads for sample 1199123456-1 are unassigned."
         with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                    workflow_config)
+                                                                    active_config = workflow_config)
 
         assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results, check_dtype = False)
@@ -506,7 +521,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                self.workflow_config)
+                                                                active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_isolate_number(self):
@@ -560,12 +575,14 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_get_data_from_lis(self):
         """Optionally add metadata from LIS"""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -587,6 +604,7 @@ class TestExtractCounts(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = (pathlib.Path(
             __file__).parent / "data" / "summarize_emu"
                        / "RUN0001_F99123456-0_RB01_rel-abundance.tsv")
@@ -646,12 +664,15 @@ class TestExtractCounts(unittest.TestCase):
                                                                       None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                lis_report_names = lis_names,
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_translate_number(self):
         """Translate the sample number if needed"""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -673,6 +694,7 @@ class TestExtractCounts(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = (pathlib.Path(
             __file__).parent / "data" / "summarize_emu"
                        / "RUN0001_1199123456-0_RB01_rel-abundance.tsv")
@@ -733,12 +755,15 @@ class TestExtractCounts(unittest.TestCase):
                                                                       None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                lis_report_names = lis_names,
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_control_material(self):
         """Insert blank "material" for controls"""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -760,6 +785,7 @@ class TestExtractCounts(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
@@ -816,7 +842,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                lis_report_names = lis_names,
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_negative_control(self):
@@ -870,7 +897,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_positive_control(self):
@@ -923,7 +950,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
 
@@ -1590,7 +1617,9 @@ class TestSortColumns(unittest.TestCase):
 
 
 class TestMergeEmuDir(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",
@@ -2009,7 +2038,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
     def test_handle_broken_with_lis(self):
         """Ensure that an invalid file is handled properly when using LIS data"""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2031,6 +2062,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "one_broken_lis"
         expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
@@ -2129,6 +2161,7 @@ class TestMergeEmuDir(unittest.TestCase):
                   "Empty results will be added to the merged summary."
         with self._caplog.at_level(logging.ERROR, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                             lis_report_names = lis_names,
                                                              active_config = workflow_config)
             assert ("summarize_emu", logging.ERROR, log_msg) in self._caplog.record_tuples
 
@@ -2136,7 +2169,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
     def test_merge_different_format_with_controls(self):
         """Ensure samples with different formats and controls are handled properly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "positive_control": {},
                                                       "negative_control": "NegK"},
@@ -2144,7 +2179,7 @@ class TestMergeEmuDir(unittest.TestCase):
                            "lab_info_system": {"use_lis_features": False}}
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "merge_different_format")
-
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
                            [75.00, 15, np.nan, 75.00, 15, np.nan],
                            [5.00, 1, np.nan, 5.00, 1, np.nan]]
@@ -2196,12 +2231,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_multi_sort_with_controls(self):
         """Ensure non-control samples are sorted by barcode."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "positive_control": {},
                                                       "negative_control": "NegK"},
@@ -2287,7 +2325,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
     def test_handle_blank(self):
         """Handle a blank sample file."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2309,6 +2349,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_one_empty"
 
@@ -2440,13 +2481,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
-
     def test_handle_multi_blank(self):
         """Handle multiple blank sample files."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2468,6 +2511,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_two_empty"
 
@@ -2599,12 +2643,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_merge_and_get_material(self):
         """Get sample material for all samples."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2626,6 +2673,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "merge_different_format")
 
@@ -2722,12 +2770,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_get_different_patients(self):
         """Ensure samples from different patients are reported correctly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2749,6 +2800,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_patients.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
 
@@ -2847,12 +2899,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_get_different_patients_different_runs(self):
         """Ensure samples from different patients from different runs are reported correctly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2874,6 +2929,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_patients.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "multi_run_patients"
 
@@ -2972,12 +3028,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_get_same_patient(self):
         """Ensure samples from the same patient are reported correctly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2999,6 +3058,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
 
@@ -3097,12 +3157,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_shorten_run_name(self):
         """Ensure run name is shortened properly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -3124,6 +3187,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_shorten_name"
 
@@ -3222,12 +3286,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_handle_new_format(self):
         """Ensure run names without zero padding are handled properly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -3249,6 +3316,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_short_run_name"
 
@@ -3347,12 +3415,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_handle_broken_run_name(self):
         """Ensure a run name not matching the expected format is handled."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -3374,6 +3445,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_broken_run_name"
 
@@ -3472,6 +3544,7 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -3846,7 +3919,9 @@ class TestSummarizeEmu(unittest.TestCase):
     test_tab = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                   / "test_results_summary.tsv")
     version_text = f"Version_{summarize_emu.__version__}"
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",

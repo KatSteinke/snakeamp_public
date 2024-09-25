@@ -1,0 +1,6 @@
+"patient_id","sex","age","name","SAMPLENR","sender","Ydernr/SKSnr","sent","time","received","answered","sample_category","anatomy","Notes"
+0000000000,"U","42","Testy McTestface","F21710000","O KMA","4202320","01012021","2359","02012021","02012021","Podning","Svælg/tonsil",""
+0000000000,"U","42","Testy McTestface","F21700000","O KMA","4202320","01012021","2359","02012021","02012021","Podning","Svælg/tonsil",""
+0000000000,"U","42","Testy McTestface","F21710000","O KMA","4202320","01012021","2359","02012021","02012021","Podning","Svælg/tonsil",""
+0000000000,"U","42","Testy McTestface","F21700000","O KMA","4202320","01012021","2359","02012021","02012021","Podning","Svælg/tonsil",""
+0000000000,"U","42","Testy McTestface","F22000000","O KMA","4202320","01012022","2359","02012022","02012022","Podning","Svælg/tonsil",""

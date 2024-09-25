@@ -17,6 +17,7 @@ from datetime import timedelta
 from typing import Any, Dict, Optional, List
 
 import helpers
+import input_names
 import pipeline_config
 import version
 
@@ -77,8 +78,9 @@ class AmpliconRun:
         if outdir:
             self.outdir = outdir
         else:
+            _runsheet_names, _lis_names = input_names.load_input_from_config(active_config)
             self.outdir = (pathlib.Path(active_config['paths']['output_base_path'])
-                           / f"{helpers.extract_nanopore_run_name(runsheet)}"
+                           / f"{helpers.extract_nanopore_run_name(runsheet, _runsheet_names)}"
                              f"-{active_config['amplicon_type']}")
         seq_time = float(active_config['seq_run_duration_hours'])
         if sequencing_time:

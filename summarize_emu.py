@@ -25,6 +25,7 @@ import pandas as pd
 import yaml
 
 import helpers
+import input_names
 import pipeline_config
 import set_log
 import version
@@ -34,18 +35,22 @@ __version__ = version.__version__
 default_config_file = pipeline_config.default_config_file
 workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
+sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
+
 logger = logging.getLogger("summarize_emu")
 
 
 def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
+                        lis_report_names: input_names.LISDataNames = lis_names,
                         active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
     """Get sample information from LIS (date received, sample category and anatomy).
 
     Arguments:
-        sample_number:  the sample number to look up in the LIS
-        lis_report:     a report from the LIS giving sample date ("modtagedato"),
-                        category ("prøvekategori") and anatomical location ("anatomi").
-        active_config:  the config file to use
+        sample_number:      the sample number to look up in the LIS
+        lis_report:         a report from the LIS giving sample date, category
+                            and anatomical location.
+        lis_report_names:   the column names in the LIS report
+        active_config:      the config file to use
 
     Returns:
         Date received, sample category and anatomical location for the sample (blank for a control).
@@ -58,7 +63,7 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
         active_config["sample_number_settings"]["negative_control"],
         active_config["sample_number_settings"]["positive_control"])
     sample_information = pd.DataFrame(data = {"patient": [""],
-                                              "prøvenr": [sample_number],
+                                              lis_report_names.sample_number: [sample_number],
                                               "modtagedato": [""],
                                               "prøvemateriale": [""],
                                               "anatomi": [""],
@@ -80,22 +85,25 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
                                                          sample_format_lis, prefix_mapping,
                                                          positive_control_pattern,
                                                          negative_control_pattern)
-        if name_translate not in lis_report["prøvenr"].tolist():
+        if name_translate not in lis_report[lis_report_names.sample_number].tolist():
             error_msg = (f"Sample number {name_translate} (original number: {sample_number}) "
                          "not found in LIS report.")
             raise KeyError(error_msg)
-        sample_information = lis_report[lis_report["prøvenr"] == name_translate]
-        sample_information = sample_information.reindex(columns = ["cprnr.",
-                                                                   "prøvenr",
-                                                                   "modtaget",
-                                                                   "prøvekategori",
-                                                                   "anatomi",
-                                                                   "Indikation"])
-        sample_information = sample_information.rename(columns = {"modtaget": "modtagedato",
-                                                                  "prøvekategori":
+        sample_information = lis_report.loc[lis_report[lis_report_names.sample_number] == name_translate]
+        sample_information = sample_information.reindex(columns = [lis_report_names.patient_id,
+                                                                   lis_report_names.sample_number,
+                                                                   lis_report_names.date_received,
+                                                                   lis_report_names.material,
+                                                                   lis_report_names.anatomy,
+                                                                   lis_report_names.indication])
+        sample_information = sample_information.rename(columns = {lis_report_names.date_received:
+                                                                      "modtagedato",
+                                                                  lis_report_names.material:
                                                                       "prøvemateriale",
-                                                                  "cprnr.": "patient",
-                                                                  "Indikation": "indikation"})
+                                                                  lis_report_names.patient_id:
+                                                                      "patient",
+                                                                  lis_report_names.indication:
+                                                                      "indikation"})
         sample_information["modtagedato"] = sample_information["modtagedato"].apply(lambda x:
                                                                               datetime.strptime(x,
                                                                                         "%d%m%Y").strftime("%Y-%m-%d"))
@@ -247,15 +255,17 @@ def extract_name_components(report_name: str, active_config: Dict[str, Any] = wo
 
 
 def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
+                               lis_report_names: input_names.LISDataNames=lis_names,
                                active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
     """Extract estimated species counts from Emu output (with estimated counts, --keep_counts)
      and recalculate read percentage to include unclassified reads.
      If LIS data is to be used, sample material is added from the LIS report.
 
     Arguments:
-        emu_counts:     the path to Emu's SAMPLE_rel-abundance.tsv file
-        base_dir:       the base directory for all pipeline results
-        active_config:  the config file to use
+        emu_counts:         the path to Emu's SAMPLE_rel-abundance.tsv file
+        base_dir:           the base directory for all pipeline results
+        lis_report_names:   the column names in the LIS report
+        active_config:      the config file to use
 
 
     Returns:
@@ -327,6 +337,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
                                encoding = "latin1", dtype = {"modtaget": str,
                                                              "cprnr.": str})
         data_from_lis = get_lis_information(sample_name_components.sample_name, lis_data,
+                                            lis_report_names,
                                             active_config)
         # rename sample number if needed - TODO: more prettily! Or just avoid it?
         name_header = [data_from_lis["prøvenr"].squeeze()] * len(emu_read_counts.columns)
@@ -429,15 +440,18 @@ def sort_report_samples(emu_report: pd.DataFrame,
     return emu_report
 
 
+# TODO: smarter way of setting lis_names?
 def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
+                         lis_report_names: input_names.LISDataNames = lis_names,
                          active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
     """Merge all Emu reports in the supplied directory.
 
     Arguments:
-        emu_dir:        the directory containing all Emu reports
-                        (name format: SAMPLE_rel-abundance.tsv)
-        basedir:       the base dir containing read QC reports for all samples
-        active_config:  the config file to use
+        emu_dir:            the directory containing all Emu reports
+                            (name format: SAMPLE_rel-abundance.tsv)
+        basedir:            the base dir containing read QC reports for all samples
+        lis_report_names:   the column names in the LIS report
+        active_config:      the config file to use
 
     Returns:
         All Emu reports in the directory whose names match the name format combined.
@@ -473,17 +487,19 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                     ["", "", ""],
                     ["", "", ""],
                     ["", "", ""]]
-        lis_names = ["modtagedato",
-                     "patient",
-                     "prøvemateriale",
-                     "anatomi",
-                     "indikation"]
+        lis_colnames = ["modtagedato",
+                        "patient",
+                        "prøvemateriale",
+                        "anatomi",
+                        "indikation"]
     else:
         lis_cols = []
-        lis_names = []
+        lis_colnames = []
     for emu_report in emu_reports:
         try:
-            emu_data = report_species_per_barcode(emu_report, basedir, active_config)
+            emu_data = report_species_per_barcode(emu_report, basedir,
+                                                  lis_report_names = lis_report_names,
+                                                  active_config = active_config)
         except ValueError as value_err:
             logger.error(f"Error in {emu_report}:\n"
                          f"{value_err}\n"
@@ -544,7 +560,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                                      + qc_cols
                                      + base_cols)
             current_fallback_names = (["run", "pipeline_version", "barcode", "prøvenummer"]
-                                      + lis_names  # blank if we don't have LIS
+                                      + lis_colnames  # blank if we don't have LIS
                                       + qc_names
                                       + base_names)
             fallback_headers = pd.MultiIndex.from_arrays(current_fallback_cols,
@@ -637,6 +653,7 @@ def summarize_emu(input_args: List[Any]) -> None:
         workflow_config_file = pathlib.Path(args.workflow_config_file).resolve()
         with open(workflow_config_file, "r", encoding = "utf-8") as config_file:
             active_config = yaml.safe_load(config_file)
+    runsheet_names, lis_report_names = input_names.load_input_from_config(active_config)
     input_dir = pathlib.Path(args.indir)
     output_file = pathlib.Path(args.outfile)
     output_file_raw = pathlib.Path(args.outfile_raw)
@@ -644,7 +661,8 @@ def summarize_emu(input_args: List[Any]) -> None:
     if args.base_dir is None:
         base_dir = input_dir.parent
     base_dir = pathlib.Path(base_dir)
-    merged_emu = merge_all_in_emu_dir(input_dir, base_dir, active_config = active_config)
+    merged_emu = merge_all_in_emu_dir(input_dir, base_dir, lis_report_names = lis_report_names,
+                                      active_config = active_config)
     write_to_sheets(merged_emu, output_file)
     merged_emu.to_csv(output_file_raw, sep = "\t")
 

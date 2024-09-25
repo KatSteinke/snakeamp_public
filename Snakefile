@@ -10,6 +10,7 @@ import re
 import pandas as pd
 
 import helpers
+import input_names
 import pipeline_config
 import snake_helpers
 
@@ -18,6 +19,9 @@ configfile: pipeline_config.default_config_file
 # path to config file needs to be specified for other scripts
 CONFIG_PATH = config["config_path"] if "config_path" in config \
     else pipeline_config.default_config_file
+
+
+sheet_names, lis_names = input_names.load_input_from_config(CONFIG_PATH)
 
 
 workdir: config["outdir"]
@@ -71,7 +75,7 @@ ALL_IDS = list(sheet_data["prøvenr"])
 ALL_BARCODES = list(sheet_data["Barkode"])
 
 # we need to name some files after the experiment name (plus amplicon type so we can distinguish)
-EXPERIMENT_NAME = (helpers.extract_nanopore_run_name(pathlib.Path(config['runsheet']))+"-"+
+EXPERIMENT_NAME = (helpers.extract_nanopore_run_name(pathlib.Path(config['runsheet'], sheet_names))+"-"+
                    config['amplicon_type'])
 
 rule all:

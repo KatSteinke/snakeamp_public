@@ -17,6 +17,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import pandas as pd
 from pandas._libs.missing import NAType
 
+import input_names
 import pipeline_config
 
 # import parameters
@@ -25,6 +26,9 @@ workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 
 logger = logging.getLogger("helpers")
+
+
+sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
 
 
 class PrettyKeyErrorMessage(str):
@@ -382,11 +386,14 @@ def check_experiment_name_problems(experiment_name: str) -> None:
     logger.debug(f"No issues found with experiment name {experiment_name}.")
 
 
-def extract_nanopore_run_name(runsheet: pathlib.Path) -> str:
+def extract_nanopore_run_name(runsheet: pathlib.Path,
+                              runsheet_names: input_names.RunsheetNames=sheet_names) -> str:
     """Extract the name of a Nanopore sequencing run from its Excel runsheet.
 
     Arguments:
-         runsheet:  Path to an Excel runsheet containing the Nanopore runsheet
+         runsheet:          Path to an Excel runsheet containing the Nanopore runsheet
+         runsheet_names:    Column names in the runsheet
+
      Returns:
          The run's name as specified under "RUNxxxx-INI".
 
@@ -396,7 +403,7 @@ def extract_nanopore_run_name(runsheet: pathlib.Path) -> str:
     """
     experiment_sheet = pd.read_excel(runsheet, sheet_name = "Runsheet",
                                    usecols = "A:D", skiprows = 1, nrows=2)
-    experiment_name = experiment_sheet.at[0, "RUNxxxx-INI"]
+    experiment_name = experiment_sheet.at[0, runsheet_names.experiment_name]
     # the experiment name is used as file names for a lot of things, so catch if it breaks something
     # could break something from containing characters that aren't allowed in Windows
     check_experiment_name_problems(experiment_name)

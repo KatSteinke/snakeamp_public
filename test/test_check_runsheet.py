@@ -8,11 +8,14 @@ import pandas as pd
 import pytest
 
 import check_runsheet
+import input_names
 
 
 
 class TestCheckRunsheetFormat(unittest.TestCase):
-    test_config = {"sample_number_settings": {"sample_number_format":
+    test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                   "sample_number_settings": {"sample_number_format":
                                                   '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                               "sample_numbers_in": "number",
                                               "sample_numbers_out": "letter",
@@ -24,12 +27,14 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                    "11": "F",
                                                                    "10": "D",
                                                                    "50": "T"},
-                                              
+
                                               "negative_control": '',
                                               "positive_control": {}},
                    "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                    "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                    }
+    sheet_names, lis_names = input_names.load_input_from_config(test_config)
+
     @pytest.fixture(autouse = True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -44,6 +49,8 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                     "Please check that sample numbers are correct."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_against_lis(sheet_data, fake_mads,
+                                             runsheet_names = self.sheet_names,
+                                             lis_report_names = self.lis_names,
                                              active_config = self.test_config)
 
     def test_success(self):
@@ -54,7 +61,50 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         sheet_data = sheet_data.dropna()
         success_msg = "The runsheet is correct."
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
-            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
+            check_runsheet.check_against_lis(sheet_data, fake_mads,
+                                             runsheet_names = self.sheet_names,
+                                             lis_report_names = self.lis_names,
+                                             active_config = self.test_config)
+            assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
+
+    def test_success_lis_and_sheet_en(self):
+        """Successfully compare the sample number against the LIS when runsheet and LIS have
+        non-default column names.
+        """
+        test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_en.yaml",
+                       "sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": '',
+                                                  "positive_control": {}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"
+                       # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        sheet_names, lis_names = input_names.load_input_from_config(test_config)
+        fake_mads = pathlib.Path(
+            __file__).parent / "data" / "sample_sheet_test" / "fake_mads_data_en.csv"
+        runsheet = pd.DataFrame(data={"Sample_number":  ["1121710000",
+                                                          "1121700000"],
+                                      "Barcode": ["RB01", "RB02"]})
+        success_msg = "The runsheet is correct."
+        with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
+            check_runsheet.check_against_lis(runsheet, fake_mads,
+                                             runsheet_names = sheet_names,
+                                             lis_report_names = lis_names,
+                                             active_config = self.test_config)
 
         assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
 
@@ -70,7 +120,8 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         success_msg = "The runsheet is correct."
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             check_runsheet.check_against_lis(sheet_data, fake_mads,
-                                             active_config = self.test_config)
+                                            runsheet_names = self.sheet_names,
+                                             lis_report_names = self.lis_names, active_config = self.test_config)
 
         assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
 
@@ -92,14 +143,17 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": 'NegK',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
-            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
+            check_runsheet.check_against_lis(sheet_data, fake_mads,
+                                             runsheet_names = self.sheet_names,
+                                             lis_report_names = self.lis_names,
+                                             active_config = test_config)
             assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
 
     def test_success_rearrange(self):
@@ -120,14 +174,17 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
-            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
+            check_runsheet.check_against_lis(sheet_data, fake_mads,
+                                             runsheet_names = self.sheet_names,
+                                             lis_report_names = self.lis_names,
+                                             active_config = test_config)
             assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
 
     def test_success_drop_component(self):
@@ -153,20 +210,25 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
-            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
+            check_runsheet.check_against_lis(sheet_data, fake_mads,
+                                             runsheet_names = self.sheet_names,
+                                             lis_report_names = self.lis_names,
+                                             active_config = test_config)
             assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
             assert ("check_runsheet", logging.INFO, dropped_component_msg) in self._caplog.record_tuples
 
 
 class TestCheckSampleNumbers(unittest.TestCase):
-    test_config = {"sample_number_settings": {"sample_number_format":
+    test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                   "sample_number_settings": {"sample_number_format":
                                                   '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                               "sample_numbers_in": "number",
                                               "sample_numbers_out": "letter",
@@ -177,13 +239,15 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                    "10": "D",
                                                                    "11": "F",
                                                                    "50": "T"},
-                                              
+
                                               "negative_control": '',
                                               "positive_control": {}},
                    "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                    "barcode_prefix": "RB"
                    # barcode prefix as letter (for transferring original fastqs by barcode)
                    }
+    sheet_names, lis_names = input_names.load_input_from_config(test_config)
+
     @pytest.fixture(autouse = True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -199,7 +263,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                    dtype={"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
+            check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
+                                              active_config = self.test_config)
 
     def test_fail_ids_letters(self):
         id_fail_sheet = pathlib.Path(__file__).parent /"data"/ "utilities_test" \
@@ -220,14 +285,15 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, active_config = test_config)
+            check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
+                                              active_config = test_config)
 
     def test_id_fail_negk(self):
         fail_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
@@ -251,14 +317,15 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, active_config = test_config)
+            check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
+                                              active_config = test_config)
 
     def test_fail_no_ids(self):
         no_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-id.xlsx"
@@ -268,7 +335,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "No sample IDs found."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
+            check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
+                                              active_config = self.test_config)
 
     def test_fail_no_positive_control(self):
         no_positive_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-no-posk.xlsx"
@@ -288,14 +356,15 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": '',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, active_config = test_config)
+            check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
+                                              active_config = test_config)
 
     def test_fail_no_negative_control(self):
         no_negative_sheet = pathlib.Path(__file__).parent / "data" /"utilities_test" / "runsheet-no-negk.xlsx"
@@ -314,14 +383,15 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_sheet_format(sheet_data, active_config = test_config)
+            check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
+                                              active_config = test_config)
 
     def test_warn_duplicated_ids(self):
         duplicated_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-duplication.xlsx"
@@ -331,7 +401,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
                              " If you are sure you want to sequence the same sample twice, " \
                              "you can ignore this warning."
         with self._caplog.at_level(logging.WARNING, logger = "check_runsheet"):
-            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
+            check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
+                                              active_config = self.test_config)
             assert ("check_runsheet", logging.WARNING, duplicated_warning) in self._caplog.record_tuples
 
     def test_fail_barcodes(self):
@@ -343,6 +414,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     "Barcodes must consist of RB + a number between 01 and 96."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              runsheet_names = self.sheet_names,
                                               active_config = self.test_config)
 
     def test_fail_no_barcodes(self):
@@ -353,6 +425,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     "\nNo barcodes found."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              runsheet_names = self.sheet_names,
                                               active_config = self.test_config)
 
     def test_fail_more_barcodes(self):
@@ -364,6 +437,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     "There are 2 sample IDs but 3 barcodes."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              runsheet_names = self.sheet_names,
                                               active_config = self.test_config)
 
     def test_fail_duplicated_barcodes(self):
@@ -375,11 +449,51 @@ class TestCheckSampleNumbers(unittest.TestCase):
                     "\nBarcode(s) ['RB02'] are duplicated."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              runsheet_names = self.sheet_names,
                                               active_config = self.test_config)
+
+    def test_fail_all_blank_en(self):
+        """Handle multiple failures in a runsheet with non-default column names."""
+        test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_en.yaml",
+                       "sample_number_settings": {"sample_number_format":
+                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": False,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": '',
+                                                  "positive_control": {}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"
+                       # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        sheet_names, lis_names = input_names.load_input_from_config(test_config)
+        no_barcode_sheet = (pathlib.Path(__file__).parent / "data" /"utilities_test"
+                            / "runsheet-no-data-en.xlsx")
+        sheet_data = pd.read_excel(no_barcode_sheet, usecols = "A:C", skiprows = 3,
+                                   dtype = {"Sample_number": str})
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nNo sample IDs found." \
+                    "\nNo barcodes found."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            check_runsheet.check_sheet_format(sheet_data, check_barcodes = True,
+                                              runsheet_names = sheet_names,
+                                              active_config = test_config)
 
 
 class TestCheckRunsheet(unittest.TestCase):
-    test_config = {"sample_number_settings": {"sample_number_format":
+    test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                   "sample_number_settings": {"sample_number_format":
                                                   '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                               "sample_numbers_in": "number",
                                               "sample_numbers_out": "letter",
@@ -390,7 +504,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                    "10": "D",
                                                                    "11": "F",
                                                                    "50": "T"},
-                                              
+
                                               "negative_control": '',
                                               "positive_control": {}},
                    "lab_info_system": {"use_lis_features": False},
@@ -398,6 +512,7 @@ class TestCheckRunsheet(unittest.TestCase):
                    "barcode_prefix": "RB"
                    # barcode prefix as letter (for transferring original fastqs by barcode)
                    }
+    sheet_names, lis_names = input_names.load_input_from_config(test_config)
 
     @pytest.fixture(autouse = True)
     def inject_fixtures(self, caplog):
@@ -412,7 +527,10 @@ class TestCheckRunsheet(unittest.TestCase):
                     " (six if leaving out year). " \
                     "Please correct sample IDs in runsheet."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_runsheet(id_fail_sheet, active_config = self.test_config)
+            check_runsheet.check_runsheet(id_fail_sheet,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
+                                          active_config = self.test_config)
 
     def test_fail_ids_letters(self):
         id_fail_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
@@ -431,7 +549,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False},
@@ -440,7 +558,10 @@ class TestCheckRunsheet(unittest.TestCase):
                        # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_runsheet(id_fail_sheet, active_config = test_config)
+            check_runsheet.check_runsheet(id_fail_sheet,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
+                                          active_config = test_config)
 
     def test_id_fail_negk(self):
         fail_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
@@ -462,7 +583,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False},
@@ -471,7 +592,10 @@ class TestCheckRunsheet(unittest.TestCase):
                        # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_runsheet(fail_id_sheet, active_config = test_config)
+            check_runsheet.check_runsheet(fail_id_sheet,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
+                                          active_config = test_config)
 
     def test_fail_no_ids(self):
         no_id_sheet = pathlib.Path(
@@ -479,7 +603,10 @@ class TestCheckRunsheet(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "No sample IDs found."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_runsheet(no_id_sheet, active_config = self.test_config)
+            check_runsheet.check_runsheet(no_id_sheet,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
+                                          active_config = self.test_config)
 
     def test_fail_no_positive_control(self):
         no_positive_sheet = pathlib.Path(
@@ -497,7 +624,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": '',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "lab_info_system": {"use_lis_features": False},
@@ -506,7 +633,10 @@ class TestCheckRunsheet(unittest.TestCase):
                        # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_runsheet(no_positive_sheet, active_config = test_config)
+            check_runsheet.check_runsheet(no_positive_sheet,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
+                                          active_config = test_config)
 
     def test_fail_no_negative_control(self):
         no_negative_sheet = pathlib.Path(
@@ -523,7 +653,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False},
@@ -532,7 +662,10 @@ class TestCheckRunsheet(unittest.TestCase):
                        # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_runsheet(no_negative_sheet, active_config = test_config)
+            check_runsheet.check_runsheet(no_negative_sheet,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
+                                          active_config = test_config)
 
     def test_fail_barcodes(self):
         barcode_fail_sheet = pathlib.Path(__file__).parent /"data" /"utilities_test" / "runsheet-barcode-fail.xlsx"
@@ -541,6 +674,8 @@ class TestCheckRunsheet(unittest.TestCase):
                     "Barcodes must consist of RB + a number between 01 and 96."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_runsheet(barcode_fail_sheet, check_barcodes = True,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
                                           active_config = self.test_config)
 
     def test_fail_no_barcodes(self):
@@ -549,6 +684,8 @@ class TestCheckRunsheet(unittest.TestCase):
                     "\nNo barcodes found."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_runsheet(no_barcode_sheet, check_barcodes = True,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
                                           active_config = self.test_config)
 
     def test_fail_more_barcodes(self):
@@ -560,6 +697,8 @@ class TestCheckRunsheet(unittest.TestCase):
                     "There are 2 sample IDs but 3 barcodes."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_runsheet(more_barcodes_sheet, check_barcodes = True,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
                                           active_config = self.test_config)
 
     def test_fail_duplicated_barcodes(self):
@@ -569,6 +708,8 @@ class TestCheckRunsheet(unittest.TestCase):
                     "\nBarcode(s) ['RB02'] are duplicated."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             check_runsheet.check_runsheet(duplicated_barcodes_sheet, check_barcodes = True,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
                                           active_config = self.test_config)
 
     def test_missing_from_lis(self):
@@ -586,7 +727,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": 'NegK[a-zA-Z0-9_-]*',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": True,
@@ -600,7 +741,10 @@ class TestCheckRunsheet(unittest.TestCase):
         error_msg = "Samples ['F99123456-1', 'F99123456-2'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
-            check_runsheet.check_runsheet(runsheet, active_config = test_config)
+            check_runsheet.check_runsheet(runsheet,
+                                          runsheet_names = self.sheet_names,
+                                          lis_report_names = self.lis_names,
+                                          active_config = test_config)
 
     def test_success_no_lis(self):
         """Successfully check the runsheet without using a LIS report."""
@@ -617,7 +761,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  
+
                                                   "negative_control": 'NegK[a-zA-Z0-9_-]*',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False,
@@ -632,7 +776,10 @@ class TestCheckRunsheet(unittest.TestCase):
         check_sheet_msg = "Checking runsheet format...."
         check_lis_msg = "Comparing to samples in MADS......"
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
-            runsheet_pass = check_runsheet.check_runsheet(runsheet, active_config = test_config)
+            runsheet_pass = check_runsheet.check_runsheet(runsheet,
+                                                          runsheet_names = self.sheet_names,
+                                                          lis_report_names = self.lis_names,
+                                                          active_config = test_config)
 
         assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
         assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
@@ -672,7 +819,55 @@ class TestCheckRunsheet(unittest.TestCase):
         check_sheet_msg = "Checking runsheet format...."
         check_lis_msg = "Comparing to samples in MADS......"
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
-            runsheet_pass = check_runsheet.check_runsheet(runsheet, active_config = test_config)
+            runsheet_pass = check_runsheet.check_runsheet(runsheet,
+                                                          runsheet_names = self.sheet_names,
+                                                          lis_report_names = self.lis_names,
+                                                          active_config = test_config)
+            assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
+            assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
+            assert ("check_runsheet", logging.INFO, check_lis_msg) in self._caplog.record_tuples
+        assert runsheet_pass
+
+    def test_success_use_lis_en(self):
+        """Successfully check the runsheet while using a LIS report with non-default columns."""
+        runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" \
+                   / "test_translate_runsheet_en.xlsx"
+        test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_en.yaml",
+                       "sample_number_settings": {"sample_number_format":
+                                                      r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "11": "F",
+                                                                       "50": "T"},
+                                                  "date_settings":
+                                                      {"splice_in_date": True,
+                                                       "length_without_date": 8,
+                                                       "splice_after": 2},
+                                                  "negative_control": '',
+                                                  "positive_control": {}},
+                       "lab_info_system": {"use_lis_features": True,
+                                           "lis_report": str(pathlib.Path(__file__).parent
+                                                             / "data" / "sample_sheet_test"
+                                                             / "fake_mads_data_en.csv")},
+                       "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "NB"
+                       # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        sheet_names, lis_names = input_names.load_input_from_config(test_config)
+        loading_sheet_msg = "Loading runsheet..."
+        check_sheet_msg = "Checking runsheet format...."
+        check_lis_msg = "Comparing to samples in MADS......"
+        with self._caplog.at_level(level = logging.INFO, logger ="check_runsheet"):
+            runsheet_pass = check_runsheet.check_runsheet(runsheet,
+                                                          runsheet_names = sheet_names,
+                                                          lis_report_names = lis_names,
+                                                          active_config = test_config)
 
         assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
         assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
@@ -683,7 +878,9 @@ class TestCheckRunsheet(unittest.TestCase):
         """Successfully check the runsheet while using a LIS report with additional columns."""
         runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" \
                    / "test_translate_runsheet.xlsx"
-        test_config = {"sample_number_settings": {"sample_number_format":
+        test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format":
                                                       r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
                                                   "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
                                                   "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
@@ -704,11 +901,15 @@ class TestCheckRunsheet(unittest.TestCase):
                        "barcode_prefix": "NB"
                        # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
+
         loading_sheet_msg = "Loading runsheet..."
         check_sheet_msg = "Checking runsheet format...."
         check_lis_msg = "Comparing to samples in MADS......"
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
-            runsheet_pass = check_runsheet.check_runsheet(runsheet, active_config = test_config)
+            runsheet_pass = check_runsheet.check_runsheet(runsheet,
+                                                          runsheet_names = self.sheet_names,
+                                                          lis_report_names = self.lis_names,
+                                                          active_config = test_config)
 
         assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
         assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples

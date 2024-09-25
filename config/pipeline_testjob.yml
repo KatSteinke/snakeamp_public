@@ -4,6 +4,8 @@ debug: True
 # are we running this locally ("local") or on Nomad ("nomad")?
 run_on: nomad
 
+input_names: config/input_settings/input_da.yaml
+
 # Settings for sample numbers and negative controls
 sample_number_settings:
   # specify the format for sample numbers used in the input runsheet as a regex

@@ -1,0 +1,29 @@
+### Sheet and column name settings for input data ###
+# Fill in the sheet/column names you use here or use one of the suggested setups
+#  (input_en.yaml, input_da.yaml)
+
+# metadata "runsheet" - required
+run_sheet:
+  # columns in sheet with sample information
+  sample_number: ""
+  barcode: ""
+  experiment_name: ""
+  amplicon_type: ""
+
+# data from LIS - optional
+lis_columns:
+  sample_number: ""
+  # sample type (as part of unique sample identifier)
+  sample_type: ""
+  # isolate number (as part of unique isolate identifier)
+  isolate_number: ""
+  # patient identifier
+  patient_id: ""
+  # date the sample was received
+  date_received: ""
+  # sample material
+  material: ""
+  # anatomical site sampled
+  anatomy: ""
+  # sampling indication
+  indication: ""

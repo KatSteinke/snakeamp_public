@@ -1,6 +1,8 @@
 # run in debug mode?
 debug: False
 
+input_names: config/input_settings/input_da.yaml
+
 # are we running this locally ("local") or on Nomad ("nomad")?
 run_on: nomad
 

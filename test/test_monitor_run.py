@@ -14,8 +14,10 @@ import monitor_run
 
 
 class TestCreateAmpliconRun(unittest.TestCase):
-    active_config = {"sample_number_settings": {"sample_number_format":
-                                                    r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+    active_config = {
+        "input_names": pathlib.Path(__file__).parent / "data" / "input_names" / "input_da_old_lis.yaml",
+        "sample_number_settings": {"sample_number_format":
+                                       r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
                                                 "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
@@ -24,7 +26,6 @@ class TestCreateAmpliconRun(unittest.TestCase):
                                                                      "30": "B",
                                                                      "10": "D",
                                                                      "50": "T"},
-
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -233,7 +234,9 @@ class TestCreateAmpliconRun(unittest.TestCase):
 
 
 class TestGetNomadCommand(unittest.TestCase):
-    active_config = {"sample_number_settings": {"sample_number_format":
+    active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                    / "input_da_old_lis.yaml",
+                     "sample_number_settings": {"sample_number_format":
                                                     r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
@@ -349,7 +352,9 @@ class TestGetNomadCommand(unittest.TestCase):
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         test_configfile = pathlib.Path("path/to/config")
-        test_config = {"debug": True, "amplicon_type": "16S",
+        test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "debug": True, "amplicon_type": "16S",
                        "paths": {"output_base_path": "/path/to/output"},
                        "seq_run_duration_hours": 1}
         expected_command = ["nomad", "job", "dispatch",
@@ -366,7 +371,8 @@ class TestGetNomadCommand(unittest.TestCase):
 
 
 class TestGetLocalCommand(unittest.TestCase):
-    active_config = {"sample_number_settings": {"sample_number_format":
+    active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names" / "input_da_old_lis.yaml",
+                     "sample_number_settings": {"sample_number_format":
                                                     r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
@@ -500,15 +506,17 @@ class TestGetLocalCommand(unittest.TestCase):
 
 
 class TestStartGenericRun(unittest.TestCase):
-    active_config = {"sample_number_settings": {"sample_number_format":
-                                                    r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+    active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names" / "input_da_old_lis.yaml",
+                     "sample_number_settings": {"sample_number_format":
+                                                    r'([BDFPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
-                                                "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
-                                                "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                 "number_to_letter": {"70": "P",
                                                                      "30": "B",
                                                                      "10": "D",
+                                                                     "11": "F",
                                                                      "50": "T"},
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
@@ -597,8 +605,10 @@ class TestStartGenericRun(unittest.TestCase):
 
 
 class TestWaitForFile(unittest.TestCase):
-    active_config = {"sample_number_settings": {"sample_number_format":
-                                                    r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+    active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                    / "input_da_old_lis.yaml",
+                     "sample_number_settings": {"sample_number_format":
+                                                    r'([BDFPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
                                                 "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
