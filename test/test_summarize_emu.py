@@ -3757,3 +3757,17 @@ class TestGetKrakenReadCount(unittest.TestCase):
             test_results = summarize_emu.get_kraken_read_stats(kraken_file)
             assert log_msg in logged.output
         pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_success_empty(self):
+        """Log if the file contains no reads."""
+        kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                       / "kraken_empty.tsv")
+        expected_results = pd.DataFrame(data = {"human": [0], "remaining": [0], "total": [0]})
+        no_human_msg = f"INFO:summarize_emu:No human reads reported in {kraken_file}."
+
+        no_bact_msg = f"INFO:summarize_emu:No remaining reads reported in {kraken_file}."
+        with self.assertLogs("summarize_emu", level = "INFO") as logged:
+            test_results = summarize_emu.get_kraken_read_stats(kraken_file)
+            assert no_human_msg in logged.output
+            assert no_bact_msg in logged.output
+        pd.testing.assert_frame_equal(expected_results, test_results)
