@@ -302,11 +302,11 @@ def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
                                                       "estimated counts": "counts"})
     # "unassigned" is only noted on the taxid level - fill it in on the species level
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
-    # "medtages" should be a blank string
-    emu_read_counts["med"] = emu_read_counts["med"].fillna(value = "")
     # deduplicate species names
     # this also sets species as index so we keep it out of the multiindexed columns
     emu_read_counts = emu_read_counts.groupby(by="species").sum()
+    # blank out "medtages" column
+    emu_read_counts["med"] = np.nan
     # note down relevant information
     run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
     version_header = [f"Version_{__version__}"] * len(emu_read_counts.columns)
@@ -544,7 +544,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                                                          names=current_fallback_names)
             emu_data = pd.DataFrame(index = pd.Index(data = ["unassigned"], name = "species"),
                                     columns = fallback_headers,
-                                    data = [[np.nan, np.nan, ""]])
+                                    data = [[np.nan, np.nan, np.nan]])
         all_reports.append(emu_data)
 
     all_merged = merge_emu(all_reports)

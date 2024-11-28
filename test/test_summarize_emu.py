@@ -233,7 +233,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts" : [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -279,7 +279,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -323,7 +323,7 @@ class TestExtractCounts(unittest.TestCase):
                        / "RUN0001_barcode01_RB01_rel-abundance.tsv")
         expected_results = pd.DataFrame(data = {"abundance": [100.0],
                                                 "counts": [100],
-                                                "med": [""]},
+                                                "med": [np.nan]},
                                         index = pd.Index(data = ["unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
@@ -375,7 +375,7 @@ class TestExtractCounts(unittest.TestCase):
                        / "RUN0001_1199123456-1_RB01_rel-abundance.tsv")
         expected_results = pd.DataFrame(data = {"abundance": [0.00],
                                                 "counts": [0],
-                                                "med": [""]},
+                                                "med": [np.nan]},
                                         index = pd.Index(data = ["unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
@@ -422,7 +422,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts":[4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -476,7 +476,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -544,7 +544,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -630,7 +630,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts":[4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -714,7 +714,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -782,7 +782,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -836,7 +836,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -1570,10 +1570,10 @@ class TestMergeEmuDir(unittest.TestCase):
         """Test if multiple files are merged successfully."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "success_merge_dir"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", 80.00, 16, ""],
-                           [np.nan, np.nan, np.nan, 20.00, 4, ""],
-                           [5.00, 1, "", 0.00, 0, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, 80.00, 16, np.nan],
+                           [np.nan, np.nan, np.nan, 20.00, 4, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
@@ -1637,7 +1637,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               5.00],
                                                 "counts": [4, 15,
                                                            1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -1680,9 +1680,9 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "one_broken"
         base_dir = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "bad_qc"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, np.nan, np.nan, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -1755,9 +1755,9 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "one_broken"
         base_dir =  pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "missing_qc"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, np.nan, np.nan, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -1828,9 +1828,9 @@ class TestMergeEmuDir(unittest.TestCase):
         """Ensure that an invalid file is handled properly (log error and return fake empty df)"""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "one_broken"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, np.nan, np.nan, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -1894,10 +1894,10 @@ class TestMergeEmuDir(unittest.TestCase):
         """Warn when a directory contains data from multiple runs."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "multi_run"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", 80.00, 16, ""],
-                           [np.nan, np.nan, np.nan, 20.00, 4, ""],
-                           [5.00, 1, "", 0.00, 0, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, 80.00, 16, np.nan],
+                           [np.nan, np.nan, np.nan, 20.00, 4, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
@@ -1977,9 +1977,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "one_broken_lis"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, np.nan, np.nan, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2089,9 +2089,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "merge_different_format")
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2154,9 +2154,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = (pathlib.Path( __file__).parent / "data" / "summarize_emu"
                        / "merge_multi_sample")
 
-        expected_values = [[20.00, 4, "", 20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2255,9 +2255,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_one_empty"
 
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, 20.00, 4, ""],
-                           [75.00, 15, "", np.nan, np.nan, np.nan,  75.00, 15, ""],
-                           [5.00, 1, "", 0.00, 0.00, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan,  75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0.00, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2413,9 +2413,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_two_empty"
 
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
-                           [5.00, 1, "", 0.00, 0.00, "", 0.00, 0, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0.00, np.nan, 0.00, 0, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2570,9 +2570,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "merge_different_format")
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2692,9 +2692,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2816,9 +2816,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "multi_run_patients"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2940,9 +2940,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -3064,9 +3064,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_shorten_name"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -3188,9 +3188,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_short_run_name"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -3312,9 +3312,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_broken_run_name"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -3444,7 +3444,6 @@ class TestWriteToSheets(unittest.TestCase):
                                                  names = ["prøvenummer", None])
     expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                    columns = expected_columns)
-    print(expected_merged.columns.names)
 
     @classmethod
     def tearDownClass(cls) -> None:
