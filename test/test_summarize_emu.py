@@ -156,6 +156,47 @@ class TestGetNameComponents(unittest.TestCase):
         assert expected_name == test_components.sample_name
         assert expected_barcode == test_components.barcode
 
+    def test_get_controls(self):
+        """Get names for positive and negative controls."""
+        test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+                                                  "positive_control": {"PosK": ""},
+                                                  "negative_control":
+                                                      "NegK[a-zA-ZæøåÆØÅ0-9_-]*"},
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": False}}
+        posk_name_test = "kørsel0001-Y20231009-16S_PosK_RB01_rel-abundance.tsv"
+        expected_posk_run = "kørsel0001-Y20231009-16S"
+        expected_posk_name = "PosK"
+        expected_posk_barcode = "RB01"
+        test_components = summarize_emu.extract_name_components(posk_name_test,
+                                                                test_config)
+        assert expected_posk_run == test_components.run_name
+        assert expected_posk_name == test_components.sample_name
+        assert expected_posk_barcode == test_components.barcode
+        negk_name_test = "kørsel0001-Y20231009-16S_NegK_RB01_rel-abundance.tsv"
+        expected_negk_run = "kørsel0001-Y20231009-16S"
+        expected_negk_name = "NegK"
+        expected_negk_barcode = "RB01"
+        test_components = summarize_emu.extract_name_components(negk_name_test,
+                                                                test_config)
+        assert expected_negk_run == test_components.run_name
+        assert expected_negk_name == test_components.sample_name
+        assert expected_negk_barcode == test_components.barcode
+        
+        # and now with one that overlaps with the sample format
+        tricky_negk_name_test = "kørsel0001-Y20231009-16S_NegK__barcode01_RB01_rel-abundance.tsv"
+        expected_tricky_negk_run = "kørsel0001-Y20231009-16S"
+        expected_tricky_negk_name = "NegK__barcode01"
+        expected_tricky_negk_barcode = "RB01"
+        test_components = summarize_emu.extract_name_components(tricky_negk_name_test,
+                                                                test_config)
+        assert expected_tricky_negk_run == test_components.run_name
+        assert expected_tricky_negk_name == test_components.sample_name
+        assert expected_tricky_negk_barcode == test_components.barcode
+
+
 
 class TestGetReadQC(unittest.TestCase):
     def test_success_all_qc(self):

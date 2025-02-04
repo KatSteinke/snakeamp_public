@@ -223,7 +223,8 @@ def extract_name_components(report_name: str, active_config: Dict[str, Any] = wo
                                                    'negative_control'],
                                                active_config['sample_number_settings'][
                                                    'positive_control'])
-    sample_name_pattern = re.compile(r"(?P<run_name>[A-Za-z0-9_æøåÆØÅ-]+)_(?P<name_only>"
+    sample_name_pattern = re.compile(r"(?P<run_name>[A-Za-z0-9_æøåÆØÅ-]+?)" # lazy match, not greedy
+                                     r"_(?P<name_only>"
                                      f"{all_names_pattern.pattern})"
                                      r"_(?P<barcode>"
                                      f"{active_config['barcode_format']})"
