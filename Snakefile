@@ -44,7 +44,9 @@ wildcard_constraints:
     barcode_prefix = BARCODE_PREFIX,
     barcode = config["barcode_format"],
     #sample_number = sample_number_pattern
-# TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
+
+# set defaults
+CONTAMINANT = config["quality_params"].get("contaminant_seq", False)
 
 sheet_data = pd.read_excel(config["runsheet"],usecols = "A:D",skiprows = 3,
                            dtype = {"Prøvenummer": str, "Eluat nr.": str})
@@ -155,11 +157,31 @@ rule clean_nanopore_reads:
          {input.concat_fastq} 1>  "{output.filtered_fastq}" 2> "{log}"
         """
 
+# TODO: should we just replace filtlong with chopper?
+rule filter_contaminants:
+    input:
+        filtered_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.filtered.fastq"
+    params:
+        contaminant = config["quality_params"]["contaminant_seq"]
+    output:
+        trimmed_fastq = temp("{sample_number}_{barcode}/"
+                             "reads/{sample_number}_{barcode}.trimmed.fastq")
+    conda: "nanopore_qc_env"
+    log:
+        "logs/chopper/{sample_number}_{barcode}.log"
+    threads: 4
+    shell:
+        """
+        chopper -i "{input.filtered_fastq}" --threads {threads} \
+         --contam "{params.contaminant}" 1> "{output.trimmed_fastq}" 2> "{log}"
+        """
+
 
 rule remove_human_reads:
     input:
-        filtered_fastq = "{sample_number}_{barcode}/reads/"
-                              "{sample_number}_{barcode}.filtered.fastq"
+        filtered_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.trimmed.fastq"
+                         if CONTAMINANT else
+                         "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.filtered.fastq"
     output:
         human_depleted = temp("{sample_number}_{barcode}/reads"
                               "/{sample_number}_{barcode}.depleted.fastq"),
