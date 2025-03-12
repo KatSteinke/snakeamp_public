@@ -46,6 +46,7 @@ quality_params:
   min_length: 700
   max_length: 1600
   min_qscore: 15
+  contaminant_seq: /path/to/contaminant_seq
 
 databases:
   emu_db: /path/to/emu_db
