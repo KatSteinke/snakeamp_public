@@ -1,4 +1,4 @@
-FROM condaforge/mambaforge:24.7.1-0
+FROM condaforge/miniforge3:latest
 
 # TODO: change to use separate container
 
