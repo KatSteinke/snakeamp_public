@@ -161,19 +161,19 @@ rule clean_nanopore_reads:
 rule filter_contaminants:
     input:
         filtered_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.filtered.fastq"
-    params:
-        contaminant = config["quality_params"]["contaminant_seq"]
     output:
         trimmed_fastq = temp("{sample_number}_{barcode}/"
                              "reads/{sample_number}_{barcode}.trimmed.fastq")
-    conda: "nanopore_qc_env"
+    params:
+        contaminant = f'-- contam {config["quality_params"]["contaminant_seq"]}' if CONTAMINANT else ""
+    conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     log:
         "logs/chopper/{sample_number}_{barcode}.log"
     threads: 4
     shell:
         """
         chopper -i "{input.filtered_fastq}" --threads {threads} \
-         --contam "{params.contaminant}" 1> "{output.trimmed_fastq}" 2> "{log}"
+        "{params.contaminant}" 1> "{output.trimmed_fastq}" 2> "{log}"
         """
 
 
