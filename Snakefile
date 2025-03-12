@@ -173,7 +173,7 @@ rule filter_contaminants:
     shell:
         """
         chopper -i "{input.filtered_fastq}" --threads {threads} \
-        "{params.contaminant}" 1> "{output.trimmed_fastq}" 2> "{log}"
+        {params.contaminant} 1> "{output.trimmed_fastq}" 2> "{log}"
         """
 
 
