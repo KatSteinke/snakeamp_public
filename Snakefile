@@ -165,7 +165,7 @@ rule filter_contaminants:
         trimmed_fastq = temp("{sample_number}_{barcode}/"
                              "reads/{sample_number}_{barcode}.trimmed.fastq")
     params:
-        contaminant = f'-- contam {config["quality_params"]["contaminant_seq"]}' if CONTAMINANT else ""
+        contaminant = f'--contam {config["quality_params"]["contaminant_seq"]}' if CONTAMINANT else ""
     conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     log:
         "logs/chopper/{sample_number}_{barcode}.log"
