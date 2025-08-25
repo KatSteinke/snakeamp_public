@@ -4,8 +4,6 @@ __author__ = "Kat Steinke"
 
 import pathlib
 
-import helpers
-
 
 def is_gzipped(fastq_dir: pathlib.Path, barcode_number: str) -> bool:
     """Determine whether all files in the barcode directory are gzipped.
