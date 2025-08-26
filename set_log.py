@@ -6,6 +6,10 @@ import logging
 
 from typing import List, Optional
 
+# log the logging
+own_logger = logging.getLogger(__name__)
+own_logger.setLevel(logging.DEBUG)
+
 
 class RecordsListHandler(logging.Handler):
     """A logging handler that stores log records for later use.
@@ -66,3 +70,18 @@ def get_stream_log(logger_name: Optional[str]=None, level: str = "INFO") -> logg
     console_log.setLevel(log_levels[level])
     logger.addHandler(console_log)
     return logger
+
+def clean_up_handlers(logger: logging.Logger) -> None:
+    """Close and remove all handlers attached to the supplied logger.
+
+    Arguments:
+        logger: the logger whose handlers should be removed
+
+    """
+    if logger.handlers:
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+            handler.close()
+    else:
+        own_logger.debug(f"Supplied logger '{logger.name}' has no handlers.")
+

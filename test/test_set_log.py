@@ -89,3 +89,27 @@ class TestGetStreamLog(unittest.TestCase):
         assert test_logger.name == "root"
         assert test_logger.level == 20
         assert test_logger.hasHandlers()
+
+
+class TestCleanHandlers(unittest.TestCase):
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
+    def test_no_handlers(self):
+        """Handle a logger with no handlers."""
+        log_msg = "Supplied logger 'testlogger' has no handlers."
+        test_logger = logging.getLogger("testlogger")
+        assert not test_logger.handlers
+        with self._caplog.at_level("DEBUG", logger="set_log"):
+            set_log.clean_up_handlers(test_logger)
+            assert ("set_log", logging.DEBUG, log_msg) in self._caplog.record_tuples
+
+    def test_remove_handlers(self):
+        """Remove and close all handlers from a logger."""
+        test_logger = logging.getLogger("testlogger")
+        test_handler = logging.StreamHandler()
+        test_logger.addHandler(test_handler)
+        assert test_logger.handlers
+        set_log.clean_up_handlers(test_logger)
+        assert not test_logger.handlers

@@ -510,9 +510,7 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
                                                    watch_interval = check_interval)  # TODO: add logging interval
     logger.info(f"Started pipeline with command {' '.join(analysis_run.args)}")
     # clean up the remaining handlers
-    for handler in pipeline_logger.handlers[:]:
-        pipeline_logger.removeHandler(handler)
-        handler.close()
+    set_log.clean_up_handlers(pipeline_logger)
     return analysis_run
 
 

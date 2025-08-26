@@ -317,7 +317,7 @@ def run_check(input_args: List[Any]) -> None:
                         default = DEFAULT_CONFIG_FILE)
     args = parser.parse_args(input_args)
     # TODO initialize root logger here!
-    logger = set_log.get_stream_log("check_runsheet", level="DEBUG")
+    pipeline_logger = set_log.get_stream_log("check_runsheet", level="DEBUG")
     # suppress openpyxl warning - not relevant for data processing
     warnings.filterwarnings('ignore',
                             message = "Data Validation extension is not supported and will be removed",
@@ -330,10 +330,10 @@ def run_check(input_args: List[Any]) -> None:
         run_sheet = pathlib.Path(args.runsheet).resolve()
     else:
         # TODO how to test for this nicely
-        logger.setLevel(logging.INFO)
+        pipeline_logger.setLevel(logging.INFO)
         plain_messages = logging.Formatter("%(message)s")
-        logger.handlers[0].setFormatter(plain_messages)
-        logger.info("###Runsheet check")
+        pipeline_logger.handlers[0].setFormatter(plain_messages)
+        pipeline_logger.info("###Runsheet check")
         readline.set_completer_delims('\t\n=')  # allow tab completion of paths
         readline.parse_and_bind("tab: complete")
 
@@ -342,7 +342,9 @@ def run_check(input_args: List[Any]) -> None:
         check_runsheet(run_sheet, active_config = workflow_config)
     except ValueError as value_error:
         logger.error(str(value_error))
+        set_log.clean_up_handlers(pipeline_logger)
         sys.exit(1)
+    set_log.clean_up_handlers(pipeline_logger)
     sys.exit(0)
 
 
