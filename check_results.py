@@ -11,16 +11,13 @@ from argparse import ArgumentParser
 
 import pandas as pd
 
+import set_log
 import version
 
 __version__ = version.__version__
 
 # start logging
 logger = logging.getLogger("QATest")
-logger.setLevel(logging.INFO)
-console_log = logging.StreamHandler()
-console_log.setLevel(logging.INFO)
-logger.addHandler(console_log)
 
 
 # check whether emu file has been created to start with
@@ -338,6 +335,7 @@ def check_all_qc(results_dir: pathlib.Path) -> bool:
 
 
 if __name__ == "__main__":
+    logger = set_log.get_stream_log()
     arg_parser = ArgumentParser(description = "Check whether results of a test run match "
                                               "expected results")
     arg_parser.add_argument("result_dir", help="Directory containing test run results to evaluate")

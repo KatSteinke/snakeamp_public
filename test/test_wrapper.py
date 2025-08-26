@@ -425,6 +425,36 @@ class TestInitializeRunFromInput(unittest.TestCase):
         assert test_run == expected_run
 
     @mock.patch("builtins.input")
+    def test_success_test_run(self, mock_input):
+        """Successfully set up a run set as a test run in the config."""
+        expected_indir = (pathlib.Path(__file__).parent / "data"/"utilities_test"/"miniondir"
+                          /"test1"/"rawdata"/"test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        # set debug param
+        active_config = self.active_config.copy()
+        active_config["debug"] = True
+        expected_outdir = pathlib.Path("/path/to/output/NANO_Amplicon_Y20990101_RUN0001_XYZ-16S")
+        mock_input.side_effect = [str(expected_indir),  # sequencing directory
+                                  "y",  # accept sequencing time
+                                  str(runsheet),  # runsheet
+                                  "y"]  # accept default outdir
+        expected_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = active_config,
+                                               outdir = expected_outdir,
+                                               sequencing_time = active_config["seq_run_duration_hours"],
+                                               test_run = True)
+        welcome_msg = ("INFO:amplicon_nanopore:### Nanopore 16S analysis\n"
+                       "# Setup analysis -------------------------------")
+        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+            test_run = snake_wrapper.initialize_classic_run(active_config = active_config,
+                                                            configfile = configfile)
+            assert welcome_msg in logged.output
+        assert test_run == expected_run
+
+    @mock.patch("builtins.input")
     def test_success_change_time(self, mock_input):
         """Successfully set up a run with a different sequencing time."""
         expected_indir = (pathlib.Path(__file__).parent / "data"/"utilities_test"/"miniondir"

@@ -19,10 +19,6 @@ workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 
 logger = logging.getLogger("helpers")
-logger.setLevel(logging.INFO)
-console_log = logging.StreamHandler()
-console_log.setLevel(logging.INFO)
-logger.addHandler(console_log)
 
 
 class PrettyKeyErrorMessage(str):
