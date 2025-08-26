@@ -8,6 +8,7 @@ import pathlib
 import sys
 
 from argparse import ArgumentParser
+from typing import List
 
 import pandas as pd
 
@@ -333,16 +334,23 @@ def check_all_qc(results_dir: pathlib.Path) -> bool:
     logger.info("All QC checks passed")
     return True
 
+def check_results(start_args: List[str]) -> None:
+    """Run the result check for the supplied result directory.
 
-if __name__ == "__main__":
-    logger = set_log.get_stream_log()
+    Arguments:
+        start_args: the arguments to start the script with
+
+    """
     arg_parser = ArgumentParser(description = "Check whether results of a test run match "
                                               "expected results")
-    arg_parser.add_argument("result_dir", help="Directory containing test run results to evaluate")
-    arg_parser.add_argument("-l", "--logfile", help="File to write log to "
-                                                    "(default: logs/pipeline_qa.log in result dir)",
+    arg_parser.add_argument("result_dir",
+                            help = "Directory containing test run results to evaluate")
+    arg_parser.add_argument("-l", "--logfile", help = "File to write log to "
+                                                      "(default: logs/pipeline_qa.log in result dir)",
                             default = None)
-    args = arg_parser.parse_args()
+    args = arg_parser.parse_args(start_args)
+    # TODO make this less messy
+    pipeline_logger = set_log.get_stream_log("QATest")
     result_dir = pathlib.Path(args.result_dir)
     if args.logfile:
         logfile_path = pathlib.Path(args.logfile)
@@ -353,10 +361,16 @@ if __name__ == "__main__":
     log_file.setLevel(logging.INFO)
     logfile_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     log_file.setFormatter(logfile_formatter)
-    logger.addHandler(log_file)
+    pipeline_logger.addHandler(log_file)
     check_qc = check_all_qc(result_dir)
     if not check_qc:
         logger.error("One or more QC steps failed. Check log for details.")
+        set_log.clean_up_handlers(pipeline_logger)
         sys.exit(1)
+    set_log.clean_up_handlers(pipeline_logger)
     sys.exit(0)
 
+
+
+if __name__ == "__main__":
+    check_results(sys.argv[1:])
