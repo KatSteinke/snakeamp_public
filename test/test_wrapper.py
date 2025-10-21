@@ -1,4 +1,5 @@
 import logging
+import os
 import pathlib
 import re
 import shutil
@@ -828,6 +829,11 @@ class TestRunPipeline(unittest.TestCase):
         for path in output_paths:
             if path.exists():
                 shutil.rmtree(path)
+
+        custom_logfile = pathlib.Path(__file__).parent / "data" / "utilities_test" / "new_logfile.log"
+        if custom_logfile.exists():
+            os.unlink(custom_logfile)
+
         mads_db_file = (pathlib.Path(__file__).parent
                         / "data"
                         / "utilities_test"
@@ -997,6 +1003,39 @@ class TestRunPipeline(unittest.TestCase):
         assert expected_command == test_command.args
         assert expected_outdir.exists()
 
+    @mock.patch.dict(f"{snake_wrapper.__name__}.WORKFLOW_CONFIG", active_config,
+                     clear = True)
+    @mock.patch(f"{snake_wrapper.__name__}.DEFAULT_CONFIG_FILE", active_config_file)
+    # mock fork so it doesn't actually fork off anything
+    @mock.patch(f"{snake_wrapper.__name__}.os.fork")
+    def test_run_commandline_set_logfile(self, mock_fork):
+        """Start a run in commandline mode and specify a logfile."""
+        mock_fork.return_value = False
+        expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
+                          / "test1" / "rawdata" / "test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = self.active_config_file
+        expected_outdir = pathlib.Path(self.active_config["paths"]["output_base_path"]) \
+                          / "NANO_Amplicon_Y20990101_RUN0001_XYZ-16S"
+        new_logfile = pathlib.Path(__file__).parent / "data" / "utilities_test" / "new_logfile.log"
+        assert not expected_outdir.exists()
+        assert not new_logfile.exists()
+        nomad_command = ["nomad", "job", "dispatch",
+                         "-meta", f"indir={expected_indir}",
+                         "-meta", f"outdir={expected_outdir}",
+                         "-meta", f"runsheet={runsheet}",
+                         "16s-snake-emu-staging", str(configfile)]
+        expected_command = ["echo", f'"{" ".join(nomad_command)}"']
+        test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet),
+                     "--logfile", str(new_logfile),
+                     "--dry_run"]
+        test_command = snake_wrapper.run_pipeline(test_args)
+        assert expected_command == test_command.args
+        assert expected_outdir.exists()
+        assert new_logfile.exists()
+
+
     @mock.patch(f"{snake_wrapper.__name__}.os.fork")
     def test_run_commandline_set_test_run(self, mock_fork):
         """Start a run in test mode, overriding config."""
@@ -1107,6 +1146,7 @@ class TestRunPipeline(unittest.TestCase):
                                       dry_run=True,
                                       watch_timeout = watch_seconds,
                                       watch_interval = mock.ANY)
+
     @mock.patch(f"{snake_wrapper.__name__}.os.fork")
     def test_use_lis_from_file(self, mock_fork):
         """Use a LIS report from a file."""
