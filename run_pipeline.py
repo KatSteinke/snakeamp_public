@@ -412,9 +412,8 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
 
 
     # load debug settings from config (either the one we loaded or the default)
-    debug_run = WORKFLOW_CONFIG["debug"]
+    debug_run = active_config["debug"]
     # load sequencing time settings
-    seq_time = WORKFLOW_CONFIG["seq_run_duration_hours"]
     seq_run_fudge_factor = timedelta(hours = 1)
     if manual_mode:
         # lots of typing, so allow tab completion of paths
@@ -428,13 +427,11 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
         current_run = initialize_commandline_run(args, active_config, config_file)
 
     # check runsheet
-    runsheet_data = process_runsheet(current_run.runsheet, WORKFLOW_CONFIG)
+    runsheet_data = process_runsheet(current_run.runsheet, active_config)
     # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_report = active_config["lab_info_system"]["lis_report"]
-        check_runsheet.check_against_lis(runsheet_data, lis_report, active_config = WORKFLOW_CONFIG)
-    else:
-        lis_report = None
+        check_runsheet.check_against_lis(runsheet_data, lis_report, active_config = active_config)
 
     # manual mode has set up the output dir, commandline may still have to
     if args.outdir:  # can only be given in commandline mode
