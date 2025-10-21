@@ -360,7 +360,7 @@ class TestGetNomadCommand(unittest.TestCase):
                             "-meta", "indir=path/to/indir",
                             "-meta", "outdir=path/to/outdir",
                             "-meta", f"runsheet={runsheet}",
-                            "16s-snake-emu-prod", str(test_configfile)]
+                            "16s-snake-emu-staging", str(test_configfile)]
         seq_run = monitor_run.AmpliconRun(sequence_dir = indir, runsheet = runsheet,
                                           configfile = test_configfile, active_config = test_config,
                                           test_run = None)
