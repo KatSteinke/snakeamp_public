@@ -261,34 +261,7 @@ def initialize_commandline_run(start_args: argparse.Namespace,
         raise ValueError("Runsheet not specified.")
     if not start_args.rundir:
         raise ValueError("Nanopore run directory not specified.")
-    # get optional args
-    force_lis_reload = getattr(start_args, "force_lis_reload", False)
     # fetch LIS stuff if needed
-    lis_settings = active_config["lab_info_system"]
-    # TODO: prettier logic
-    if lis_settings["use_lis_features"]:
-        lis_is_current = is_lis_current(pathlib.Path(lis_settings["lis_report"]))
-        # fetch only if we have a DB
-        if lis_settings["database"]:
-            if lis_is_current:
-                if force_lis_reload:
-                    logger.info("Fetching new data from MADS."
-                                " Please wait, this may take several minutes...")
-                    get_lis_data.fetch_lis_data_from_config(active_config)
-                else:
-                    logger.info("Continuing with existing MADS data.")
-            else:
-                logger.info("Fetching new data from MADS."
-                            " Please wait, this may take several minutes...")
-                get_lis_data.fetch_lis_data_from_config(active_config)
-        else:
-            if force_lis_reload:
-                logger.warning("No LIS SQL database specified."
-                               " --force_lis_reload only works with a database connection, "
-                               "not from a file.")
-            if not lis_is_current:
-                logger.info("MADS report is older than 24 hours.")
-
     seqtime = active_config["seq_run_duration_hours"]
     test_run = active_config["debug"]
     run_sheet = pathlib.Path(start_args.runsheet).resolve()
