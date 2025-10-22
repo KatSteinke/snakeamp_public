@@ -344,6 +344,30 @@ class TestGetNomadCommand(unittest.TestCase):
         test_command = monitor_run.get_pipeline_command(seq_run)
         assert expected_command == test_command
 
+    def test_get_level_from_config(self):
+        """Get test level from config file if not specified for the run."""
+        indir = pathlib.Path("path/to/indir")
+        outdir = pathlib.Path("path/to/outdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        test_configfile = pathlib.Path("path/to/config")
+        test_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "debug": True, "amplicon_type": "16S",
+                       "paths": {"output_base_path": "/path/to/output"},
+                       "seq_run_duration_hours": 1}
+        expected_command = ["nomad", "job", "dispatch",
+                            "-meta", "indir=path/to/indir",
+                            "-meta", "outdir=path/to/outdir",
+                            "-meta", f"runsheet={runsheet}",
+                            "16s-snake-emu-staging", str(test_configfile)]
+        seq_run = monitor_run.AmpliconRun(sequence_dir = indir, runsheet = runsheet,
+                                          configfile = test_configfile, active_config = test_config,
+                                          test_run = None)
+        seq_run.outdir = outdir
+        test_command = monitor_run.get_pipeline_command(seq_run)
+        assert expected_command == test_command
+
     def test_override_test_command(self):
         """Test that a config specifying debug mode can be overridden by the debug flag."""
         indir = pathlib.Path("path/to/indir")

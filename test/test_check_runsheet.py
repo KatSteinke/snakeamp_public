@@ -1,6 +1,8 @@
+import logging
 import pathlib
 import re
 import unittest
+from unittest import mock
 
 import pandas as pd
 import pytest
@@ -847,3 +849,46 @@ class TestCheckRunsheet(unittest.TestCase):
             assert check_sheet_msg in logged.output
             assert check_lis_msg in logged.output
         assert runsheet_pass
+
+
+class TestRunCheck(unittest.TestCase):
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
+    @mock.patch("builtins.input", side_effect = [str(pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                   / "test_nanopore_runsheet.xlsx")])
+    def test_success_classic(self, mock_input):
+        """Successfully check a good runsheet that has been entered by the user."""
+        check_msg = "###Runsheet check"
+        with (pytest.raises(SystemExit, match="0"),
+            self._caplog.at_level(level="INFO", logger="check_runsheet")):
+            check_runsheet.run_check(["--workflow_config_file", str(pathlib.Path(__file__).parent / "data"/"utilities_test"/"test_16s_config_no_debug.yaml")])
+        assert ("check_runsheet", logging.INFO, check_msg) in self._caplog.record_tuples
+
+
+    def test_success_commandline(self):
+        """Successfully check a good runsheet that has been supplied as a commandline argument."""
+        with (pytest.raises(SystemExit, match = "0")):
+            check_runsheet.run_check(["--runsheet", str(pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                   / "test_nanopore_runsheet.xlsx"),
+                                      "--workflow_config_file",
+                                      str(pathlib.Path(__file__).parent / "data"/"utilities_test"/"test_16s_config_no_debug.yaml")])
+
+    def test_catch_bad_sheet(self):
+        """Successfully catch a broken runsheet."""
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nSample IDs ['1112345678', '1123456789', '123'] are not valid." \
+                    " Sample IDs must start with P or B or D or T followed by eight numbers" \
+                    " (six if leaving out year). " \
+                    "Negative controls must be given in the format NegK[a-zA-Z0-9]*. " \
+                    "Please correct sample IDs in runsheet."
+        fail_runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                        / "runsheet-id-fail-negk.xlsx"
+        with ((pytest.raises(SystemExit, match = "1")),
+              self._caplog.at_level(level="INFO",logger="check_runsheet")):
+            check_runsheet.run_check(["--runsheet",str(fail_runsheet),
+                                      "--workflow_config_file",
+                                      str(pathlib.Path(__file__).parent / "data"/"utilities_test"/"test_16s_config_no_debug.yaml")])
+        assert ("check_runsheet", logging.ERROR, error_msg) in self._caplog.record_tuples
+
