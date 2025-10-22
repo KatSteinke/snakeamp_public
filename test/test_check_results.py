@@ -1,4 +1,5 @@
 import io
+import logging
 import pathlib
 import re
 import unittest
@@ -329,3 +330,76 @@ class TestCheckAllQC(unittest.TestCase):
             check_files = check_results.check_all_qc(test_dir)
             assert success_msg in logged.output
         assert check_files
+
+@mock.patch(f"{check_results.__name__}.__version__")
+class TestCheckResults(unittest.TestCase):
+    log_format = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}"
+                            r" - QATest - (INFO|WARNING|ERROR) - [-:a-zA-Z0-9_./# ]+")
+    def tearDown(self):
+        """Clean up existing logfiles."""
+        (pathlib.Path(__file__).parent / "data" / "check_results"
+         / "empty_dir" / "logs" / "pipeline_qa.log").unlink(missing_ok = True)
+        (pathlib.Path(__file__).parent / "data" / "check_results"
+         / "success_emu_dir" / "logs" / "pipeline_qa.log").unlink(missing_ok = True)
+        (pathlib.Path(__file__).parent / "data" / "check_results"
+         / "custom.log").unlink(missing_ok = True)
+
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
+    def test_warn_missing_results(self, mock_version):
+        """Warn if any results are missing, and log this properly."""
+        mock_version.__str__.return_value = "0.4.2"
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "empty_dir"
+        expected_logfile = test_dir / "logs" / "pipeline_qa.log"
+        error_msg = "One or more QC steps failed. Check log for details."
+        warn_msg = "Emu report is missing. Cannot evaluate Emu results."
+        assert not expected_logfile.exists()
+        with pytest.raises(SystemExit, match="1"), self._caplog.at_level(logging.INFO,
+                                                                         logger="QATest"):
+            check_results.check_results([str(test_dir)])
+        assert ("QATest", logging.ERROR, error_msg) in self._caplog.record_tuples
+        assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
+        assert expected_logfile.exists()
+        with open(expected_logfile, "r") as read_log:
+            log_data = read_log.readlines()
+        for line in log_data:
+            assert re.match(self.log_format, line.strip())
+
+
+    def test_success(self, mock_version):
+        """Report success if all checks pass, and log this properly."""
+        mock_version.__str__.return_value = "0.4.2"
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir"
+        expected_logfile = (pathlib.Path(__file__).parent / "data" / "check_results"
+         / "custom.log")
+        success_msg = "All QC checks passed"
+        assert not expected_logfile.exists()
+        with pytest.raises(SystemExit, match = "0"), self._caplog.at_level(logging.INFO,
+                                                                           logger = "QATest"):
+            check_results.check_results([str(test_dir), "--logfile", str(expected_logfile)])
+        assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
+        assert expected_logfile.exists()
+        with open(expected_logfile, "r") as read_log:
+            log_data = read_log.readlines()
+        for line in log_data:
+            assert re.match(self.log_format, line.strip())
+
+
+    def test_different_logfile(self, mock_version):
+        """Set different logfile."""
+        mock_version.__str__.return_value = "0.4.2"
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir"
+        expected_logfile = test_dir / "logs" / "pipeline_qa.log"
+        success_msg = "All QC checks passed"
+        assert not expected_logfile.exists()
+        with pytest.raises(SystemExit, match = "0"), self._caplog.at_level(logging.INFO,
+                                                                           logger = "QATest"):
+            check_results.check_results([str(test_dir)])
+        assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
+        assert expected_logfile.exists()
+        with open(expected_logfile, "r") as read_log:
+            log_data = read_log.readlines()
+        for line in log_data:
+            assert re.match(self.log_format, line.strip())

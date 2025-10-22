@@ -22,10 +22,6 @@ workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 # start logging
 logger = logging.getLogger("launch_run")
-logger.setLevel(logging.INFO)
-console_log = logging.StreamHandler()
-console_log.setLevel(logging.INFO)
-logger.addHandler(console_log)
 
 
 class AmpliconRun:
@@ -65,7 +61,10 @@ class AmpliconRun:
         self.runsheet = runsheet
         self.configfile = configfile
         self.active_config = active_config
-        self.test_run = test_run
+        if test_run is None:
+            self.test_run = active_config["debug"]
+        else:
+            self.test_run = test_run
         if outdir:
             self.outdir = outdir
         else:
@@ -111,7 +110,7 @@ def get_pipeline_command(sequencing_run: AmpliconRun) -> List[str]:
     """Generate the command for starting the pipeline.
 
     Arguments:
-        sequencing_run:          the directory containing input files for the pipeline
+        sequencing_run: the directory containing input files for the pipeline
 
     Returns:
         The nomad command to start the pipeline

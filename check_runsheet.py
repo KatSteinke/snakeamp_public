@@ -10,13 +10,14 @@ import sys
 import warnings
 
 from argparse import ArgumentParser
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pandas as pd
 import yaml
 
 import helpers
 import pipeline_config
+import set_log
 import version
 
 from helpers import extract_sample_number_part
@@ -24,8 +25,8 @@ from helpers import extract_sample_number_part
 __version__ = version.__version__
 
 # import parameters
-default_config_file = pipeline_config.default_config_file
-workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
+DEFAULT_CONFIG_FILE = pipeline_config.default_config_file
+WORKFLOW_CONFIG = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 # convert sample numbers to MADS-friendly format
 # see if any weren't found, point at relevant number in runsheet if so
@@ -36,17 +37,12 @@ workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 logger = logging.getLogger("check_runsheet")
 logger.setLevel(logging.DEBUG)
-console_log = logging.StreamHandler()
-console_log.setLevel(logging.INFO)
-plain_messages = logging.Formatter("%(message)s")
-console_log.setFormatter(plain_messages)
-logger.addHandler(console_log)
 
 
 # TODO: sample year is now already spliced in or should be
 def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_prefix: str,
                     lab_data_prefix: str,
-                    active_config: Dict[str, Any] = workflow_config) -> None:
+                    active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> None:
     """Check whether samples of a given sample type (indicated by prefix) are contained in a report
     from the laboratory information system.
 
@@ -107,7 +103,7 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
 
 
 def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
-                      active_config: Dict[str, Any] = workflow_config) -> None:
+                      active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> None:
     """Check if sample numbers are found in laboratory information system report.
 
     Arguments:
@@ -173,7 +169,7 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
 
 
 def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
-                       active_config: Dict[str, Any] = workflow_config) -> None:
+                       active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> None:
     """Check if sample numbers are present and in the correct format.
 
     Arguments:
@@ -278,7 +274,7 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
 
 
 def check_runsheet(runsheet: pathlib.Path, check_barcodes: bool = False,
-                   active_config: Dict[str, Any] = workflow_config) -> bool:
+                   active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> bool:
     """Check whether the runsheet format is correct and the samples are present in the LIS report
     if one is used.
 
@@ -308,20 +304,24 @@ def check_runsheet(runsheet: pathlib.Path, check_barcodes: bool = False,
     return True
 
 
-if __name__ == "__main__":
+def run_check(input_args: List[Any]) -> None:
+    """Run the runsheet check for the supplied runsheet.
+
+    Arguments:
+        input_args: the arguments to start the runsheet check with
+    """
     parser = ArgumentParser(description = "Check amplicon runsheet")
-    parser.add_argument("--runsheet", help="Path to runsheet to check")
+    parser.add_argument("--runsheet", help = "Path to runsheet to check")
     parser.add_argument("--workflow_config_file",
-                        help=f"The config to use (default: {default_config_file}).",
-                        default=default_config_file)
-    args = parser.parse_args()
-    readline.set_completer_delims('\t\n=')   # allow tab completion of paths
-    readline.parse_and_bind("tab: complete")
+                        help = f"The config to use (default: {DEFAULT_CONFIG_FILE}).",
+                        default = DEFAULT_CONFIG_FILE)
+    args = parser.parse_args(input_args)
+    # TODO initialize root logger here!
+    pipeline_logger = set_log.get_stream_log("check_runsheet", level="DEBUG")
     # suppress openpyxl warning - not relevant for data processing
     warnings.filterwarnings('ignore',
-                            message="Data Validation extension is not supported and will be removed",
-                            module="openpyxl")
-    print("###Runsheet check")
+                            message = "Data Validation extension is not supported and will be removed",
+                            module = "openpyxl")
     if args.workflow_config_file:
         default_config_file = pathlib.Path(args.workflow_config_file).resolve()
         with open(default_config_file, "r", encoding = "utf-8") as config_file:
@@ -329,10 +329,24 @@ if __name__ == "__main__":
     if args.runsheet:
         run_sheet = pathlib.Path(args.runsheet).resolve()
     else:
+        # TODO how to test for this nicely
+        pipeline_logger.setLevel(logging.INFO)
+        plain_messages = logging.Formatter("%(message)s")
+        pipeline_logger.handlers[0].setFormatter(plain_messages)
+        pipeline_logger.info("###Runsheet check")
+        readline.set_completer_delims('\t\n=')  # allow tab completion of paths
+        readline.parse_and_bind("tab: complete")
+
         run_sheet = pathlib.Path(input("Enter path to runsheet: ").strip().strip("'")).resolve()
     try:
         check_runsheet(run_sheet, active_config = workflow_config)
     except ValueError as value_error:
         logger.error(str(value_error))
+        set_log.clean_up_handlers(pipeline_logger)
         sys.exit(1)
+    set_log.clean_up_handlers(pipeline_logger)
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    run_check(sys.argv[1:])

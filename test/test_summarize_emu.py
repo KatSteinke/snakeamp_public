@@ -233,7 +233,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts" : [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -279,7 +279,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -323,7 +323,7 @@ class TestExtractCounts(unittest.TestCase):
                        / "RUN0001_barcode01_RB01_rel-abundance.tsv")
         expected_results = pd.DataFrame(data = {"abundance": [100.0],
                                                 "counts": [100],
-                                                "med": [""]},
+                                                "med": [np.nan]},
                                         index = pd.Index(data = ["unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
@@ -375,7 +375,7 @@ class TestExtractCounts(unittest.TestCase):
                        / "RUN0001_1199123456-1_RB01_rel-abundance.tsv")
         expected_results = pd.DataFrame(data = {"abundance": [0.00],
                                                 "counts": [0],
-                                                "med": [""]},
+                                                "med": [np.nan]},
                                         index = pd.Index(data = ["unassigned"],
                                                          name = "species"))
         expected_results = expected_results.astype({"counts": "Int64"})
@@ -422,7 +422,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts":[4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -476,7 +476,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -544,7 +544,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -630,7 +630,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts":[4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"],
@@ -714,7 +714,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -782,7 +782,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -836,7 +836,7 @@ class TestExtractCounts(unittest.TestCase):
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
                                                               5.00],
                                                 "counts": [4, 15, 1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -1570,10 +1570,10 @@ class TestMergeEmuDir(unittest.TestCase):
         """Test if multiple files are merged successfully."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "success_merge_dir"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", 80.00, 16, ""],
-                           [np.nan, np.nan, np.nan, 20.00, 4, ""],
-                           [5.00, 1, "", 0.00, 0, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, 80.00, 16, np.nan],
+                           [np.nan, np.nan, np.nan, 20.00, 4, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
@@ -1637,7 +1637,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               5.00],
                                                 "counts": [4, 15,
                                                            1],
-                                                "med": ["", "", ""]},
+                                                "med": [np.nan, np.nan, np.nan]},
                                         index = pd.Index(data = ["Placeholderia bielefeldensis",
                                                                  "Placeholderia fakeorum",
                                                                  "unassigned"], name = "species"))
@@ -1680,9 +1680,9 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "one_broken"
         base_dir = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "bad_qc"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, np.nan, np.nan, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -1755,9 +1755,9 @@ class TestMergeEmuDir(unittest.TestCase):
             __file__).parent / "data" / "summarize_emu" / "one_broken"
         base_dir =  pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "missing_qc"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, np.nan, np.nan, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -1828,9 +1828,9 @@ class TestMergeEmuDir(unittest.TestCase):
         """Ensure that an invalid file is handled properly (log error and return fake empty df)"""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "one_broken"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, np.nan, np.nan, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -1894,10 +1894,10 @@ class TestMergeEmuDir(unittest.TestCase):
         """Warn when a directory contains data from multiple runs."""
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "multi_run"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", 80.00, 16, ""],
-                           [np.nan, np.nan, np.nan, 20.00, 4, ""],
-                           [5.00, 1, "", 0.00, 0, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, 80.00, 16, np.nan],
+                           [np.nan, np.nan, np.nan, 20.00, 4, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
@@ -1977,9 +1977,9 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               / "fake_mads_material.csv")}}
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "one_broken_lis"
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan],
-                           [5.00, 1, "", np.nan, np.nan, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, np.nan, np.nan, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2089,9 +2089,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "merge_different_format")
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2154,9 +2154,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = (pathlib.Path( __file__).parent / "data" / "summarize_emu"
                        / "merge_multi_sample")
 
-        expected_values = [[20.00, 4, "", 20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2255,9 +2255,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_one_empty"
 
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, 20.00, 4, ""],
-                           [75.00, 15, "", np.nan, np.nan, np.nan,  75.00, 15, ""],
-                           [5.00, 1, "", 0.00, 0.00, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan,  75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0.00, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2413,9 +2413,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_two_empty"
 
-        expected_values = [[20.00, 4, "", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
-                           [75.00, 15, "", np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
-                           [5.00, 1, "", 0.00, 0.00, "", 0.00, 0, ""]]
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0.00, np.nan, 0.00, 0, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2570,9 +2570,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "merge_different_format")
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2692,9 +2692,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2816,9 +2816,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "multi_run_patients"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -2940,9 +2940,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -3064,9 +3064,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_shorten_name"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -3188,9 +3188,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_short_run_name"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -3312,9 +3312,9 @@ class TestMergeEmuDir(unittest.TestCase):
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_broken_run_name"
 
-        expected_values = [[20.00, 4, "", 20.00, 4, ""],
-                           [75.00, 15, "", 75.00, 15, ""],
-                           [5.00, 1, "", 5.00, 1, ""]]
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
         expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
                                           "Placeholderia fakeorum",
                                           "unassigned"], name = "species")
@@ -3444,7 +3444,6 @@ class TestWriteToSheets(unittest.TestCase):
                                                  names = ["prøvenummer", None])
     expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                    columns = expected_columns)
-    print(expected_merged.columns.names)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -3771,3 +3770,372 @@ class TestGetKrakenReadCount(unittest.TestCase):
             assert no_human_msg in logged.output
             assert no_bact_msg in logged.output
         pd.testing.assert_frame_equal(expected_results, test_results)
+
+class TestSummarizeEmu(unittest.TestCase):
+    test_sheet = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                  / "test_results_summary.xlsx")
+    test_tab = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                  / "test_results_summary.tsv")
+    version_text = f"Version_{summarize_emu.__version__}"
+    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+                                                  "positive_control": {},
+                                                  "negative_control": ""},
+                       "barcode_format": "RB[0-9]{2}",
+                       "lab_info_system": {"use_lis_features": False}}
+
+    def tearDown(self):
+        (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+         / "test_results_summary.xlsx").unlink(missing_ok = True)
+        (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+         / "test_results_summary.tsv").unlink(missing_ok=True)
+
+    # we use a mock config for stability
+    @mock.patch.dict(f"{summarize_emu.__name__}.workflow_config", workflow_config,
+                     clear = True)
+    def test_success_redirect_output(self):
+        """Write results to non-default output files."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "success_merge_dir"
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, 80.00, 16, np.nan],
+                           [np.nan, np.nan, np.nan, 20.00, 4, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0, np.nan]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "Placeholderia testfacei",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode02",
+                                                       "barcode02",
+                                                       "barcode02"],
+                                                      ["6176", "6176", "6176",
+                                                       "6176", "6176", "6176"],
+                                                      ["95", "95", "95",
+                                                       "95", "95", "95"],
+                                                      ["5", "5", "5", "5", "5", "5"],
+                                                      ["", "", "", "", "", ""],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance", "counts",
+                                                       "med",
+                                                       "abundance", "counts",
+                                                       "med"]],
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                              "PhHV",
+                                                              "notes",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        assert not self.test_sheet.exists()
+        assert not self.test_tab.exists()
+        test_input = [str(sample_path), "--outfile", str(self.test_sheet),
+                      "--outfile_raw", str(self.test_tab)]
+        summarize_emu.summarize_emu(test_input)
+        test_from_sheet = pd.read_excel(self.test_sheet, index_col = 0,
+                                        header = [0,  # run name
+                                                  1,  # version
+                                                  2,  # barcode
+                                                  3,  # sample number
+                                                  4,  # "total_before_qc",
+                                                  5,  # "total_after_qc",
+                                                  6,  # "human",
+                                                  7,  # PhHV
+                                                  8,  # notes
+                                                  9])
+        test_from_tab =  pd.read_csv(self.test_tab, index_col = 0,
+                                        header = [0,  # run name
+                                                  1,  # version
+                                                  2,  # barcode
+                                                  3,  # sample number
+                                                  4,  # "total_before_qc",
+                                                  5,  # "total_after_qc",
+                                                  6,  # "human",
+                                                  7,  # PhHV
+                                                  8,  # notes
+                                                  9],
+                                     sep="\t")
+        # fix auto-naming of unnamed levels
+        test_from_sheet = test_from_sheet.rename(columns = lambda colname: ""
+                                                            if "Unnamed" in str(colname)
+                                                            else str(colname))
+        test_from_tab = test_from_tab.rename(columns = lambda colname: ""
+                                                        if "Unnamed" in str(colname)
+                                                        else str(colname))
+        pd.testing.assert_frame_equal(expected_merged, test_from_sheet, check_dtype = False)
+        pd.testing.assert_frame_equal(expected_merged, test_from_tab, check_dtype = False)
+
+    def test_success_change_config(self):
+        """Use a non-default config file"""
+        workflow_config = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                           / "test_config.yaml")
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
+
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["F99123456",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99654321",
+                                                       "F99654321",
+                                                       "F99654321"],
+                                                      ["2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       ],
+                                                      ["RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_1",
+                                                       "RUN0001_pt_1",
+                                                       "RUN0001_pt_1"],
+                                                      ["Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning"
+                                                       ],
+                                                      ["Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil"],
+                                                      ["en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
+                                                      ["6176", "6176", "6176",
+                                                       "6176", "6176", "6176"],
+                                                      ["100", "100", "100",
+                                                       "100", "100", "100"],
+                                                      ["10", "10", "10",
+                                                       "10", "10", "10"],
+                                                      ["", "", "", "", "", ""],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance", "counts",
+                                                       "med",
+                                                       "abundance", "counts",
+                                                       "med"]],
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
+                                                              "modtagedato",
+                                                              "patient",
+                                                              "prøvemateriale",
+                                                              "anatomi",
+                                                              "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                              "PhHV",
+                                                              "notes",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        assert not self.test_sheet.exists()
+        assert not self.test_tab.exists()
+        test_input = [str(sample_path), "--outfile", str(self.test_sheet),
+                      "--outfile_raw", str(self.test_tab),
+                      "--workflow_config_file", str(workflow_config)]
+        summarize_emu.summarize_emu(test_input)
+        test_from_sheet = pd.read_excel(self.test_sheet, index_col = 0,
+                                        header = [0,  # run name
+                                                 1,  # version
+                                                 2,  # barcode
+                                                 3,  # sample number
+                                                 4,  # "modtagedato",
+                                                 5,  # "patient",
+                                                 6,  # "prøvemateriale",
+                                                 7,  # "anatomi",
+                                                 8,  # "indikation",
+                                                 9,  # "total_before_qc",
+                                                 10,  # "total_after_qc",
+                                                 11,  # "human",
+                                                 12,  # PhHV
+                                                 13,  # notes
+                                                 14])
+        test_from_tab =  pd.read_csv(self.test_tab, index_col = 0,
+                                     header = [0,  # run name
+                                               1,  # version
+                                               2,  # barcode
+                                               3,  # sample number
+                                               4,  # "modtagedato",
+                                               5,  # "patient",
+                                               6,  # "prøvemateriale",
+                                               7,  # "anatomi",
+                                               8,  # "indikation",
+                                               9,  # "total_before_qc",
+                                               10,  # "total_after_qc",
+                                               11,  # "human",
+                                               12,  # PhHV
+                                               13,  # notes
+                                               14],
+                                     sep="\t")
+        test_from_sheet = test_from_sheet.rename(columns = lambda colname: ""
+                                                            if "Unnamed" in str(colname)
+                                                            else str(colname))
+        test_from_tab = test_from_tab.rename(columns = lambda colname: ""
+                                                        if "Unnamed" in str(colname)
+                                                        else str(colname))
+        pd.testing.assert_frame_equal(expected_merged, test_from_sheet, check_dtype = False)
+        pd.testing.assert_frame_equal(expected_merged, test_from_tab, check_dtype = False)
+
+    @mock.patch.dict(f"{summarize_emu.__name__}.workflow_config", workflow_config,
+                     clear = True)
+    def test_success_different_basedir(self):
+        """Use a different base dir."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "success_merge_dir"
+        base_dir = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "result_base_dir"
+        expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
+                           [75.00, 15, np.nan, 80.00, 16, np.nan],
+                           [np.nan, np.nan, np.nan, 20.00, 4, np.nan],
+                           [5.00, 1, np.nan, 0.00, 0, np.nan]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "Placeholderia testfacei",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["barcode01",
+                                                       "barcode01",
+                                                       "barcode01",
+                                                       "barcode02",
+                                                       "barcode02",
+                                                       "barcode02"],
+                                                      ["6176", "6176", "6176",
+                                                       "6176", "6176", "6176"],
+                                                      ["100", "100", "100",
+                                                       "100", "100", "100"],
+                                                      ["10", "10", "10", "10", "10", "10"],
+                                                      ["", "", "", "", "", ""],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance", "counts",
+                                                       "med",
+                                                       "abundance", "counts",
+                                                       "med"]],
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "prøvenummer",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                              "PhHV",
+                                                              "notes",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        assert not self.test_sheet.exists()
+        assert not self.test_tab.exists()
+        test_input = [str(sample_path), "--outfile", str(self.test_sheet),
+                      "--outfile_raw", str(self.test_tab), "--base_dir", str(base_dir)]
+        summarize_emu.summarize_emu(test_input)
+        test_from_sheet = pd.read_excel(self.test_sheet, index_col = 0,
+                                        header = [0,  # run name
+                                                  1,  # version
+                                                  2,  # barcode
+                                                  3,  # sample number
+                                                  4,  # "total_before_qc",
+                                                  5,  # "total_after_qc",
+                                                  6,  # "human",
+                                                  7,  # PhHV
+                                                  8,  # notes
+                                                  9])
+        test_from_tab = pd.read_csv(self.test_tab, index_col = 0,
+                                    header = [0,  # run name
+                                              1,  # version
+                                              2,  # barcode
+                                              3,  # sample number
+                                              4,  # "total_before_qc",
+                                              5,  # "total_after_qc",
+                                              6,  # "human",
+                                              7,  # PhHV
+                                              8,  # notes
+                                              9],
+                                    sep = "\t")
+        test_from_sheet = test_from_sheet.rename(columns = lambda colname: ""
+                                                            if "Unnamed" in str(colname)
+                                                            else str(colname))
+        test_from_tab = test_from_tab.rename(columns = lambda colname: ""
+                                                        if "Unnamed" in str(colname)
+                                                        else str(colname))
+        pd.testing.assert_frame_equal(expected_merged, test_from_sheet, check_dtype = False)
+        pd.testing.assert_frame_equal(expected_merged, test_from_tab, check_dtype = False)

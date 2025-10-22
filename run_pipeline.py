@@ -2,16 +2,18 @@
 
 __author__ = "Kat Steinke"
 
+import argparse
 import logging
 import os
 import pathlib
 import re
 import readline
+import subprocess
 import sys
 
 from argparse import ArgumentParser
 from datetime import timedelta
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import yaml
@@ -20,21 +22,19 @@ import check_runsheet
 import helpers
 import monitor_run
 import pipeline_config
+import set_log
 import version
 
 __version__ = version.__version__
 
 
 # import parameters
-default_config_file = pipeline_config.default_config_file
-workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
+DEFAULT_CONFIG_FILE = pipeline_config.default_config_file
+WORKFLOW_CONFIG = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 # start logging
+# TODO: capture warnings etc
 logger = logging.getLogger("amplicon_nanopore")
-logger.setLevel(logging.INFO)
-console_log = logging.StreamHandler()
-console_log.setLevel(logging.INFO)
-logger.addHandler(console_log)
 
 
 # get base dir - see SARS script
@@ -50,7 +50,7 @@ class BadPathError(Exception):
 
 # read runsheet
 def process_runsheet(runsheet_path: pathlib.Path,
-                     active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
+                     active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> pd.DataFrame:
     """Read a runsheet, filter it down to the samples for which the analysis specified in config
     should be performed and check the format.
 
@@ -243,6 +243,43 @@ def initialize_classic_run(active_config: Dict[str, Any],
     return basic_run
 
 
+def initialize_commandline_run(start_args: argparse.Namespace,
+                               active_config: Dict[str, Any] = WORKFLOW_CONFIG,
+                               config_file: pathlib.Path = DEFAULT_CONFIG_FILE) \
+        -> monitor_run.AmpliconRun:
+    """Initialize a run from commandline arguments.
+
+    Arguments:
+        start_args:     the arguments the pipeline was started with
+        active_config:  the configuration to use
+        config_file:    the path to the config file used
+
+    Returns:
+        An AmpliconRun with all relevant features taken from commandline arguments.
+    """
+    if not start_args.runsheet:
+        raise ValueError("Runsheet not specified.")
+    if not start_args.rundir:
+        raise ValueError("Nanopore run directory not specified.")
+    # fetch LIS stuff if needed
+    seqtime = active_config["seq_run_duration_hours"]
+    test_run = active_config["debug"]
+    run_sheet = pathlib.Path(start_args.runsheet).resolve()
+    run_dir = helpers.get_fastq_pass_parent(pathlib.Path(start_args.rundir))
+    if start_args.run_time:
+        seqtime = start_args.run_time
+    if start_args.test_run:
+        test_run = True
+    current_amplicon_run = monitor_run.AmpliconRun(sequence_dir = run_dir, runsheet = run_sheet,
+                                                   sequencing_time = seqtime,
+                                                   configfile = config_file,
+                                                   active_config = active_config,
+                                                   test_run = test_run)
+    if start_args.outdir:  # can only be given in commandline mode
+        current_amplicon_run.outdir = get_clean_outdir(pathlib.Path(start_args.outdir))
+    return current_amplicon_run
+
+
 def set_up_output(outdir: pathlib.Path, continue_run: bool = False) -> None:
     """Set up output and log directories if the output directory does not exist already.
 
@@ -265,16 +302,76 @@ def set_up_output(outdir: pathlib.Path, continue_run: bool = False) -> None:
     if not (outdir / "logs").exists():
         (outdir / "logs").mkdir()
 
+# TODO move this out
+def check_if_classic_mode(start_args: argparse.Namespace, parent_parser: ArgumentParser,
+                          classic_mode_args: Optional[List[str]] = None) -> bool:
+    """Check if the pipeline was called in classic mode or commandline mode. In classic mode,
+    all arguments are assumed to be default with the exception of those given in classic_mode_args.
 
-# get the command to run the pipeline
-if __name__ == "__main__":
+    Arguments:
+        start_args:         the arguments the pipeline was called with
+        parent_parser:      the parser used to parse the args
+        classic_mode_args:  names of the args allowed in classic mode, if any
+
+    Returns:
+        True if the pipeline was called with all default args
+        (except args which may be set in classic mode);
+        False otherwise.
+
+    Raises:
+        KeyError:   if the start args or args permitted in classic mode contain args not found in
+                    the parent parser
+    """
+    args_with_vals = vars(start_args)
+    parser_actions = parent_parser._actions
+    parser_args = {arg.dest for arg in parser_actions}
+    excess_args = set(args_with_vals.keys()) - parser_args
+    if excess_args:
+        error_msg = helpers.PrettyKeyErrorMessage(f"Argument(s) {sorted(list(excess_args))}"
+                                                  " are not valid arguments for the "
+                                                  "specified parser.")
+        raise KeyError(error_msg)
+    # we may have args that can be set in classic mode - if these are correct...
+    if classic_mode_args:
+        extra_classic_args = set(classic_mode_args) - parser_args
+        if extra_classic_args:
+            error_msg = helpers.PrettyKeyErrorMessage("Argument(s) "
+                                                      f"{sorted(list(extra_classic_args))}"
+                                                      " are not valid arguments for the "
+                                                      "specified parser.")
+            raise KeyError(error_msg)
+        # ...remove them from what we check
+        args_with_vals = {key: value for key, value in args_with_vals.items()
+                          if key not in classic_mode_args}
+
+    # start with the easiest case: everything is None/False
+    # - we can only have this if no default is True
+    if not any(arg.default is True for arg in parser_actions):
+        if not any(args_with_vals.values()):
+            return True
+    # however, even if there are values, these might be defaults
+    # https://stackoverflow.com/a/44543594/15704972 for getting parser defaults
+    parent_defaults = {key: parent_parser.get_default(key) for key in args_with_vals}
+    all_default = args_with_vals == parent_defaults
+    return all_default
+
+
+def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
+    """Run the pipeline.
+
+    Arguments:
+        start_args: The arguments to start the pipeline with
+
+    Returns:
+        The subprocess that runs the pipeline.
+    """
     arg_parser = ArgumentParser(description = "Run the Nanopore amplicon analysis pipeline")
     arg_parser.add_argument("--rundir", help="Full path or name of sequencing folder")
     arg_parser.add_argument("--runsheet", help="Path to runsheet")
     arg_parser.add_argument("--outdir",
                             help="Path to output directory "
                                  "(default: "
-                                 f"{workflow_config['paths']['output_base_path']}/[name of rundir])")
+                                 f"{WORKFLOW_CONFIG['paths']['output_base_path']}/[name of rundir])")
     arg_parser.add_argument("--workflow_config_file",
                             help="Config file for run (overrides default config given in script, "
                                  "can be overridden by commandline options)")
@@ -288,27 +385,35 @@ if __name__ == "__main__":
     arg_parser.add_argument("--run_time", action="store", type=float,
                             help = "Expected sequencing time in hours "
                                    "(will wait for the sequencing run for another hour after this;"
-                                   f" default: {workflow_config['seq_run_duration_hours']})")
-    args = arg_parser.parse_args()
-    # we assume this is commandline mode unless started without arguments
-    manual_mode = False
-    if len(sys.argv) == 1:
-        manual_mode = True
-    # otherwise set up terminal mode
-    else:
-        # load config if present - we need to do this early since it contains mode information
-        if args.workflow_config_file:
-            default_config_file = pathlib.Path(args.workflow_config_file).resolve()
-            with open(default_config_file, "r", encoding = "utf-8") as config_file:
-                workflow_config = yaml.safe_load(config_file)
-            # if this is the *only* argument we also change over into manual mode
-            # -> three arguments: script name, flag, path
-            if len(sys.argv) == 3:
-                manual_mode = True
+                                   f" default: {WORKFLOW_CONFIG['seq_run_duration_hours']})")
+    arg_parser.add_argument("--logfile", action = "store",
+                            help = "Logfile to store analysis start commands (default: "
+                                   f"{WORKFLOW_CONFIG['paths']['output_base_path']}/"
+                                   "[experiment_name]/logs/start_pipeline.log",
+                            default = None)
+    args = arg_parser.parse_args(start_args)
+    # initialize root logger
+    pipeline_logger = set_log.get_stream_log()
+    # we'll save to file later, but some things will be logged before we know where to save them to
+    # -> store them in the meantime
+    log_store = set_log.RecordsListHandler()
+    pipeline_logger.addHandler(log_store)
+    # initialize defaults
+    active_config = WORKFLOW_CONFIG
+    config_file = DEFAULT_CONFIG_FILE
+    # classic mode is allowed to have a config file
+    # load config if present - we need to do this early
+    if args.workflow_config_file:
+        config_file = pathlib.Path(args.workflow_config_file).resolve()
+        with open(config_file, "r", encoding = "utf-8") as read_config:
+            active_config = yaml.safe_load(read_config)
+    manual_mode = check_if_classic_mode(args, arg_parser,
+                                        classic_mode_args = ["workflow_config_file"])
+
+
     # load debug settings from config (either the one we loaded or the default)
-    debug_run = workflow_config["debug"]
+    debug_run = active_config["debug"]
     # load sequencing time settings
-    seq_time = workflow_config["seq_run_duration_hours"]
     seq_run_fudge_factor = timedelta(hours = 1)
     if manual_mode:
         # lots of typing, so allow tab completion of paths
@@ -316,31 +421,17 @@ if __name__ == "__main__":
         readline.parse_and_bind("tab: complete")
         # set logger to something quiet
         plain_messages = logging.Formatter("%(message)s")
-        console_log.setFormatter(plain_messages)
-        current_run = initialize_classic_run(workflow_config, default_config_file)
+        pipeline_logger.handlers[0].setFormatter(plain_messages)
+        current_run = initialize_classic_run(active_config, config_file)
     else:
-        # if you're entering this from the commandline you should specify these
-        if not args.runsheet:
-            raise ValueError("Runsheet not specified.")
-        if not args.rundir:
-            raise ValueError("Nanopore run directory not specified.")
-        runsheet = pathlib.Path(args.runsheet).resolve()
-        rundir = helpers.get_fastq_pass_parent(pathlib.Path(args.rundir))
-        if args.run_time:
-            seq_time = args.run_time
-        current_run = monitor_run.AmpliconRun(sequence_dir = rundir, runsheet = runsheet,
-                                              sequencing_time = seq_time,
-                                              configfile = default_config_file,
-                                              active_config = workflow_config)
+        current_run = initialize_commandline_run(args, active_config, config_file)
 
     # check runsheet
-    runsheet_data = process_runsheet(current_run.runsheet, workflow_config)
+    runsheet_data = process_runsheet(current_run.runsheet, active_config)
     # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?
-    if workflow_config["lab_info_system"]["use_lis_features"]:
-        lis_report = workflow_config["lab_info_system"]["lis_report"]
-        check_runsheet.check_against_lis(runsheet_data, lis_report, active_config = workflow_config)
-    else:
-        lis_report = None
+    if active_config["lab_info_system"]["use_lis_features"]:
+        lis_report = active_config["lab_info_system"]["lis_report"]
+        check_runsheet.check_against_lis(runsheet_data, lis_report, active_config = active_config)
 
     # manual mode has set up the output dir, commandline may still have to
     if args.outdir:  # can only be given in commandline mode
@@ -350,24 +441,49 @@ if __name__ == "__main__":
     # arguments will be false, so it defaults to pipeline defaults
     if args.test_run:
         debug_run = True
-        append_to_databases = False
     # now it's set for sure we can set it on the AmpliconRun
     current_run.test_run = debug_run
     continue_pipeline = args.continue_pipeline
     # we'll have to handle creating our folders ourselves - catch duplicate dirs here!
+    # TODO can we move this up at all?
+    #  Right now if we do the pipeline will balk if you've fixed a broken runsheet
+    #  and try to run with default params in classic mode again
     set_up_output(outdir = current_run.outdir, continue_run = continue_pipeline)
+    if args.logfile:
+        log_file = pathlib.Path(args.logfile)
+    else:
+        log_file = current_run.outdir / "logs" / "start_pipeline.log"
+    file_handle = logging.FileHandler(log_file)
+    # file logs ought to be a bit more detailed
+    file_format = logging.Formatter(fmt = '%(asctime)s - %(levelname)s: %(module)s: %(message)s')
+    file_handle.setFormatter(file_format)
+    # properly attach the handler
+    pipeline_logger.addHandler(file_handle)
+    # add all of our old messages to the file
+    set_log.handle_bulk_logs(file_handle, log_store.record_log)
+    # ... and remove our temporary one
+    pipeline_logger.removeHandler(log_store)
+    log_store.close()
     # start pipeline (in Docker container)
     logger.info("Pipeline is now waiting for sequencing to finish...")
     # set up sequencing run
     # calculate waiting time and check interval
     total_time = current_run.sequencing_time + seq_run_fudge_factor
-    check_interval = workflow_config["check_interval_seconds"]
+    check_interval = active_config["check_interval_seconds"]
     # wait and start - TODO: give pattern more nicely?
     # detach here - keep start log
     if os.fork():
         sys.exit()
     analysis_run = monitor_run.start_on_file_found(current_run, "final_summary*.txt",
                                                    dry_run = args.dry_run,
-                                                   watch_timeout = total_time.seconds,
-                                                   watch_interval = check_interval)
+                                                   watch_timeout = int(total_time.total_seconds()),
+                                                   watch_interval = check_interval)  # TODO: add logging interval
     logger.info(f"Started pipeline with command {' '.join(analysis_run.args)}")
+    # clean up the remaining handlers
+    set_log.clean_up_handlers(pipeline_logger)
+    return analysis_run
+
+
+# get the command to run the pipeline
+if __name__ == "__main__":
+    run_pipeline(sys.argv[1:])

@@ -1,0 +1,27 @@
+"input_names":  "test/data/input_names/input_da_old_lis.yaml"
+"sample_number_settings":
+  "sample_number_format": '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?'
+  "sample_numbers_in": "letter"
+  "sample_numbers_out": "letter"
+  "format_in_sheet": '(?P<sample_type>[ BDPT ]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?'
+  "format_in_lis": '(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})'
+  "number_to_letter": {"70": "P", "30": "B", "10": "D", "50": "T"}
+  "date_settings":
+    "splice_in_date": False
+    "length_without_date": 8
+    "splice_after": 2
+  "negative_control": 'NegK[a-zA-Z0-9]*'
+  "positive_control": {}
+"barcode_format": "NB[0-9]{2}"  # format of barcodes in runsheet
+"barcode_prefix": "NB"
+"amplicon_type": "16S"
+"debug": True
+"paths":
+  "output_base_path": "test/data/utilities_test/test_outdir"
+"seq_run_duration_hours": 1
+check_interval_seconds: 5
+"lab_info_system":
+  "use_lis_features": True
+  "lis_report": "test/data/summarize_emu/fake_mads_material.csv"
+  "database": ""
+  "dialect": ""

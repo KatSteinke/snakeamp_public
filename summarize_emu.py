@@ -3,6 +3,8 @@
 __author__ = "Kat Steinke"
 
 import logging
+import sys
+
 import math
 import pathlib
 import re
@@ -18,6 +20,7 @@ import yaml
 
 import helpers
 import pipeline_config
+import set_log
 import version
 __version__ = version.__version__
 
@@ -26,10 +29,6 @@ default_config_file = pipeline_config.default_config_file
 workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 logger = logging.getLogger("summarize_emu")
-logger.setLevel(logging.INFO)
-console_log = logging.StreamHandler()
-console_log.setLevel(logging.WARNING)
-logger.addHandler(console_log)
 
 
 def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
@@ -303,11 +302,11 @@ def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
                                                       "estimated counts": "counts"})
     # "unassigned" is only noted on the taxid level - fill it in on the species level
     emu_read_counts["species"] = emu_read_counts["species"].fillna(value = "unassigned")
-    # "medtages" should be a blank string
-    emu_read_counts["med"] = emu_read_counts["med"].fillna(value = "")
     # deduplicate species names
     # this also sets species as index so we keep it out of the multiindexed columns
     emu_read_counts = emu_read_counts.groupby(by="species").sum()
+    # blank out "medtages" column
+    emu_read_counts["med"] = np.nan
     # note down relevant information
     run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
     version_header = [f"Version_{__version__}"] * len(emu_read_counts.columns)
@@ -545,7 +544,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                                                          names=current_fallback_names)
             emu_data = pd.DataFrame(index = pd.Index(data = ["unassigned"], name = "species"),
                                     columns = fallback_headers,
-                                    data = [[np.nan, np.nan, ""]])
+                                    data = [[np.nan, np.nan, np.nan]])
         all_reports.append(emu_data)
 
     all_merged = merge_emu(all_reports)
@@ -601,27 +600,36 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
                              columns = ["notes"])
         notes.to_excel(outfile_writer, sheet_name = "notes")
 
+def summarize_emu(input_args: List[Any]) -> None:
+    """Summarize the supplied Emu directory, optionally using parameters specified in the config,
+     and output raw tsv and Excel files to the specified paths.
 
-if __name__ == "__main__":
+    Arguments:
+        input_args: the arguments the script was launched with
+
+    """
     arg_parser = ArgumentParser(description = "Combine all Emu reports in a given directory")
-    arg_parser.add_argument("indir", help = "Directory containing all Emu reports to summarize")
+    arg_parser.add_argument("indir",
+                            help = "Directory containing all Emu reports to summarize")
     arg_parser.add_argument("--base_dir",
-                            help="Base directory containing read QC data for all samples in the run"
-                                 " (default: Emu directory's parent dir)", default=None)
+                            help = "Base directory containing read QC data "
+                                   "for all samples in the run"
+                                   " (default: Emu directory's parent dir)", default = None)
     arg_parser.add_argument("--outfile",
                             help = "File to write Emu results to (default: emu_summarized.xlsx)",
                             default = "emu_summarized.xlsx")
     arg_parser.add_argument("--outfile_raw",
-                            help="File to write raw Emu results to (default: emu_summarized.tsv)",
+                            help = "File to write raw Emu results to (default: emu_summarized.tsv)",
                             default = "emu_summarized.tsv")
     arg_parser.add_argument("--workflow_config_file",
-                            help="Config file for run (overrides default config given in script, "
-                                 "can be overridden by commandline options)")
-    args = arg_parser.parse_args()
+                            help = "Config file for run (overrides default config given in script, "
+                                   "can be overridden by commandline options)")
+    args = arg_parser.parse_args(input_args)
+    active_config = workflow_config
     if args.workflow_config_file:
-        default_config_file = pathlib.Path(args.workflow_config_file).resolve()
-        with open(default_config_file, "r", encoding = "utf-8") as config_file:
-            workflow_config = yaml.safe_load(config_file)
+        workflow_config_file = pathlib.Path(args.workflow_config_file).resolve()
+        with open(workflow_config_file, "r", encoding = "utf-8") as config_file:
+            active_config = yaml.safe_load(config_file)
     input_dir = pathlib.Path(args.indir)
     output_file = pathlib.Path(args.outfile)
     output_file_raw = pathlib.Path(args.outfile_raw)
@@ -629,6 +637,12 @@ if __name__ == "__main__":
     if args.base_dir is None:
         base_dir = input_dir.parent
     base_dir = pathlib.Path(base_dir)
-    merged_emu = merge_all_in_emu_dir(input_dir, base_dir, active_config = workflow_config)
+    merged_emu = merge_all_in_emu_dir(input_dir, base_dir, active_config = active_config)
     write_to_sheets(merged_emu, output_file)
-    merged_emu.to_csv(output_file_raw, sep="\t")
+    merged_emu.to_csv(output_file_raw, sep = "\t")
+
+
+# TODO: make testable so we can catch issues with this before the integration test....
+if __name__ == "__main__":
+    set_log.get_stream_log("summarize_emu")
+    summarize_emu(sys.argv[1:])
