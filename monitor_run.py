@@ -132,8 +132,8 @@ def get_pipeline_command(sequencing_run: AmpliconRun) -> List[str]:
 # allow user to specify duration
 
 def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_run: bool = False,
-                        watch_interval: int = 300,
-                        watch_timeout: int = 600) -> subprocess.CompletedProcess:
+                        watch_interval: int = 300, watch_timeout: int = 600,
+                        log_interval: int = 300) -> subprocess.CompletedProcess:
     """Start the analysis pipeline when a given file is found in the specified run's sequencing dir.
 
     Arguments:
@@ -143,6 +143,8 @@ def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_ru
         watch_interval:     the interval (in seconds) in which the script should check for
                             the presence of the file
         watch_timeout:      the timespan (in seconds) to wait for the file
+        log_interval:       the interval (in seconds) in which the script should log activity
+
 
 
     Returns:
@@ -150,18 +152,28 @@ def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_ru
     Raises:
         FileNotFoundError:  if the file is not found before the timeout
     """
+    seconds_per_hour = 3600
     file_found = 0
     time_watching = 0
+    time_since_log = 0
     if not run_to_watch.sequence_dir.exists():
         raise FileNotFoundError(f"Parent directory {run_to_watch.sequence_dir} does not exist.")
     fastq_parent_dir = helpers.get_fastq_pass_parent(run_to_watch.sequence_dir)
     # watch for presence of file
     while not (file_found or time_watching >= watch_timeout):
+        # keep a log so we know it's alive
+        time_since_log += watch_interval
+        if time_since_log >= log_interval:
+            logger.info("Waiting for sequencing to finish...")
+            time_since_log = 0
         file_found = len(list(fastq_parent_dir.glob(pattern_to_watch)))
         if not file_found:  # TODO: we can definitely make this flow more nicely
             time_watching += watch_interval
             time.sleep(watch_interval)
     if not file_found:
+        timeout_hours = watch_timeout / seconds_per_hour
+        logger.error(f"No file matching pattern {pattern_to_watch} found in {fastq_parent_dir} "
+                     f"after {timeout_hours:.1f} hours.")
         raise FileNotFoundError(f"No file matching pattern {pattern_to_watch} "
                                 f"found in {fastq_parent_dir}.")
     logger.info(f"Found {pattern_to_watch} in {fastq_parent_dir} after {time_watching} seconds.")

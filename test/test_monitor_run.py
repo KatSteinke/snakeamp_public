@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import re
 import unittest
@@ -226,14 +227,26 @@ class TestWaitForFile(unittest.TestCase):
                                        test_run = False)
     test_run.outdir = pathlib.Path(__file__).parent / "data"/ "monitor_run" / "test_outdir"
 
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_timeout(self):
         """Stop monitoring when the timeout has been reached."""
         error_msg = ("No file matching pattern test_summary*.txt found in"
                      f" {self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}")
-        with pytest.raises(FileNotFoundError, match=re.escape(error_msg)):
-            monitor_run.start_on_file_found(self.test_run, "test_summary*.txt",
-                                            watch_interval = 1,
-                                            watch_timeout = 5)
+        time_log = "Waiting for sequencing to finish..."
+        log_error_msg = ("No file matching pattern test_summary*.txt found in"
+                         f" {self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}"
+                         " after 0.0 hours.")
+        with (pytest.raises(FileNotFoundError, match=re.escape(error_msg)),
+              self._caplog.at_level(level="INFO", logger="launch_run")):
+            monitor_run.start_on_file_found(self.test_run, "test_summary*.txt", watch_interval = 1,
+                                            watch_timeout = 3, log_interval = 1)
+        assert ("launch_run", logging.ERROR, log_error_msg) in self._caplog.record_tuples
+        timed_logs = [log_record for log_record in self._caplog.record_tuples
+                      if log_record == ("launch_run", logging.INFO, time_log)]
+        assert len(timed_logs) == 3
 
     def test_fail_parent_dir_not_found(self):
         """Don't start monitoring if the parent directory does not exist."""
@@ -249,9 +262,8 @@ class TestWaitForFile(unittest.TestCase):
                                            test_run = False)
         error_msg = f"Parent directory {test_run.sequence_dir} does not exist."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
-            monitor_run.start_on_file_found(test_run, "final_summary*.txt",
-                                            watch_interval = 1,
-                                            watch_timeout = 5, dry_run = True)
+            monitor_run.start_on_file_found(test_run, "final_summary*.txt", dry_run = True,
+                                            watch_interval = 1, watch_timeout = 5)
 
     def test_success_dryrun(self):
         """Successfully print the pipeline start command in dry run mode."""
@@ -260,14 +272,14 @@ class TestWaitForFile(unittest.TestCase):
                                      f'-meta runsheet={self.test_run.runsheet} '
                                      '16s-snake-emu-prod '
                                      f'{str(self.test_run.configfile)}"')]
-        expected_log = ("INFO:launch_run:Found final_summary*.txt in "
+        expected_log = ("Found final_summary*.txt in "
                         f"{self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}"
                         " after 0 seconds.")
-        with self.assertLogs("launch_run", level = "INFO") as logged:
+        with self._caplog.at_level(level="INFO", logger="launch_run"):
             test_command = monitor_run.start_on_file_found(self.test_run, "final_summary*.txt",
                                                            dry_run = True, watch_interval = 1,
                                                            watch_timeout = 5).args
-            assert expected_log in logged.output
+            assert ("launch_run", logging.INFO, expected_log) in self._caplog.record_tuples
         assert test_command == expected_command
 
     # we don't want to run the actual nomad command when testing...
