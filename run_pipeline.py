@@ -476,8 +476,9 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
         sys.exit()
     analysis_run = monitor_run.start_on_file_found(current_run, "final_summary*.txt",
                                                    dry_run = args.dry_run,
+                                                   watch_interval = check_interval,
                                                    watch_timeout = int(total_time.total_seconds()),
-                                                   watch_interval = check_interval)  # TODO: add logging interval
+                                                   log_interval = 3600)  # TODO make configurable?
     logger.info(f"Started pipeline with command {' '.join(analysis_run.args)}")
     # clean up the remaining handlers
     set_log.clean_up_handlers(pipeline_logger)

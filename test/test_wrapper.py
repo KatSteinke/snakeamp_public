@@ -1149,7 +1149,8 @@ class TestRunPipeline(unittest.TestCase):
                                       "final_summary*.txt",
                                       dry_run=True,
                                       watch_timeout = watch_seconds,
-                                      watch_interval = mock.ANY)
+                                      watch_interval = mock.ANY,
+                                      log_interval=3600)
 
     @mock.patch(f"{snake_wrapper.__name__}.os.fork")
     def test_use_lis_from_file(self, mock_fork):
