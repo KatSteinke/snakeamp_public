@@ -626,7 +626,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_missing_runsheet(self):
         """Fail if runsheet was not entered."""
         args = Namespace(runsheet = None, rundir = self.indir, test_run=None, run_time = None,
-                         outdir = None)
+                         outdir = None, snake_flags = None)
         error_msg = "Runsheet not specified."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             snake_wrapper.initialize_commandline_run(args)
@@ -645,7 +645,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_default_run(self):
         """Set up a run with default settings."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None)
+                         run_time = None, outdir = None, snake_flags = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = snake_wrapper.DEFAULT_CONFIG_FILE,
                                                active_config = self.active_config,
@@ -658,7 +658,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_config(self):
         """Set up a run with settings set through a different config."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None)
+                         run_time = None, outdir = None, snake_flags = None)
         test_config = self.active_config.copy()
         test_config["seq_run_duration_hours"] = 0.5
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
@@ -668,10 +668,38 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
         test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
         assert expected_run == test_run
 
+    def test_set_flag(self):
+        """Initialize a run with a flag to pass through to Snakemake."""
+        args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
+                         run_time = None, outdir = None, snake_flags = "-n ")
+        test_config = self.active_config.copy()
+        test_config["run_on"] = "local"
+        expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                               configfile = self.configfile,
+                                               active_config = test_config,
+                                               outdir = self.expected_outdir,
+                                               snake_flags = ["-n"])
+        test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
+        assert expected_run == test_run
+
+    def test_set_flags(self):
+        """Initialize a run with flags to pass through to Snakemake."""
+        args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
+                         run_time = None, outdir = None, snake_flags = "-n --rerun-incomplete")
+        test_config = self.active_config.copy()
+        test_config["run_on"] = "local"
+        expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                               configfile = self.configfile,
+                                               active_config = test_config,
+                                               outdir = self.expected_outdir,
+                                               snake_flags = ["-n", "--rerun-incomplete"])
+        test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
+        assert expected_run == test_run
+
     def test_no_lis(self):
         """Run correctly even if no LIS is specified."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None)
+                         run_time = None, outdir = None, snake_flags = None)
         test_config = self.active_config.copy()
         test_config["lab_info_system"]["use_lis"] = False
         test_config["lab_info_system"]["lis_report"] = ""
@@ -685,7 +713,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_run_time(self):
         """Override run time from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = 0.5, outdir = None)
+                         run_time = 0.5, outdir = None, snake_flags = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
@@ -697,7 +725,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_outdir(self):
         """Override output directory from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = "path/to/test_outdir")
+                         run_time = None, outdir = "path/to/test_outdir", snake_flags = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
@@ -711,7 +739,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_test_mode(self):
         """Set debug mode from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = True,
-                         run_time = None, outdir = None)
+                         run_time = None, outdir = None, snake_flags = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
@@ -1086,6 +1114,37 @@ class TestRunPipeline(unittest.TestCase):
         expected_command = ["echo", f'"{" ".join(local_command)}"']
         test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet),
                      "--workflow_config_file", str(configfile), "--dry_run"]
+        test_command = snake_wrapper.run_pipeline(test_args)
+        assert expected_command == test_command.args
+        assert expected_outdir.exists()
+
+    @mock.patch(f"{snake_wrapper.__name__}.os.fork")
+    def test_run_commandline_snake_flags(self, mock_fork):
+        """Pass flags through to Snakemake."""
+        mock_fork.return_value = False
+        expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
+                          / "test1" / "rawdata" / "test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = str(pathlib.Path(__file__).parent / "data"
+                         / "utilities_test" / "test_18s_config_local.yaml")
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
+                           / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
+        assert not expected_outdir.exists()
+        local_command = ["snakemake", "-s", "Snakefile",
+                         "--cores", "8",
+                         "--keep-going",
+                         "--config",
+                         f"outdir={expected_outdir}",
+                         f"rundir={expected_indir}",
+                         f"runsheet={runsheet}",
+                         f"config_path={configfile}",
+                         "--configfile", configfile,
+                         "-n"]
+        expected_command = ["echo", f'"{" ".join(local_command)}"']
+        test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet),
+                     "--workflow_config_file", str(configfile), "--dry_run", '--snake_flags "-n "']
         test_command = snake_wrapper.run_pipeline(test_args)
         assert expected_command == test_command.args
         assert expected_outdir.exists()

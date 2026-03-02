@@ -269,10 +269,17 @@ def initialize_commandline_run(start_args: argparse.Namespace,
         seqtime = start_args.run_time
     if start_args.test_run:
         test_run = True
+    # if we have anything to pass through to snakemake, get it here
+    if start_args.snake_flags:
+        print(start_args.snake_flags)
+        snake_flags = start_args.snake_flags.split()
+    else:
+        snake_flags = None
     current_amplicon_run = monitor_run.AmpliconRun(sequence_dir = run_dir, runsheet = run_sheet,
                                                    configfile = config_file,
                                                    active_config = active_config,
-                                                   sequencing_time = seqtime, test_run = test_run)
+                                                   sequencing_time = seqtime, test_run = test_run,
+                                                   snake_flags = snake_flags)
     if start_args.outdir:  # can only be given in commandline mode
         current_amplicon_run.outdir = get_clean_outdir(pathlib.Path(start_args.outdir))
     return current_amplicon_run
@@ -389,6 +396,8 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
                                    f"{WORKFLOW_CONFIG['paths']['output_base_path']}/"
                                    "[experiment_name]/logs/start_pipeline.log",
                             default = None)
+    arg_parser.add_argument("--snake_flags",
+                            help = "Flags to be passed to Snakemake, enclosed in quotes")
     args = arg_parser.parse_args(start_args)
     # initialize root logger
     pipeline_logger = set_log.get_stream_log()
