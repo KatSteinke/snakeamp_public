@@ -16,8 +16,10 @@ CONFIG_PATH = config["config_path"] if "config_path" in config \
 
 workdir: config["outdir"]
 
-# set relevant dirs
+# we'll need to know whether we're running locally for conda directives
+IS_LOCAL = True if config["run_on"] == "local" else False
 
+# set relevant dirs
 RUNDIR = pathlib.Path(config["rundir"])
 FASTQ_DIR = helpers.get_fastq_pass_parent(RUNDIR) / "fastq_pass"
 print(FASTQ_DIR)
@@ -92,7 +94,7 @@ rule concatenate_fastqs:
     log:
         f"logs/concat_fastq/{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}_log.txt"
     conda:
-        "nanopore_qc_env"
+        "envs/nanopore_qc.yml" if IS_LOCAL else "nanopore_qc_env"
     resources:
         mem_mb = 200
     shell:
@@ -115,7 +117,7 @@ rule get_qc_statistics:
         concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
     output:
         read_stats = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.stats.tsv"
-    conda: "nanopore_qc_env"
+    conda: "envs/nanopore_qc.yml" if IS_LOCAL else "nanopore_qc_env"
     threads: 2
     resources:
         mem_mb = 200
@@ -140,7 +142,7 @@ rule clean_nanopore_reads:
                     if config['quality_params']['max_length'] else '',
         min_quality = f"--min_mean_q {config['quality_params']['min_qscore']}" \
                       if config['quality_params']['min_qscore'] else ''
-    conda: "nanopore_qc_env" # TODO: set up env!
+    conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     log:
         "logs/filtlong/{sample_number}_{barcode}.log"
     shell:
@@ -164,7 +166,7 @@ rule remove_human_reads:
                               "/{sample_number}_{barcode}.kraken.tsv")
     params:
         kraken_db = pathlib.Path(config['databases']['human_reads']),
-    conda: "kraken_env"
+    conda: "envs/kraken_env.yml" if IS_LOCAL else  "kraken_env"
     log: "logs/kraken/{sample_number}_{barcode}.log"
     resources:
         mem_mb = 5000  # database + a bit extra
@@ -182,7 +184,7 @@ rule get_qc_statistics_cleaned:
         depleted_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq"
     output:
         read_stats = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.stats.tsv"
-    conda: "nanopore_qc_env"
+    conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     threads: 2
     resources:
         mem_mb = 200
@@ -200,7 +202,7 @@ rule compress_nanopore_reads:
         compressed_fastq = "{sample_number}_{barcode}/reads/" \
                            "{sample_number}_{barcode}.filtered.fastq.gz"
     conda:
-        "nanopore_qc_env"  # TODO: needs to have pigz
+        "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     threads: 2
     resources:
         mem_mb = 100
@@ -222,7 +224,7 @@ rule run_emu:
         # add very minimal results if emu fails
         fallback_header = r"tax_id\tabundance\testimated counts\n"
     conda:
-        "emu_env"
+        "envs/emu_env.yml" if IS_LOCAL else  "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
     log:
         "logs/emu/{sample_number}_{barcode}.log"
