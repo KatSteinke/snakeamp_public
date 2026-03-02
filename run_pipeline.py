@@ -235,8 +235,7 @@ def initialize_classic_run(active_config: Dict[str, Any],
                                    "\n"
                                    "Enter path to runsheet: ").strip().strip("'")).resolve()
     basic_run = monitor_run.AmpliconRun(sequence_dir = run_dir, runsheet = run_sheet,
-                                        configfile = configfile,
-                                        active_config = active_config,
+                                        configfile = configfile, active_config = active_config,
                                         sequencing_time = sequencing_time)
     outdir = ask_output_dir(basic_run.outdir)
     basic_run.outdir = outdir
@@ -271,10 +270,9 @@ def initialize_commandline_run(start_args: argparse.Namespace,
     if start_args.test_run:
         test_run = True
     current_amplicon_run = monitor_run.AmpliconRun(sequence_dir = run_dir, runsheet = run_sheet,
-                                                   sequencing_time = seqtime,
                                                    configfile = config_file,
                                                    active_config = active_config,
-                                                   test_run = test_run)
+                                                   sequencing_time = seqtime, test_run = test_run)
     if start_args.outdir:  # can only be given in commandline mode
         current_amplicon_run.outdir = get_clean_outdir(pathlib.Path(start_args.outdir))
     return current_amplicon_run

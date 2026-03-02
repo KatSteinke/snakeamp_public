@@ -29,3 +29,5 @@ check_interval_seconds: 5
   "filter_column": "16S"
   "filter_value": 16S
   "schema": None
+run_on: nomad
+cores: 8

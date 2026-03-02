@@ -1,6 +1,9 @@
 # run in debug mode?
 debug: False
 
+# are we running this locally ("local") or on Nomad ("nomad")?
+run_on: nomad
+
 # Settings for sample numbers and negative controls
 sample_number_settings:
   # specify the format for sample numbers used in the input runsheet as a regex
@@ -52,3 +55,5 @@ quality_params:
 databases:
   emu_db: /path/to/emu_db
   human_reads: /path/to/human_reads
+
+cores: 128

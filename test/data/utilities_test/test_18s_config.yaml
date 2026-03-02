@@ -25,3 +25,5 @@ check_interval_seconds: 5
   "lis_report": "data/summarize_emu/fake_mads_material.csv"
   "database": ""
   "dialect": ""
+run_on: nomad
+cores: 8
