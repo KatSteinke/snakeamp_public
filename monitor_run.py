@@ -96,7 +96,7 @@ class AmpliconRun:
 
     def __ne__(self, other):
         if isinstance(other, AmpliconRun):
-            return (~(self.sequence_dir == other.sequence_dir
+            return (not(self.sequence_dir == other.sequence_dir
                     and self.runsheet == other.runsheet
                     and self.configfile == other.configfile
                     and self.active_config == other.active_config
