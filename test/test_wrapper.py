@@ -671,7 +671,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_flag(self):
         """Initialize a run with a flag to pass through to Snakemake."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = "-n ")
+                         run_time = None, outdir = None, snake_flags = ["-n "])
         test_config = self.active_config.copy()
         test_config["run_on"] = "local"
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
@@ -685,7 +685,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_flags(self):
         """Initialize a run with flags to pass through to Snakemake."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = "-n --rerun-incomplete")
+                         run_time = None, outdir = None, snake_flags = ["-n --rerun-incomplete"])
         test_config = self.active_config.copy()
         test_config["run_on"] = "local"
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
@@ -1144,7 +1144,7 @@ class TestRunPipeline(unittest.TestCase):
                          "-n"]
         expected_command = ["echo", f'"{" ".join(local_command)}"']
         test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet),
-                     "--workflow_config_file", str(configfile), "--dry_run", '--snake_flags "-n "']
+                     "--workflow_config_file", str(configfile), "--dry_run", '--snake_flags', "-n "]
         test_command = snake_wrapper.run_pipeline(test_args)
         assert expected_command == test_command.args
         assert expected_outdir.exists()

@@ -272,7 +272,7 @@ def initialize_commandline_run(start_args: argparse.Namespace,
     # if we have anything to pass through to snakemake, get it here
     if start_args.snake_flags:
         print(start_args.snake_flags)
-        snake_flags = start_args.snake_flags.split()
+        snake_flags = start_args.snake_flags[0].split()
     else:
         snake_flags = None
     current_amplicon_run = monitor_run.AmpliconRun(sequence_dir = run_dir, runsheet = run_sheet,
@@ -396,7 +396,7 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
                                    f"{WORKFLOW_CONFIG['paths']['output_base_path']}/"
                                    "[experiment_name]/logs/start_pipeline.log",
                             default = None)
-    arg_parser.add_argument("--snake_flags",
+    arg_parser.add_argument("--snake_flags", nargs = "*",
                             help = "Flags to be passed to Snakemake, enclosed in quotes")
     args = arg_parser.parse_args(start_args)
     # initialize root logger
