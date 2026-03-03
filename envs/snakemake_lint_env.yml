@@ -5,7 +5,7 @@ channels:
 dependencies:
   - numpy>=1.22.2
   - openpyxl
-  - pandas
+  - pandas>=2,<3
   - python>=3.9.*
   - pyyaml
   - snakemake==7.22.0
