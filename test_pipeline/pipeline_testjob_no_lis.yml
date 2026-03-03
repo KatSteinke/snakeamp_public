@@ -1,6 +1,8 @@
 # run in debug mode?
 debug: True
 
+run_on: nomad
+
 # Settings for sample numbers and negative controls
 sample_number_settings:
   # specify the format for sample numbers used in the input runsheet as a regex
