@@ -308,10 +308,10 @@ class TestCheckAllQC(unittest.TestCase):
         """Warn if there are missing files."""
         mock_version.__str__.return_value = "0.4.2"
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "empty_dir"
-        warn_msg = "WARNING:QATest:Emu report is missing. Cannot evaluate Emu results."
-        with self.assertLogs("QATest") as logged:
+        warn_msg = "Emu report is missing. Cannot evaluate Emu results."
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_files = check_results.check_all_qc(test_dir)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_files
 
     def test_warn_wrong_results(self, mock_version):
@@ -321,23 +321,23 @@ class TestCheckAllQC(unittest.TestCase):
         expected_data = pd.DataFrame(data = {"expected": [19.17],
                                              "found": [25.00]},
                                      index = pd.Index(["Salmonella enterica"], name = "organism"))
-        warn_msg = ("WARNING:QATest:Different abundance in positive control for "
+        warn_msg = ("Different abundance in positive control for "
                     "['Salmonella enterica']."
                     " Expected abundance:\n"
                     f"{expected_data.to_string()}")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_all_qc(test_dir)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
     def test_success(self, mock_version):
         """Report success if all checks pass."""
         mock_version.__str__.return_value = "0.4.2"
         test_dir = pathlib.Path(__file__).parent / "data"/"check_results"/"success_emu_dir"
-        success_msg = "INFO:QATest:All QC checks passed"
-        with self.assertLogs("QATest") as logged:
+        success_msg = "All QC checks passed"
+        with self._caplog.at_level(logging.INFO, logger = "QATest"):
             check_files = check_results.check_all_qc(test_dir)
-            assert success_msg in logged.output
+            assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
         assert check_files
 
 @mock.patch(f"{check_results.__name__}.__version__")
