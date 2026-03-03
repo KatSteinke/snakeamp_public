@@ -15,6 +15,10 @@ import version
 
 
 class TestCheckFilePresence(unittest.TestCase):
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+    
     def test_success(self):
         """Successfully find all relevant files."""
         test_dir = pathlib.Path(__file__).parent / "data"/"check_results"/"success_emu_dir"
@@ -24,10 +28,10 @@ class TestCheckFilePresence(unittest.TestCase):
     def test_missing_emu_files(self):
         """Alert when the Emu report is missing"""
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "empty_dir"
-        warn_msg = "WARNING:QATest:Emu report is missing. Cannot evaluate Emu results."
-        with self.assertLogs("QATest") as logged:
+        warn_msg = "Emu report is missing. Cannot evaluate Emu results."
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_files = check_results.check_files_present(test_dir)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_files
 
     def test_missing_raw_backup(self):
