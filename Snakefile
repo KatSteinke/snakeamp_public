@@ -38,6 +38,7 @@ prefix_translate = helpers.get_number_letter_combination(config["sample_number_s
                                                   config["sample_number_settings"]["positive_control"])
 wildcard_constraints:
     barcode_number = r"\d{2}",
+    barcode_prefix = BARCODE_PREFIX,
     barcode = config["barcode_format"],
     #sample_number = sample_number_pattern
 # TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
@@ -80,7 +81,7 @@ rule all:
 
 rule concatenate_fastqs:
     params:
-        barcode_dir = f"{FASTQ_DIR}/barcode{{barcode_number}}",
+        barcode_dir = FASTQ_DIR + "/barcode{barcode_number}",
         file_format = lambda wildcards: "fastq.gz" if snake_helpers.is_gzipped(FASTQ_DIR,
                                                                                wildcards.barcode_number)
                                                     else "fastq",
@@ -88,11 +89,11 @@ rule concatenate_fastqs:
                                                                            wildcards.barcode_number)
                                                else "cat"
     output:
-        concat_fasta = temp(f"{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}/reads/"
-                            f"{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}.reads.fastq")
-    message: f"# Concatenating fastq files for barcode {{wildcards.barcode_number}}...."
+        concat_fasta = temp("{sample_number}_{barcode_prefix}{barcode_number}/reads/"
+                            "{sample_number}_{barcode_prefix}{barcode_number}.reads.fastq")
+    message: "# Concatenating fastq files for barcode {wildcards.barcode_number}...."
     log:
-        f"logs/concat_fastq/{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}_log.txt"
+        "logs/concat_fastq/{sample_number}_{barcode_prefix}{barcode_number}_log.txt"
     conda:
         "envs/nanopore_qc.yml" if IS_LOCAL else "nanopore_qc_env"
     resources:
@@ -216,11 +217,11 @@ rule run_emu:
         filtered_fastq = "{sample_number}_{barcode}/reads/" \
                          "{sample_number}_{barcode}.depleted.fastq"
     output:
-        relative_abundance = f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv"
+        relative_abundance = "emu/"+EXPERIMENT_NAME+"_{sample_number}_{barcode}_rel-abundance.tsv"
     params:
         emu_db = config["databases"]["emu_db"],
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
-        basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}",
+        basename = EXPERIMENT_NAME + "{sample_number}_{barcode}",
         # add very minimal results if emu fails
         fallback_header = r"tax_id\tabundance\testimated counts\n"
     conda:
@@ -238,9 +239,8 @@ rule run_emu:
 
 rule combine_emu:
     input:
-        all_relative_abundance = expand(f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv",
-                                        zip,
-                                        sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_relative_abundance = [f"emu/{EXPERIMENT_NAME}_{sample_number}_{barcode}_rel-abundance.tsv"
+                                  for sample_number, barcode in zip(ALL_IDS, ALL_BARCODES)],
         all_read_qc = expand("{sample_number}_{barcode}/reads/{sample_number}_{barcode}.stats.tsv",
                             zip,
                             sample_number=ALL_IDS, barcode=ALL_BARCODES),
