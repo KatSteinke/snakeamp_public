@@ -84,7 +84,7 @@ rule all:
 
 rule concatenate_fastqs:
     params:
-        barcode_dir = FASTQ_DIR + "/barcode{barcode_number}",
+        barcode_dir = str(FASTQ_DIR) + "/barcode{barcode_number}",
         file_format = lambda wildcards: "fastq.gz" if snake_helpers.is_gzipped(FASTQ_DIR,
                                                                                wildcards.barcode_number)
                                                     else "fastq",
