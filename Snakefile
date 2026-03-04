@@ -66,12 +66,12 @@ print(sheet_data["prøvenr"].str.match(sample_number_pattern, na=False))
 ALL_BARCODES = list(sheet_data["Barkode"])
 
 # we need to name some files after the experiment name (plus amplicon type so we can distinguish)
-EXPERIMENT_NAME = (f"{helpers.extract_nanopore_run_name(pathlib.Path(config['runsheet']))}"
-                   f"-{config['amplicon_type']}")
+EXPERIMENT_NAME = (helpers.extract_nanopore_run_name(pathlib.Path(config['runsheet']))+"-"+
+                   config['amplicon_type'])
 
 rule all:
     input:
-        all_results = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
+        all_results = EXPERIMENT_NAME+"_emu-combined.xlsx",
         all_compressed =  expand("{sample_number}_{barcode}/reads/" 
                                  "{sample_number}_{barcode}.filtered.fastq.gz", zip,
                                  sample_number=ALL_IDS, barcode=ALL_BARCODES),
@@ -140,11 +140,11 @@ rule clean_nanopore_reads:
         filtered_fastq = temp("{sample_number}_{barcode}/reads/"
                               "{sample_number}_{barcode}.filtered.fastq")
     params:
-        min_length = f"--min_length {config['quality_params']['min_length']}" \
+        min_length = "--min_length "+config['quality_params']['min_length'] \
                       if config['quality_params']['min_length'] else '',
-        max_length= f"--max_length {config['quality_params']['max_length']}" \
+        max_length= "--max_length " + config['quality_params']['max_length'] \
                     if config['quality_params']['max_length'] else '',
-        min_quality = f"--min_mean_q {config['quality_params']['min_qscore']}" \
+        min_quality = "--min_mean_q "+ config['quality_params']['min_qscore'] \
                       if config['quality_params']['min_qscore'] else ''
     conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     log:
@@ -224,7 +224,7 @@ rule run_emu:
     params:
         emu_db = config["databases"]["emu_db"],
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
-        basename = EXPERIMENT_NAME + "{sample_number}_{barcode}",
+        basename = EXPERIMENT_NAME + "_{sample_number}_{barcode}",
         # add very minimal results if emu fails
         fallback_header = r"tax_id\tabundance\testimated counts\n"
     conda:
@@ -242,7 +242,7 @@ rule run_emu:
 
 rule combine_emu:
     input:
-        all_relative_abundance = [f"emu/{EXPERIMENT_NAME}_{sample_number}_{barcode}_rel-abundance.tsv"
+        all_relative_abundance = ["emu/"+EXPERIMENT_NAME+"_"+sample_number+"_"+barcode+"_rel-abundance.tsv"
                                   for sample_number, barcode in zip(ALL_IDS, ALL_BARCODES)],
         all_read_qc = expand("{sample_number}_{barcode}/reads/{sample_number}_{barcode}.stats.tsv",
                             zip,
@@ -252,8 +252,8 @@ rule combine_emu:
                             zip,
                             sample_number = ALL_IDS,barcode = ALL_BARCODES)
     output:
-        counts_combined = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
-        counts_raw = f"{EXPERIMENT_NAME}_emu-combined.tsv"
+        counts_combined = EXPERIMENT_NAME+"_emu-combined.xlsx",
+        counts_raw = EXPERIMENT_NAME+_emu-combined.tsv"
     params:
         emu_dir = "emu",
         basedir = workflow.current_basedir,
