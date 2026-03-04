@@ -271,7 +271,6 @@ def initialize_commandline_run(start_args: argparse.Namespace,
         test_run = True
     # if we have anything to pass through to snakemake, get it here
     if start_args.snake_flags:
-        print(start_args.snake_flags)
         snake_flags = start_args.snake_flags[0].split()
     else:
         snake_flags = None

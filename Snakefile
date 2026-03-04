@@ -22,7 +22,6 @@ IS_LOCAL = True if config["run_on"] == "local" else False
 # set relevant dirs
 RUNDIR = pathlib.Path(config["rundir"])
 FASTQ_DIR = helpers.get_fastq_pass_parent(RUNDIR) / "fastq_pass"
-print(FASTQ_DIR)
 helpers.check_barcode_dirs(FASTQ_DIR)
 sample_number_pattern = helpers.get_id_pattern(config["sample_number_settings"]["sample_number_format"],
         negative_control = config["sample_number_settings"]["negative_control"],
@@ -61,8 +60,6 @@ sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
                                                                                        negative_control))
 
 ALL_IDS = list(sheet_data["prøvenr"])
-print(ALL_IDS)
-print(sheet_data["prøvenr"].str.match(sample_number_pattern, na=False))
 ALL_BARCODES = list(sheet_data["Barkode"])
 
 # we need to name some files after the experiment name (plus amplicon type so we can distinguish)
