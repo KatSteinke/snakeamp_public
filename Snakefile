@@ -253,7 +253,7 @@ rule combine_emu:
                             sample_number = ALL_IDS,barcode = ALL_BARCODES)
     output:
         counts_combined = EXPERIMENT_NAME+"_emu-combined.xlsx",
-        counts_raw = EXPERIMENT_NAME+_emu-combined.tsv"
+        counts_raw = EXPERIMENT_NAME+"_emu-combined.tsv"
     params:
         emu_dir = "emu",
         basedir = workflow.current_basedir,
