@@ -36,6 +36,10 @@ prefix_translate = helpers.get_number_letter_combination(config["sample_number_s
 (positive_control,
  negative_control) = helpers.get_control_patterns(config["sample_number_settings"]["negative_control"],
                                                   config["sample_number_settings"]["positive_control"])
+
+# set up constraings
+BARCODE_PREFIX = config["barcode_prefix"]
+
 wildcard_constraints:
     barcode_number = r"\d{2}",
     barcode_prefix = BARCODE_PREFIX,
@@ -56,7 +60,6 @@ sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
                                                                                        positive_control,
                                                                                        negative_control))
 
-BARCODE_PREFIX = config["barcode_prefix"]
 ALL_IDS = list(sheet_data["prøvenr"])
 print(ALL_IDS)
 print(sheet_data["prøvenr"].str.match(sample_number_pattern, na=False))
