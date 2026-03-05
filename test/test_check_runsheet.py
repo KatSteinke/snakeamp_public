@@ -435,6 +435,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
                              " If you are sure you want to sequence the same sample twice, " \
                              "you can ignore this warning."
         with self._caplog.at_level(logging.WARNING, logger = "check_runsheet"):
+            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
+        with self._caplog.at_level(logging.WARNING, logger = "check_runsheet"):
             check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
                                               active_config = self.test_config)
             assert ("check_runsheet", logging.WARNING, duplicated_warning) in self._caplog.record_tuples
@@ -547,6 +549,10 @@ class TestCheckRunsheet(unittest.TestCase):
                    # barcode prefix as letter (for transferring original fastqs by barcode)
                    }
     sheet_names, lis_names = input_names.load_input_from_config(test_config)
+
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
 
     @pytest.fixture(autouse = True)
     def inject_fixtures(self, caplog):
@@ -811,8 +817,7 @@ class TestCheckRunsheet(unittest.TestCase):
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             runsheet_pass = check_runsheet.check_runsheet(runsheet,
                                                           runsheet_names = self.sheet_names,
-                                                          lis_report_names = self.lis_names,
-                                                          active_config = test_config)
+                                                          lis_report_names = self.lis_names, active_config = test_config)
 
         assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
         assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
@@ -856,9 +861,10 @@ class TestCheckRunsheet(unittest.TestCase):
                                                           runsheet_names = self.sheet_names,
                                                           lis_report_names = self.lis_names,
                                                           active_config = test_config)
-            assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
-            assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
-            assert ("check_runsheet", logging.INFO, check_lis_msg) in self._caplog.record_tuples
+
+        assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_lis_msg) in self._caplog.record_tuples
         assert runsheet_pass
 
     def test_success_use_lis_en(self):

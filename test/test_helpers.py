@@ -182,6 +182,7 @@ class TestFindRundir(unittest.TestCase):
                     "Ensure correct directory and/or directory structure is used.\n" \
                     "Aborting pipeline..."
         log_msg = f"Searching for fastq_pass folder in {test_path}..."
+        log_msg = f"Searching for fastq_pass folder in {test_path}..."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)), \
                 self._caplog.at_level(logging.INFO, logger = "helpers"):
             helpers.get_fastq_pass_parent(test_path)
