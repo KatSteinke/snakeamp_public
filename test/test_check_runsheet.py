@@ -40,6 +40,10 @@ class TestCheckSinglePrefix(unittest.TestCase):
                    "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                    }
 
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_prefix_not_in_sheet(self):
         with pytest.raises(ValueError, match="No samples with prefix X found in runsheet."):
             check_runsheet.check_by_prefix(self.sheet_data, self.lab_info_data, "X", "P",
@@ -75,11 +79,12 @@ class TestCheckSinglePrefix(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "DEBUG:check_runsheet:All samples with prefix 11 found in LIS."
-        with self.assertLogs("check_runsheet", level="DEBUG") as logged:
+        success_msg = "All samples with prefix 11 found in LIS."
+        with self._caplog.at_level(logging.DEBUG, logger = "check_runsheet"):
             check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "11", "F",
                                            active_config = self.test_config)
-            assert success_msg in logged.output
+
+        assert ("check_runsheet", logging.DEBUG, success_msg) in self._caplog.record_tuples
 
     def test_success_new_format(self):
         fake_mads = pathlib.Path(
@@ -92,11 +97,12 @@ class TestCheckSinglePrefix(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "DEBUG:check_runsheet:All samples with prefix 11 found in LIS."
-        with self.assertLogs("check_runsheet", level="DEBUG") as logged:
+        success_msg = "All samples with prefix 11 found in LIS."
+        with self._caplog.at_level(logging.DEBUG, logger = "check_runsheet"):
             check_runsheet.check_by_prefix(sheet_data, lab_info_data, "11", "F",
                                            active_config = self.test_config)
-            assert success_msg in logged.output
+
+        assert ("check_runsheet", logging.DEBUG, success_msg) in self._caplog.record_tuples
 
     def test_success_controls(self):
         """Ensure comparison against controls is performed"""
@@ -124,11 +130,12 @@ class TestCheckSinglePrefix(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "DEBUG:check_runsheet:All samples with prefix 11 found in LIS."
-        with self.assertLogs("check_runsheet", level = "DEBUG") as logged:
+        success_msg = "All samples with prefix 11 found in LIS."
+        with self._caplog.at_level(logging.DEBUG, logger = "check_runsheet"):
             check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "11", "F",
                                            active_config = test_config)
-            assert success_msg in logged.output
+
+        assert ("check_runsheet", logging.DEBUG, success_msg) in self._caplog.record_tuples
 
 
 class TestCheckRunsheetFormat(unittest.TestCase):
@@ -153,6 +160,9 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                    "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                    "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                    }
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
 
     def test_multiple_fails(self):
         fail_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_notinmads_runsheet.xlsx"
@@ -172,10 +182,11 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "INFO:check_runsheet:The runsheet is correct."
-        with self.assertLogs("check_runsheet") as logged:
+        success_msg = "The runsheet is correct."
+        with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
-            assert success_msg in logged.output
+
+        assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
 
     def test_success_new_format(self):
         """Successfully handle a LIS report with new columns."""
@@ -186,10 +197,12 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "INFO:check_runsheet:The runsheet is correct."
-        with self.assertLogs("check_runsheet") as logged:
-            check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = self.test_config)
-            assert success_msg in logged.output
+        success_msg = "The runsheet is correct."
+        with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
+            check_runsheet.check_against_lis(sheet_data, fake_mads,
+                                             active_config = self.test_config)
+
+        assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
 
     def test_success_controls(self):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet.xlsx"
@@ -197,7 +210,7 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "INFO:check_runsheet:The runsheet is correct."
+        success_msg = "The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
                                                       '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
@@ -218,9 +231,9 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
-        with self.assertLogs("check_runsheet") as logged:
+        with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
-            assert success_msg in logged.output
+            assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
 
     def test_success_rearrange(self):
         test_runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" / "test_translate_runsheet_rearrange.xlsx"
@@ -228,7 +241,7 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "INFO:check_runsheet:The runsheet is correct."
+        success_msg = "The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
                                                       '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
@@ -249,9 +262,9 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
-        with self.assertLogs("check_runsheet") as logged:
+        with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
-            assert success_msg in logged.output
+            assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
 
     def test_success_drop_component(self):
         """Alert the user when sample number format in LIS report contains fewer components than
@@ -261,10 +274,10 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:C", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        dropped_component_msg = ("INFO:check_runsheet:Comparing only"
+        dropped_component_msg = ("Comparing only"
                                  " ['sample_type', 'sample_year', 'sample_number'] to LIS report. "
                                  "Cannot check if ['bact_number'] component(s) are correct.")
-        success_msg = "INFO:check_runsheet:The runsheet is correct."
+        success_msg = "The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
                                                       '([BFDPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
                                                   "sample_numbers_in": "number",
@@ -285,10 +298,10 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                        "barcode_prefix": "RB"  # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
-        with self.assertLogs("check_runsheet") as logged:
+        with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             check_runsheet.check_against_lis(sheet_data, fake_mads, active_config = test_config)
-            assert success_msg in logged.output
-            assert dropped_component_msg in logged.output
+            assert ("check_runsheet", logging.INFO, success_msg) in self._caplog.record_tuples
+            assert ("check_runsheet", logging.INFO, dropped_component_msg) in self._caplog.record_tuples
 
 
 class TestCheckSampleNumbers(unittest.TestCase):
@@ -313,6 +326,10 @@ class TestCheckSampleNumbers(unittest.TestCase):
                    "barcode_prefix": "RB"
                    # barcode prefix as letter (for transferring original fastqs by barcode)
                    }
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_fail_ids(self):
         id_fail_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-fail.xlsx"
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
@@ -464,12 +481,12 @@ class TestCheckSampleNumbers(unittest.TestCase):
         duplicated_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-duplication.xlsx"
         sheet_data = pd.read_excel(duplicated_id_sheet, usecols="A:B", skiprows=3,
                                    dtype={"Prøvenummer": str})
-        with self.assertLogs("check_runsheet") as logged:
+        duplicated_warning = "Sample number(s) ['1123456789'] are duplicated." \
+                             " If you are sure you want to sequence the same sample twice, " \
+                             "you can ignore this warning."
+        with self._caplog.at_level(logging.WARNING, logger = "check_runsheet"):
             check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
-            duplicated_warning = "WARNING:check_runsheet:Sample number(s) ['1123456789'] are duplicated." \
-                                 " If you are sure you want to sequence the same sample twice, " \
-                                 "you can ignore this warning."
-            assert duplicated_warning in logged.output
+            assert ("check_runsheet", logging.WARNING, duplicated_warning) in self._caplog.record_tuples
 
     def test_fail_barcodes(self):
         barcode_fail_sheet = pathlib.Path(__file__).parent /"data" /"utilities_test" / "runsheet-barcode-fail.xlsx"
@@ -538,6 +555,10 @@ class TestCheckRunsheet(unittest.TestCase):
                    "barcode_prefix": "RB"
                    # barcode prefix as letter (for transferring original fastqs by barcode)
                    }
+
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
 
     def test_fail_ids(self):
         id_fail_sheet = pathlib.Path(
@@ -782,14 +803,15 @@ class TestCheckRunsheet(unittest.TestCase):
                        "barcode_prefix": "NB"
                        # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
-        loading_sheet_msg = "INFO:check_runsheet:Loading runsheet..."
-        check_sheet_msg = "INFO:check_runsheet:Checking runsheet format...."
-        check_lis_msg = "INFO:check_runsheet:Comparing to samples in MADS......"
-        with self.assertLogs("check_runsheet", level="INFO") as logged:
+        loading_sheet_msg = "Loading runsheet..."
+        check_sheet_msg = "Checking runsheet format...."
+        check_lis_msg = "Comparing to samples in MADS......"
+        with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             runsheet_pass = check_runsheet.check_runsheet(runsheet, active_config = test_config)
-            assert loading_sheet_msg in logged.output
-            assert check_sheet_msg in logged.output
-            assert check_lis_msg not in logged.output
+
+        assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_lis_msg) not in self._caplog.record_tuples
         assert runsheet_pass
 
     def test_success_use_lis(self):
@@ -821,14 +843,15 @@ class TestCheckRunsheet(unittest.TestCase):
                        "barcode_prefix": "NB"
                        # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
-        loading_sheet_msg = "INFO:check_runsheet:Loading runsheet..."
-        check_sheet_msg = "INFO:check_runsheet:Checking runsheet format...."
-        check_lis_msg = "INFO:check_runsheet:Comparing to samples in MADS......"
-        with self.assertLogs("check_runsheet", level="INFO") as logged:
+        loading_sheet_msg = "Loading runsheet..."
+        check_sheet_msg = "Checking runsheet format...."
+        check_lis_msg = "Comparing to samples in MADS......"
+        with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             runsheet_pass = check_runsheet.check_runsheet(runsheet, active_config = test_config)
-            assert loading_sheet_msg in logged.output
-            assert check_sheet_msg in logged.output
-            assert check_lis_msg in logged.output
+
+        assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_lis_msg) in self._caplog.record_tuples
         assert runsheet_pass
 
     def test_success_use_new_lis(self):
@@ -860,14 +883,15 @@ class TestCheckRunsheet(unittest.TestCase):
                        "barcode_prefix": "NB"
                        # barcode prefix as letter (for transferring original fastqs by barcode)
                        }
-        loading_sheet_msg = "INFO:check_runsheet:Loading runsheet..."
-        check_sheet_msg = "INFO:check_runsheet:Checking runsheet format...."
-        check_lis_msg = "INFO:check_runsheet:Comparing to samples in MADS......"
-        with self.assertLogs("check_runsheet", level="INFO") as logged:
+        loading_sheet_msg = "Loading runsheet..."
+        check_sheet_msg = "Checking runsheet format...."
+        check_lis_msg = "Comparing to samples in MADS......"
+        with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             runsheet_pass = check_runsheet.check_runsheet(runsheet, active_config = test_config)
-            assert loading_sheet_msg in logged.output
-            assert check_sheet_msg in logged.output
-            assert check_lis_msg in logged.output
+
+        assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_lis_msg) in self._caplog.record_tuples
         assert runsheet_pass
 
 

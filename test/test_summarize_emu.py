@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import re
 import unittest
@@ -222,6 +223,10 @@ class TestExtractCounts(unittest.TestCase):
         __file__).parent / "data" / "summarize_emu" / "result_base_dir"
     version_text = f"Version_{summarize_emu.__version__}"
 
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_bad_name_format(self):
         """Ensure the function complains if the name doesn't match the expected Emu output format
         (so sample name can't be inferred)"""
@@ -398,11 +403,11 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        log_msg = "INFO:summarize_emu:All reads for sample barcode01 are unassigned."
-        with self.assertLogs("summarize_emu") as logged:
+        log_msg = "All reads for sample barcode01 are unassigned."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
                                                                     self.workflow_config)
-            assert log_msg in logged.output
+            assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_blank_sample_success(self):
@@ -450,11 +455,12 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        log_msg = "INFO:summarize_emu:All reads for sample 1199123456-1 are unassigned."
-        with self.assertLogs("summarize_emu") as logged:
+        log_msg = "All reads for sample 1199123456-1 are unassigned."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
                                                                     workflow_config)
-            assert log_msg in logged.output
+
+        assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results, check_dtype = False)
 
     def test_handle_duplicate_orgs_success(self):
@@ -1592,6 +1598,10 @@ class TestMergeEmuDir(unittest.TestCase):
     base_dir = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "result_base_dir"
     version_text = f"Version_{summarize_emu.__version__}"
 
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_fail_missing_dir(self):
         """Complain informatively when the directory to merge doesn't exist."""
         sample_path = pathlib.Path(
@@ -1771,26 +1781,26 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "total_before_qc",
                                                               "total_after_qc",
                                                               "human",
-                                                               "PhHV",
+                                                              "PhHV",
                                                               "notes",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = "ERROR:summarize_emu:Error in " \
-                      f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
-                      "Relative abundance does not sum to 100%. " \
-                      "This suggests the result file is broken (missing/extra lines).\n" \
-                      "Empty results will be added to the merged summary."
-            bad_output_msg = ("ERROR:summarize_emu:Error extracting QC data for barcode03:\n"
-                              "'Kraken report is malformed. "
-                              "Check that you are supplying a --report file.'\n"
-                              "No QC data will be added.")
+        log_msg = "Error in " \
+                  f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
+                  "Relative abundance does not sum to 100%. " \
+                  "This suggests the result file is broken (missing/extra lines).\n" \
+                  "Empty results will be added to the merged summary."
+        bad_output_msg = ("Error extracting QC data for barcode03:\n"
+                          "'Kraken report is malformed. "
+                          "Check that you are supplying a --report file.'\n"
+                          "No QC data will be added.")
+        with self._caplog.at_level(logging.ERROR, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, base_dir,
                                                              active_config = self.workflow_config)
-        print("\n".join(logged.output))
-        assert log_msg in logged.output
-        assert bad_output_msg in logged.output
+            assert ("summarize_emu", logging.ERROR, log_msg) in self._caplog.record_tuples
+            assert ("summarize_emu", logging.ERROR, bad_output_msg) in self._caplog.record_tuples
+
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False,
                                       check_column_type = False)
 
@@ -1851,21 +1861,21 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = "ERROR:summarize_emu:Error in " \
-                      f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
-                      "Relative abundance does not sum to 100%. " \
-                      "This suggests the result file is broken (missing/extra lines).\n" \
-                      "Empty results will be added to the merged summary."
-            missing_data_msg = ("ERROR:summarize_emu:Error extracting QC data for barcode03:\n"
-                                "Kraken report"
-                                f" {base_dir / 'barcode03_RB03' / 'reads' / 'barcode03_RB03.kraken.tsv'}"
-                                " not found.\n"
-                                "No QC data will be added.")
+        log_msg = "Error in " \
+                  f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
+                  "Relative abundance does not sum to 100%. " \
+                  "This suggests the result file is broken (missing/extra lines).\n" \
+                  "Empty results will be added to the merged summary."
+        missing_data_msg = ("Error extracting QC data for barcode03:\n"
+                            "Kraken report"
+                            f" {base_dir / 'barcode03_RB03' / 'reads' / 'barcode03_RB03.kraken.tsv'}"
+                            " not found.\n"
+                            "No QC data will be added.")
+        with self._caplog.at_level(logging.ERROR, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, base_dir,
                                                              active_config = self.workflow_config)
-        assert log_msg in logged.output
-        assert missing_data_msg in logged.output
+            assert ("summarize_emu", logging.ERROR, log_msg) in self._caplog.record_tuples
+            assert ("summarize_emu", logging.ERROR, missing_data_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False,
                                       check_column_type = False)
 
@@ -1924,15 +1934,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = "ERROR:summarize_emu:Error in " \
-                      f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
-                      "Relative abundance does not sum to 100%. " \
-                      "This suggests the result file is broken (missing/extra lines).\n" \
-                      "Empty results will be added to the merged summary."
+        log_msg = "Error in " \
+                  f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
+                  "Relative abundance does not sum to 100%. " \
+                  "This suggests the result file is broken (missing/extra lines).\n" \
+                  "Empty results will be added to the merged summary."
+        with self._caplog.at_level(logging.ERROR, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                              active_config = self.workflow_config)
-        assert log_msg in logged.output
+            assert ("summarize_emu", logging.ERROR, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_warn_different_runs(self):
@@ -1988,13 +1998,13 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = ("WARNING:summarize_emu:Data appear to be from multiple runs "
-                       "(['RUN0001', 'RUN0002']).")
+        log_msg = ("Data appear to be from multiple runs "
+                   "(['RUN0001', 'RUN0002']).")
+        with self._caplog.at_level(logging.WARNING, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                              active_config = self.workflow_config)
-        print("\n".join(logged.output))
-        assert log_msg in logged.output
+            assert ("summarize_emu", logging.WARNING, log_msg) in self._caplog.record_tuples
+
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_handle_broken_with_lis(self):
@@ -2112,16 +2122,16 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = "ERROR:summarize_emu:Error in " \
-                      f"{sample_path / 'RUN0001_F99654321-0_RB02_rel-abundance.tsv'}:\n" \
-                      "Relative abundance does not sum to 100%. " \
-                      "This suggests the result file is broken (missing/extra lines).\n" \
-                      "Empty results will be added to the merged summary."
+        log_msg = "Error in " \
+                  f"{sample_path / 'RUN0001_F99654321-0_RB02_rel-abundance.tsv'}:\n" \
+                  "Relative abundance does not sum to 100%. " \
+                  "This suggests the result file is broken (missing/extra lines).\n" \
+                  "Empty results will be added to the merged summary."
+        with self._caplog.at_level(logging.ERROR, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                              active_config = workflow_config)
-        print("\n".join(logged.output))
-        assert log_msg in logged.output
+            assert ("summarize_emu", logging.ERROR, log_msg) in self._caplog.record_tuples
+
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_merge_different_format_with_controls(self):
@@ -3759,6 +3769,10 @@ class TestGetNanostatCount(unittest.TestCase):
 
 
 class TestGetKrakenReadCount(unittest.TestCase):
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_fail_file_not_found(self):
         """Fail if the Kraken result file does not exist."""
         kraken_file = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "no_such_file"
@@ -3795,10 +3809,10 @@ class TestGetKrakenReadCount(unittest.TestCase):
         kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "kraken_no_human.tsv")
         expected_results = pd.DataFrame(data = {"human": [0], "remaining": [100], "total": [100]})
-        log_msg = f"INFO:summarize_emu:No human reads reported in {kraken_file}."
-        with self.assertLogs("summarize_emu", level="INFO") as logged:
+        log_msg = f"No human reads reported in {kraken_file}."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.get_kraken_read_stats(kraken_file)
-            assert log_msg in logged.output
+            assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_success_log_no_remaining(self):
@@ -3806,10 +3820,10 @@ class TestGetKrakenReadCount(unittest.TestCase):
         kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "kraken_no_remaining.tsv")
         expected_results = pd.DataFrame(data = {"human": [100], "remaining": [0], "total": [100]})
-        log_msg = f"INFO:summarize_emu:No remaining reads reported in {kraken_file}."
-        with self.assertLogs("summarize_emu", level = "INFO") as logged:
+        log_msg = f"No remaining reads reported in {kraken_file}."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.get_kraken_read_stats(kraken_file)
-            assert log_msg in logged.output
+            assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_success_empty(self):
@@ -3817,13 +3831,13 @@ class TestGetKrakenReadCount(unittest.TestCase):
         kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "kraken_empty.tsv")
         expected_results = pd.DataFrame(data = {"human": [0], "remaining": [0], "total": [0]})
-        no_human_msg = f"INFO:summarize_emu:No human reads reported in {kraken_file}."
+        no_human_msg = f"No human reads reported in {kraken_file}."
 
-        no_bact_msg = f"INFO:summarize_emu:No remaining reads reported in {kraken_file}."
-        with self.assertLogs("summarize_emu", level = "INFO") as logged:
+        no_bact_msg = f"No remaining reads reported in {kraken_file}."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.get_kraken_read_stats(kraken_file)
-            assert no_human_msg in logged.output
-            assert no_bact_msg in logged.output
+            assert ("summarize_emu", logging.INFO, no_human_msg) in self._caplog.record_tuples
+            assert ("summarize_emu", logging.INFO, no_bact_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results)
 
 class TestSummarizeEmu(unittest.TestCase):

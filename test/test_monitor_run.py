@@ -240,7 +240,7 @@ class TestWaitForFile(unittest.TestCase):
                          f" {self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}"
                          " after 0.0 hours.")
         with (pytest.raises(FileNotFoundError, match=re.escape(error_msg)),
-              self._caplog.at_level(level="INFO", logger="launch_run")):
+              self._caplog.at_level(logging.INFO, logger="launch_run")):
             monitor_run.start_on_file_found(self.test_run, "test_summary*.txt", watch_interval = 1,
                                             watch_timeout = 3, log_interval = 1)
         assert ("launch_run", logging.ERROR, log_error_msg) in self._caplog.record_tuples
@@ -275,7 +275,7 @@ class TestWaitForFile(unittest.TestCase):
         expected_log = ("Found final_summary*.txt in "
                         f"{self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}"
                         " after 0 seconds.")
-        with self._caplog.at_level(level="INFO", logger="launch_run"):
+        with self._caplog.at_level(logging.INFO, logger = "launch_run"):
             test_command = monitor_run.start_on_file_found(self.test_run, "final_summary*.txt",
                                                            dry_run = True, watch_interval = 1,
                                                            watch_timeout = 5).args

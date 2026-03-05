@@ -241,6 +241,10 @@ class TestGetSeqTime(unittest.TestCase):
 class TestAskOutputPath(unittest.TestCase):
     default_path = pathlib.Path("data/test_run")
 
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     @mock.patch("builtins.input")
     def test_fail_invalid_accept(self, mock_input):
         """Fail on an invalid response for whether to accept the default output path."""
@@ -274,22 +278,23 @@ class TestAskOutputPath(unittest.TestCase):
                            "can't be used in Windows in an existing folder's name. "
                            "This can break the pipeline. "
                            "\nAborting....")
-        log_msg = ("WARNING:amplicon_nanopore:The default target folder contains characters "
+        log_msg = ("The default target folder contains characters "
                    "that can break the pipeline.")
-        with pytest.raises(snake_wrapper.BadPathError,
-                           match=re.escape(error_msg)), self.assertLogs("amplicon_nanopore") as logged:
+        with (pytest.raises(snake_wrapper.BadPathError,
+                           match=re.escape(error_msg)),
+              self._caplog.at_level(logging.WARNING, logger = "amplicon_nanopore")):
             snake_wrapper.ask_output_dir(default_path)
-        assert log_msg in logged.output
+        assert ("amplicon_nanopore", logging.WARNING, log_msg) in self._caplog.record_tuples
 
     @mock.patch("builtins.input")
     def test_success_valid_default(self, mock_input):
         """Return the default output path when the user accepts it."""
         mock_input.return_value = "y"
         expected_path = self.default_path
-        log_msg = f"INFO:amplicon_nanopore:Saving results to {self.default_path}"
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        log_msg = f"Saving results to {self.default_path}"
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(self.default_path)
-            assert log_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, log_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
     @mock.patch("builtins.input", side_effect = ["n",  # user rejects the path
@@ -297,10 +302,10 @@ class TestAskOutputPath(unittest.TestCase):
     def test_success_valid_user_path(self, mock_input):
         """Return the user's new path if it's valid."""
         expected_path = pathlib.Path("/data/test_run2")
-        log_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        log_msg = f"Saving results to {expected_path}"
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(self.default_path)
-            assert log_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, log_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
     @mock.patch("builtins.input", side_effect = ["/data/test_run2"])  # user needs to give a new path because the old one is broken
@@ -309,13 +314,13 @@ class TestAskOutputPath(unittest.TestCase):
         user's correction fixes it."""
         default_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test dir spaces"
         expected_path = pathlib.Path("/data/test_run2")
-        log_msg = ("WARNING:amplicon_nanopore:The default target folder contains characters "
+        log_msg = ("The default target folder contains characters "
                    "that can break the pipeline.")
-        success_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
-        with self.assertLogs("amplicon_nanopore", level="INFO") as logged:
+        success_msg = f"Saving results to {expected_path}"
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(default_path)
-            assert log_msg in logged.output
-            assert success_msg in logged.output
+            assert ("amplicon_nanopore", logging.WARNING, log_msg) in self._caplog.record_tuples
+            assert ("amplicon_nanopore", logging.INFO, success_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
     @mock.patch("builtins.input")
@@ -324,10 +329,10 @@ class TestAskOutputPath(unittest.TestCase):
         mock_input.return_value = "y"
         default_path = pathlib.Path("data/test run")
         expected_path = self.default_path
-        log_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        log_msg = f"Saving results to {expected_path}"
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(default_path)
-            assert log_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, log_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
     @mock.patch("builtins.input", side_effect = ["n",  # user rejects the path
@@ -335,10 +340,10 @@ class TestAskOutputPath(unittest.TestCase):
     def test_success_correct_fixable_user(self, mock_input):
         """Correct a fixable bad path from user input."""
         expected_path = pathlib.Path("/data/test_run2")
-        log_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
-        with self.assertLogs("amplicon_nanopore") as logged:
+        log_msg = f"Saving results to {expected_path}"  # TODO: be more explicit about the path being changed?
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(self.default_path)
-            assert log_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, log_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
 
@@ -404,6 +409,10 @@ class TestInitializeRunFromInput(unittest.TestCase):
                      "paths": {"output_base_path": "/path/to/output"},
                      "seq_run_duration_hours": 1}
 
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     @mock.patch("builtins.input")
     def test_success_use_default_time(self, mock_input):
         """Successfully set up a run using the default sequencing time."""
@@ -422,12 +431,12 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                active_config = self.active_config,
                                                outdir = expected_outdir,
                                                sequencing_time = self.active_config["seq_run_duration_hours"])
-        welcome_msg = ("INFO:amplicon_nanopore:### Nanopore 16S analysis\n"
+        welcome_msg = ("### Nanopore 16S analysis\n"
                        "# Setup analysis -------------------------------")
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
                                                             configfile = configfile)
-            assert welcome_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, welcome_msg) in self._caplog.record_tuples
         assert test_run == expected_run
 
     @mock.patch("builtins.input")
@@ -452,12 +461,12 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                outdir = expected_outdir,
                                                sequencing_time = active_config["seq_run_duration_hours"],
                                                test_run = True)
-        welcome_msg = ("INFO:amplicon_nanopore:### Nanopore 16S analysis\n"
+        welcome_msg = ("### Nanopore 16S analysis\n"
                        "# Setup analysis -------------------------------")
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_run = snake_wrapper.initialize_classic_run(active_config = active_config,
                                                             configfile = configfile)
-            assert welcome_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, welcome_msg) in self._caplog.record_tuples
         assert test_run == expected_run
 
     @mock.patch("builtins.input")
