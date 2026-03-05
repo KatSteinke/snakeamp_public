@@ -47,3 +47,8 @@ paths:
 databases:
   emu_db: /path/to/emu_db
   human_reads: /path/to/human_reads
+
+conda:
+  use_conda: False
+  frontend: ""
+  prefix: ""

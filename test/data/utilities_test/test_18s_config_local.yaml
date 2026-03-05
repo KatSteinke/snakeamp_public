@@ -27,3 +27,7 @@ check_interval_seconds: 5
   "dialect": ""
 run_on: local
 cores: 8
+conda:
+  use_conda: False
+  frontend: ""
+  prefix: ""

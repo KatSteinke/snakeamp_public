@@ -26,3 +26,7 @@
   "dialect": ""
 run_on: nomad
 cores: 8
+conda:
+  use_conda: False
+  frontend: ""
+  prefix: ""

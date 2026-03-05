@@ -49,3 +49,8 @@ databases:
   human_reads: /path/to/human_reads
 
 cores: 6
+
+conda:
+  use_conda: False
+  frontend: ""
+  prefix: ""

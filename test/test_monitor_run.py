@@ -395,7 +395,10 @@ class TestGetLocalCommand(unittest.TestCase):
                      "run_on": "local",
                      "cores": 8,
                      "paths": {"output_base_path": "/path/to/output"},
-                     "seq_run_duration_hours": 1
+                     "seq_run_duration_hours": 1,
+                     "conda": {"frontend": "",
+                               "prefix": "",
+                               "use_conda": False}
                      }
     config_path = pathlib.Path(__file__).parent / "data" / "monitor_run" / "test_config.yaml"
     indir = pathlib.Path("path/to/indir")
@@ -423,7 +426,9 @@ class TestGetLocalCommand(unittest.TestCase):
 
     def test_set_snake_flags(self):
         """Get the command for running the pipeline locally in Snakemake."""
-        seq_run = copy.copy(self.seq_run)
+        seq_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                      configfile = self.config_path,
+                                      active_config = self.active_config, outdir = self.outdir)
         seq_run.snake_flags = ["-n"]
         expected_command = ["snakemake", "-s", "Snakefile",
                             "--cores", "8",
@@ -435,6 +440,50 @@ class TestGetLocalCommand(unittest.TestCase):
                             f"config_path={str(self.config_path)}",
                             "--configfile", str(self.config_path),
                             "-n"]
+        test_command = monitor_run.get_local_command(seq_run)
+        assert expected_command == test_command
+
+    def test_add_conda_frontend(self):
+        """Add conda frontend if given."""
+        test_config = copy.deepcopy(self.active_config)
+        test_config["conda"]["frontend"] = "mamba"
+        test_config["conda"]["use_conda"] = True
+        seq_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                          configfile = self.config_path,
+                                          active_config = test_config, outdir = self.outdir)
+        expected_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "8",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={self.outdir}",
+                            f"rundir={self.indir}",
+                            f"runsheet={self.runsheet}",
+                            f"config_path={str(self.config_path)}",
+                            "--configfile", str(self.config_path),
+                            "--use-conda",
+                            "--conda-frontend", "mamba"]
+        test_command = monitor_run.get_local_command(seq_run)
+        assert expected_command == test_command
+
+    def test_add_conda_prefix(self):
+        """Add conda prefix if given."""
+        test_config = copy.deepcopy(self.active_config)
+        test_config["conda"]["prefix"] = "/data/conda_prefix"
+        test_config["conda"]["use_conda"] = True
+        seq_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                      configfile = self.config_path,
+                                      active_config = test_config, outdir = self.outdir)
+        expected_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "8",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={self.outdir}",
+                            f"rundir={self.indir}",
+                            f"runsheet={self.runsheet}",
+                            f"config_path={str(self.config_path)}",
+                            "--configfile", str(self.config_path),
+                            "--use-conda",
+                            "--conda-prefix", "/data/conda_prefix"]
         test_command = monitor_run.get_local_command(seq_run)
         assert expected_command == test_command
 
@@ -462,7 +511,10 @@ class TestStartGenericRun(unittest.TestCase):
                      "run_on": "nomad",
                      "cores": 8,
                      "paths": {"output_base_path": "/path/to/output"},
-                     "seq_run_duration_hours": 1}
+                     "seq_run_duration_hours": 1,
+                     "conda": {"frontend": "",
+                               "prefix": "",
+                               "use_conda": False}}
     config_path = pathlib.Path(__file__).parent / "data" / "monitor_run" / "test_config.yaml"
     test_run = monitor_run.AmpliconRun(sequence_dir = pathlib.Path(__file__).parent / "data"
                                                       / "monitor_run" / "miniondir" / "test1",
@@ -560,7 +612,10 @@ class TestWaitForFile(unittest.TestCase):
                      "cores": 8,
                      "run_on": "nomad",
                      "paths": {"output_base_path": "/path/to/output"},
-                     "seq_run_duration_hours": 1}
+                     "seq_run_duration_hours": 1,
+                     "conda": {"frontend": "",
+                               "prefix": "",
+                               "use_conda": False}}
     config_path = pathlib.Path(__file__).parent / "data"/"monitor_run"/"test_config.yaml"
     test_run = monitor_run.AmpliconRun(sequence_dir = pathlib.Path(__file__).parent / "data"
                                                       / "monitor_run" / "miniondir" / "test1",
@@ -622,7 +677,7 @@ class TestWaitForFile(unittest.TestCase):
 
     def test_success_dryrun_local(self):
         """Successfully print a local pipeline start command in dry run mode."""
-        test_config = self.active_config.copy()
+        test_config = copy.deepcopy(self.active_config)
         test_config["run_on"] = "local"
         test_run = copy.copy(self.test_run)
         test_run.active_config = test_config
