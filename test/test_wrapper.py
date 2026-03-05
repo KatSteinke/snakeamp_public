@@ -463,11 +463,20 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                sequencing_time = active_config[
                                                    "seq_run_duration_hours"],
                                                test_run = True)
+        logo_msg = r"""   oo_               _
+  /  _)-<           | |          /\
+  \__ `. _ __   __ _| | _____   /  \   _ __ ___  _ __
+     `. | '_ \ / _` | |/ / _ \ / /\ \ | '_ ` _ \| '_ \
+     _| | | | | (_| |   <  __// ____ \| | | | | | |_) |
+  ,-'   |_| |_|\__,_|_|\_\___/_/    \_\_| |_| |_| .__/
+ (_..--'                                        | |
+                                                |_|"""
         welcome_msg = ("### Nanopore 16S analysis\n"
                        "# Setup analysis -------------------------------")
         with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_run = snake_wrapper.initialize_classic_run(active_config = active_config,
                                                             configfile = configfile)
+            assert ("amplicon_nanopore", logging.INFO, logo_msg) in self._caplog.record_tuples
             assert ("amplicon_nanopore", logging.INFO, welcome_msg) in self._caplog.record_tuples
         assert test_run == expected_run
 

@@ -225,6 +225,14 @@ def initialize_classic_run(active_config: Dict[str, Any],
 
     """
     # greet the user - TODO: simplified logging here or generally?
+    logger.info(r"""   oo_               _
+  /  _)-<           | |          /\
+  \__ `. _ __   __ _| | _____   /  \   _ __ ___  _ __
+     `. | '_ \ / _` | |/ / _ \ / /\ \ | '_ ` _ \| '_ \
+     _| | | | | (_| |   <  __// ____ \| | | | | | |_) |
+  ,-'   |_| |_|\__,_|_|\_\___/_/    \_\_| |_| |_| .__/
+ (_..--'                                        | |
+                                                |_|""")
     logger.info(f"### Nanopore {active_config['amplicon_type']} analysis\n"
                 "# Setup analysis -------------------------------")
     run_dir = pathlib.Path(input("Type full path or name of Nanopore "
