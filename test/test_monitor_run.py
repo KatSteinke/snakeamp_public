@@ -14,7 +14,7 @@ import monitor_run
 
 class TestCreateAmpliconRun(unittest.TestCase):
     active_config = {"sample_number_settings": {"sample_number_format":
-                                                    '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                    r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
                                                 "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
@@ -196,7 +196,7 @@ class TestCreateAmpliconRun(unittest.TestCase):
 
 class TestWaitForFile(unittest.TestCase):
     active_config = {"sample_number_settings": {"sample_number_format":
-                                                    '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                    r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
                                                 "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
@@ -297,7 +297,7 @@ class TestWaitForFile(unittest.TestCase):
 
 class TestGetNomadCommand(unittest.TestCase):
     active_config = {"sample_number_settings": {"sample_number_format":
-                                                    '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                    r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
                                                 "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',

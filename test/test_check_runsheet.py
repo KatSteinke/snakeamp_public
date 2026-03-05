@@ -279,7 +279,7 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                  "Cannot check if ['bact_number'] component(s) are correct.")
         success_msg = "The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BFDPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                      r'([BFDPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
                                                   "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -389,8 +389,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                       '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": '(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": '(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
@@ -615,8 +615,8 @@ class TestCheckRunsheet(unittest.TestCase):
                                                       '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": '(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": '(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
@@ -745,7 +745,7 @@ class TestCheckRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                    / "test_nanopore_runsheet.xlsx"
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                      r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
                                                   "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
                                                   "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "sample_numbers_in": "letter",
@@ -779,7 +779,7 @@ class TestCheckRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                    / "test_nanopore_runsheet.xlsx"
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                      r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
                                                   "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
                                                   "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "sample_numbers_in": "letter",
