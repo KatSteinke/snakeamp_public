@@ -487,6 +487,27 @@ class TestGetLocalCommand(unittest.TestCase):
         test_command = monitor_run.get_local_command(seq_run)
         assert expected_command == test_command
 
+    def test_add_clusterprofile(self):
+        """Add a cluster profile if given."""
+        test_config = copy.deepcopy(self.active_config)
+        test_config["profile"] = "test/profile"
+        seq_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                          configfile = self.config_path,
+                                          active_config = test_config, outdir = self.outdir)
+        expected_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "8",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={self.outdir}",
+                            f"rundir={self.indir}",
+                            f"runsheet={self.runsheet}",
+                            f"config_path={str(self.config_path)}",
+                            "--configfile", str(self.config_path),
+                            "--profile", "test/profile"]
+        test_command = monitor_run.get_local_command(seq_run)
+        assert expected_command == test_command
+
+
 class TestStartGenericRun(unittest.TestCase):
     active_config = {"sample_number_settings": {"sample_number_format":
                                                     r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',

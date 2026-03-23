@@ -159,6 +159,9 @@ def get_local_command(sequencing_run: AmpliconRun) -> List[str]:
                         f"runsheet={sequencing_run.runsheet}",
                         f"config_path={str(sequencing_run.configfile)}",
                         "--configfile", str(sequencing_run.configfile)]
+    profile_settings = sequencing_run.active_config.get("profile")
+    if profile_settings:
+        snakemake_command.extend(["--profile", profile_settings])
     conda_extras = sequencing_run.active_config["conda"]
     if conda_extras["use_conda"]:
         snakemake_command.append("--use-conda")
