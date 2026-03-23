@@ -18,10 +18,11 @@ Implementing this mode requires Nomad infrastructure.
 * Local mode: accessed by setting `run_on: local` in the config file.
 The pipeline runs in Snakemake, by default locally on the computer/server/node the `run_pipeline.py`
 script is executed on. Additional configuration is possible, both through the config file and by 
-passing flags directly to Snakemake.\
+passing flags directly to Snakemake. For easier execution on a cluster, a profile may be specified 
+in the `profile` section of the config file.\
 This mode requires Snakemake to be installed in the environment it is run in. \
-**Note**: running the pipeline on a cluster is currently only compatible with Snakemake version 7.*
-or lower. \
+**Note**: convenience features for running the pipeline on a cluster are currently only compatible
+with Snakemake version 7.* or lower. \
 It is possible (and recommended) to use conda or mamba for managing environments.
 
 ## Setting up the pipeline
@@ -46,9 +47,7 @@ conda env create --file envs/base_env.yml
 ### Configuring the pipeline
 A default config file with placeholders is provided as `pipeline_routine.yaml`; replace 
 the placeholders and you're ready to go. For testing etc., it is recommended to create separate 
-config files. 
-
-TODO: should we have input config as with RSYD-BASIC?
+config files.
 
 #### Laboratory information system settings
 This pipeline may incorporate data from a laboratory information system (LIS) in the final report. LIS data is read from the file given under
@@ -150,9 +149,22 @@ or a "base" directory with the default Nanopore output structure (`rawdata/*/fas
 #### Minimal runsheet
 As the pipeline was developed with the runsheets in use at KMA Odense in mind, the runsheet 
 is expected to be an Excel sheet. 
-TODO description
 
-<!--- TODO runsheet An example for an Illumina runsheet can be found [here](docs/minimal_runsheet.xlsx). --->
+The runsheet is expected to consist of two sections:
+* a three-row "header" section with the experiment name given in 
+* a section of arbitrary length containing sample information in the following columns:
+  * **Prøvenummer**: the sample number(s)
+  * **Barkode**: the barcodes used for the samples, in the format specified in the config
+  (by default, RB \[rapid barcoding\] or NB \[native barcoding\] followed by the barcode number)
+  * **Analyse**: the amplicon that was sequenced for the sample in question (e.g. 16S, 18S, RGN3).
+  The pipeline will only analyze samples with the amplicon type specified in the config under
+  `amplicon_type` - if a runsheet contains samples for multiple amplicons, the pipeline will have to
+  be started separately for each amplicon type with the respective config. 
 
-Config: use_conda, frontend, prefix
-snake_flags to be passed through to snakemake - currently used e.g. to specify a snakemake `--profile`
+An example for a runsheet can be found [here](docs/basic_runsheet.xlsx). Note that this runsheet
+contains multiple amplicon types. Using a config that specifies `amplicon_type: 16S` will run the 
+pipeline with samples F99123456-1 and F99123456-2 as well as a negative and positive control; with a
+ config that specifies `amplicon_type: 18S`, the pipeline will  be run for samples F99123456-3 and 
+a positive and negative control. \
+**Note** that it is up to the user to supply the appropriate 
+databases under `databases: emu_db: ...` for all amplicon types in use. 
