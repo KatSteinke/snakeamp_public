@@ -132,7 +132,7 @@ sets up required dirs and exits
 * `--test_run`: only relevant when running on nomad - always dispatches `16s-snake-emu-staging`
   regardless of config settings
 
-### Input formats
+### Input requirements
 The pipeline requires the following inputs:
 *  sequencing data in .fastq format (optionally compressed). One can either specify the `fastq_pass` directory containing all barcode directories, 
 or a "base" directory with the default Nanopore output structure (`rawdata/*/fastq_pass/barcode*`).
@@ -168,6 +168,11 @@ pipeline with samples F99123456-1 and F99123456-2 as well as a negative and posi
 a positive and negative control. \
 **Note** that it is up to the user to supply the appropriate 
 databases under `databases: emu_db: ...` for all amplicon types in use.
+
+### Starting SnakeAmp before sequencing is done
+SnakeAmp may be started before sequencing is complete; in this case, it will wait until 
+sequencing is finished (as signaled by the presence of a `final_summary_*.txt` file) and then run 
+all subsequent steps. 
 
 ## Output
 The pipeline outputs a directory with filtered reads and read statistics for each sample, as well
