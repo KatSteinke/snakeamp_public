@@ -167,4 +167,48 @@ pipeline with samples F99123456-1 and F99123456-2 as well as a negative and posi
  config that specifies `amplicon_type: 18S`, the pipeline will  be run for samples F99123456-3 and 
 a positive and negative control. \
 **Note** that it is up to the user to supply the appropriate 
-databases under `databases: emu_db: ...` for all amplicon types in use. 
+databases under `databases: emu_db: ...` for all amplicon types in use.
+
+## Output
+The pipeline outputs a directory with filtered reads and read statistics for each sample, as well
+as Emu results for all samples and a summary file. The structure is as follows:
+```
++run_directory
++-sample_1
+|   +-reads
++-sample_2
+|   +-reads
++-...
++-emu
++-logs
++ RUN_NAME-AMPLICON_emu-combined.tsv
++ RUN_NAME-AMPLICON_emu-combined.xlsx
+```
+### Sample level results
+* **reads**: filtered reads and QC results:
+  * `SAMPLE_BARCODE.depleted.stats.tsv`: NanoStat output for reads after removal of human reads
+  * `SAMPLE_BARCODE.filtered.fastq.gz`: reads remaining after filtering with filtlong and removal
+  of human reads
+  * `SAMPLE_BARCODE.kraken.tsv`: amount of reads mapping against the Kraken database used for 
+  removing human reads
+  * `SAMPLE_BARCODE.stats.tsv`: NanoStat output for the original, unfiltered reads
+
+### Run level directories
+* **emu**: Emu result files for all samples
+* **logs**: sample- and pipeline-level logfiles:
+  * **concat_fastq**: sample-level logs for initial concatenation of fastq files
+  * **emu**: sample-level logs for taxonomic identification with emu
+  * **filtlong**: sample-level logs for read filtering with filtlong
+  * **kraken**: sample-level logs for human read removal with kraken
+  * **snakemake.log**: Snakemake logfile for the entire run
+  * **start_pipeline.log**: logfile for the start script, documenting input directory, wait time 
+  until the pipeline is started, and the command used to start the pipeline
+
+### Summary files
+* `RUN_NAME-AMPLICON_emu-combined.xlsx`: a summary file combining Emu results for all samples,
+as well as QC data, and, if given, information from the LIS (sample material, anatomical location, 
+run-level patient identifier) for all samples. Abundance data is reported in several ways:
+  * in the overview tab, both relative abundance and absolute counts are shown
+  * in the abundance tab, only relative abundance is shown
+  * in the count tab, only read counts are shown
+* `RUN_NAME-AMPLICON_emu-combined.tsv`: a raw copy of the "overview" tab of the xlsx file
