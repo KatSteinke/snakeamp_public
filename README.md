@@ -30,7 +30,7 @@ It is possible (and recommended) to use conda or mamba for managing environments
 ### Installation
 For now the pipeline can only be installed by cloning the repository. 
 
-### Installing the base environment - TODO
+### Installing the base environment
 The base environment for launching the pipeline is defined as `base_env.yml`. This file can be used
 to create the base environment using mamba or conda. Navigate to the directory containing this 
 repository for the next step. 

@@ -1,0 +1,13 @@
+name: snake_amp
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - biopython
+  - numpy>=1.22.2
+  - openpyxl
+  - pandas=2.*
+  - pyarrow  # so pandas won't complain
+  - python>=3.9.*
+  - pyyaml
+  - snakemake=7.*  # for compatibility with --profile
