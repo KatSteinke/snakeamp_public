@@ -74,10 +74,47 @@ assumed to
   * anatomical location ("anatomi")
   * indication for sampling ("Indikation")
 
-An example of a LIS report file can be found [here](docs/sample_mads.csv). TODO  
+An example of a LIS report file can be found [here](docs/sample_mads.csv).  
 
 If your laboratory information system differs, get in touch with this pipeline's maintainer(s) for help with
 implementation - the idea is to make things as flexible as needed over time.
+
+#### Defining sample number formats
+In order to translate between different sample number formats in the runsheet, the output and 
+optionally the LIS report, sample number formats must be described as regular expressions with named
+ groups reflecting the components.
+
+TODO: currently sample_type is required but can we just drop it?
+ 
+TODO: number/letter conversion settings
+
+<details> <summary> Advanced sample number formats - rearranging with named groups  </summary>
+The use of named capturing groups allows for rearranging and dropping components as needed.
+For instance:
+
+```yaml
+sample_number_settings:
+  sample_number_format: '([FU]|1[15])([0-9]{8})'
+  format_in_sheet: '(?P<sample_type>[FU]|1[15])(?P<sample_number>\d{6})(?P<sample_year>\d{2})'
+  format_in_lis: '(?P<sample_type>[FU])(?P<sample_year>\d{2})(?P<sample_number>\d{6})'
+  format_output: '(?P<sample_type>[FU]|1[15])(?P<sample_year>\d{2})(?P<sample_number>\d{6})'
+```
+
+In this example, the base `sample_number_format` stipulates that a sample number must start with
+the letters F or U or the numeric code 11 or 15, followed by eight digits. \
+The sample number format in the runsheet, `format_in_sheet`, breaks this up in named groups:
+* `sample_type`: the letters F or U or the numeric code 11 or 15
+* `sample_number`: the sample number itself, a six-digit identifier
+* `sample_year`: the year component of the sample identifier (two digits)
+
+The corresponding definition in the LIS is similar, but only allows the sample type to be given as 
+letters and gives the year component *before* the sample number proper.
+
+It is thus possible to match the sample number `F12345699` from the sample sheet to 
+the sample number `F99123456` in the LIS.
+</details>
+
+
 
 ## Running the pipeline
 The pipeline can be run in two modes: "classic" mode, primarily meant for users not 
