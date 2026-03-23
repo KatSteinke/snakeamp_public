@@ -67,6 +67,7 @@ assumed to
 * be semicolon-separated
 * be encoded using `latin-1` encoding
 * contain fields for:
+  * sample number ("prøvenr") 
   * date received ("modtaget")
   * patient CPR number ("cprnr.")
   * sample material/category ("prøvekategori")
@@ -139,7 +140,7 @@ or a "base" directory with the default Nanopore output structure (`rawdata/*/fas
 * a "runsheet" with information about each sample in .xlsx format.
 * and optionally:
   * a report from your laboratory information system, containing at least
-    * sample numbers (TODO) 
+    * sample numbers ("prøvenr")
     * date received ("modtaget")
     * patient CPR number ("cprnr.")
     * sample material/category ("prøvekategori")
