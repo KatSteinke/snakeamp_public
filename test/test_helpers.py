@@ -396,6 +396,10 @@ class TestExtractMatchGroup(unittest.TestCase):
 
 
 class TestTranslateSampleNumber(unittest.TestCase):
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+    
     def test_fail_no_match(self):
         """Complain if the input sample number does not match the original format."""
         format_in = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
@@ -508,6 +512,25 @@ class TestTranslateSampleNumber(unittest.TestCase):
                                                                 re.compile("PosK"),
                                                                 re.compile('NegK[a-zA-Z0-9_-]*'))
         assert positive_control == test_positive_control
+        
+    def test_handle_no_type(self):
+        """Handle a sample number format without sample type."""
+        format_in = re.compile(
+            '(?P<sample_number>\d{8})(?P<bact_number>-\d)')
+        format_out = re.compile(
+            '(?P<sample_number>\d{8})')
+        prefix_mapping = {"70": "P", "30": "B", "10": "D", "50": "T"}
+        sample_number = "99123456-1"
+        expected_number = "99123456"
+        log_msg = ("No sample_type given in sample number format specification;"
+                   " cannot translate sample type.")
+
+        with self._caplog.at_level(logging.INFO, logger = "helpers"):
+            test_number = helpers.translate_sample_number(sample_number, format_in, format_out,
+                                                          prefix_mapping, re.compile("PosK"),
+                                                          re.compile('NegK[a-zA-Z0-9_-]*'))
+            assert ("helpers", logging.INFO, log_msg) in self._caplog.record_tuples
+        assert expected_number == test_number
 
 
 class TestCheckExperimentName(unittest.TestCase):
