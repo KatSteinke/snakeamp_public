@@ -228,6 +228,7 @@ def start_on_file_found(run_to_watch: AmpliconRun, pattern_to_watch: str, dry_ru
         FileNotFoundError:  if the file is not found before the timeout
     """
     seconds_per_hour = 3600
+
     file_found = 0
     time_watching = 0
     time_since_log = 0
