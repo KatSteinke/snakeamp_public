@@ -656,6 +656,7 @@ class TestWaitForFile(unittest.TestCase):
         """Stop monitoring when the timeout has been reached."""
         error_msg = ("No file matching pattern test_summary*.txt found in"
                      f" {self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}")
+        time_log = "Waiting for sequencing to finish..."
         log_error = ("No file matching pattern test_summary*.txt "
                      f"found in {self.test_run.sequence_dir / 'rawdata' / 'test_subdir'} "
                      "after 0.0 hours.")
@@ -663,8 +664,12 @@ class TestWaitForFile(unittest.TestCase):
               self._caplog.at_level(level="INFO", logger="launch_run")):
             monitor_run.start_on_file_found(self.test_run, "test_summary*.txt",
                                             watch_interval = 1,
-                                            watch_timeout = 5)
+                                            watch_timeout = 3,
+                                            log_interval = 1)
         assert ("launch_run", logging.ERROR, log_error) in self._caplog.record_tuples
+        timed_logs = [log_record for log_record in self._caplog.record_tuples
+                      if log_record == ("launch_run", logging.INFO, time_log)]
+        assert len(timed_logs) == 3
 
     def test_fail_parent_dir_not_found(self):
         """Don't start monitoring if the parent directory does not exist."""
