@@ -115,10 +115,7 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                    "10": "D",
                                                                    "11": "F",
                                                                    "50": "T"},
-                                              "date_settings":
-                                                  {"splice_in_date": False,
-                                                   "length_without_date": 8,
-                                                   "splice_after": 2},
+
                                               "negative_control": 'NegK[a-zA-Z0-9]*',
                                               "positive_control": {}},
                          "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -143,10 +140,7 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                          "10": "D",
                                                                          "11": "F",
                                                                           "50": "T"},
-                                                                  "date_settings":
-                                                                      {"splice_in_date": False,
-                                                                       "length_without_date": 8,
-                                                                       "splice_after": 2},
+
                                                                   "negative_control": 'NegK[a-zA-Z0-9]*',
                                                                   "positive_control": {}},
                                        "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -176,10 +170,7 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                          "10": "D",
                                                                          "11": "F",
                                                                          "50": "T"},
-                                                    "date_settings":
-                                                        {"splice_in_date": False,
-                                                         "length_without_date": 8,
-                                                         "splice_after": 2},
+
                                                     "negative_control": 'NegK[a-zA-Z0-9]*',
                                                     "positive_control": {}},
                          "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -396,10 +387,7 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                                      "30": "B",
                                                                      "10": "D",
                                                                      "50": "T"},
-                                                "date_settings":
-                                                    {"splice_in_date": False,
-                                                     "length_without_date": 8,
-                                                     "splice_after": 2},
+
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -561,10 +549,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                                                                      "30": "B",
                                                                      "10": "D",
                                                                      "50": "T"},
-                                                "date_settings":
-                                                    {"splice_in_date": False,
-                                                     "length_without_date": 8,
-                                                     "splice_after": 2},
+
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -592,10 +577,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                                                                         "30": "B",
                                                                         "10": "D",
                                                                         "50": "T"},
-                                                   "date_settings":
-                                                       {"splice_in_date": False,
-                                                        "length_without_date": 8,
-                                                        "splice_after": 2},
+
                                                    "negative_control": 'NegK[a-zA-Z0-9]*',
                                                    "positive_control": {}},
                         "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -838,10 +820,7 @@ class TestRunPipeline(unittest.TestCase):
                                                                      "10": "D",
                                                                      "11": "F",
                                                                      "50": "T"},
-                                                "date_settings":
-                                                    {"splice_in_date": False,
-                                                     "length_without_date": 8,
-                                                     "splice_after": 2},
+
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet

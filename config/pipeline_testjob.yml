@@ -18,10 +18,6 @@ sample_number_settings:
   sample_numbers_output: number
   # mapping between sample number/letter if needed
   number_to_letter: { "70": "P", "30": "B", "10": "D", "11": "F", "50": "T"}
-  date_settings:  # TODO: do we need this separately?
-    splice_in_date: False  # for now we're assuming the date is there
-    length_without_date: 8 # length is based on sample_numbers_in format - TODO: how to handle all this in sample sheet creation
-    splice_after: 2 # location (1-based) at which to add year
   negative_control: 'NegK[a-zA-Z0-9_-]*' # TODO: do we have negative controls?
   # list of positive controls - TODO: do we have them?
   positive_control: {"PosK": ""}

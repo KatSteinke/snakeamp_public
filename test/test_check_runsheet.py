@@ -30,10 +30,6 @@ class TestCheckSinglePrefix(unittest.TestCase):
                                                                    "10": "D",
                                                                    "11": "F",
                                                                    "50": "T"},
-                                              "date_settings":
-                                                  {"splice_in_date": False,
-                                                   "length_without_date": 8,
-                                                   "splice_after": 2},
                                               "negative_control": '',
                                               "positive_control": {}},
                    "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -117,10 +113,7 @@ class TestCheckSinglePrefix(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": 'NegK',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -151,10 +144,7 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                    "11": "F",
                                                                    "10": "D",
                                                                    "50": "T"},
-                                              "date_settings":
-                                                  {"splice_in_date": False,
-                                                   "length_without_date": 8,
-                                                   "splice_after": 2},
+                                              
                                               "negative_control": '',
                                               "positive_control": {}},
                    "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -222,10 +212,7 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": 'NegK',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -253,10 +240,7 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -289,10 +273,7 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -316,10 +297,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                    "10": "D",
                                                                    "11": "F",
                                                                    "50": "T"},
-                                              "date_settings":
-                                                  {"splice_in_date": False,
-                                                   "length_without_date": 8,
-                                                   "splice_after": 2},
+                                              
                                               "negative_control": '',
                                               "positive_control": {}},
                    "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -362,10 +340,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -396,10 +371,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -436,10 +408,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": '',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -465,10 +434,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -544,10 +510,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                    "10": "D",
                                                                    "11": "F",
                                                                    "50": "T"},
-                                              "date_settings":
-                                                  {"splice_in_date": False,
-                                                   "length_without_date": 8,
-                                                   "splice_after": 2},
+                                              
                                               "negative_control": '',
                                               "positive_control": {}},
                    "lab_info_system": {"use_lis_features": False},
@@ -588,10 +551,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False},
@@ -622,10 +582,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False},
@@ -660,10 +617,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": '',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "lab_info_system": {"use_lis_features": False},
@@ -689,10 +643,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False},
@@ -755,10 +706,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": 'NegK[a-zA-Z0-9_-]*',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": True,
@@ -789,10 +737,7 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
+                                                  
                                                   "negative_control": 'NegK[a-zA-Z0-9_-]*',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False,
@@ -869,10 +814,6 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": True,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": True,
