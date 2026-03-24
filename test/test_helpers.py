@@ -560,6 +560,7 @@ class TestTranslateSampleNumber(unittest.TestCase):
         assert expected_number == test_number
 
 
+
 class TestCheckExperimentName(unittest.TestCase):
     @pytest.fixture(autouse = True)
     def inject_fixtures(self, caplog):
