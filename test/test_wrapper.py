@@ -146,7 +146,7 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                          "30": "B",
                                                                          "10": "D",
                                                                          "11": "F",
-                                                                         "50": "T"},
+                                                                                       "50": "T"},
                                                                   "negative_control": 'NegK[a-zA-Z0-9]*',
                                                                   "positive_control": {}},
                                        "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
