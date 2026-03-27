@@ -239,6 +239,7 @@ def initialize_classic_run(active_config: Dict[str, Any],
                                  "sequencing folder and press enter: ").strip().strip("'"))
     run_dir = helpers.get_fastq_pass_parent(run_dir)
     sequencing_time = ask_seq_time(active_config["seq_run_duration_hours"])
+    logger.debug(f"Waiting at most {sequencing_time} hours for final_summary*.txt")
     run_sheet = pathlib.Path(input("Output directory will be based on experiment name."
                                    "\n"
                                    "Enter path to runsheet: ").strip().strip("'")).resolve()
@@ -282,6 +283,7 @@ def initialize_commandline_run(start_args: argparse.Namespace,
         snake_flags = start_args.snake_flags[0].split()
     else:
         snake_flags = None
+    logger.debug(f"Waiting at most {seqtime} hours for final_summary*.txt")
     current_amplicon_run = monitor_run.AmpliconRun(sequence_dir = run_dir, runsheet = run_sheet,
                                                    configfile = config_file,
                                                    active_config = active_config,
@@ -406,8 +408,13 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
     arg_parser.add_argument("--snake_flags", nargs = "*",
                             help = "Flags to be passed to Snakemake, enclosed in quotes")
     args = arg_parser.parse_args(start_args)
-    # initialize root logger
-    pipeline_logger = set_log.get_stream_log()
+    # initialize root logger - we need it at debug for the logfile...
+    pipeline_logger = logging.getLogger()
+    pipeline_logger.setLevel(logging.DEBUG)
+    # ...but not in what we're logging to the console
+    console_log = logging.StreamHandler()
+    console_log.setLevel(logging.INFO)
+    pipeline_logger.addHandler(console_log)
     # we'll save to file later, but some things will be logged before we know where to save them to
     # -> store them in the meantime
     log_store = set_log.RecordsListHandler()

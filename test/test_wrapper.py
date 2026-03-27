@@ -140,7 +140,6 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                          "10": "D",
                                                                          "11": "F",
                                                                           "50": "T"},
-
                                                                   "negative_control": 'NegK[a-zA-Z0-9]*',
                                                                   "positive_control": {}},
                                        "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -422,10 +421,13 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                    "seq_run_duration_hours"])
         welcome_msg = ("### Nanopore 16S analysis\n"
                        "# Setup analysis -------------------------------")
-        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
+        time_msg = "Waiting at most 1 hours for final_summary*.txt"
+
+        with self._caplog.at_level(logging.DEBUG, logger = "amplicon_nanopore"):
             test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
-                                                            configfile = configfile)
+                                          configfile = configfile)
             assert ("amplicon_nanopore", logging.INFO, welcome_msg) in self._caplog.record_tuples
+            assert ("amplicon_nanopore", logging.DEBUG, time_msg)
         assert test_run == expected_run
 
     @mock.patch("builtins.input")
@@ -482,12 +484,15 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                   1.5,  # set new sequencing time
                                   str(runsheet),  # runsheet
                                   "y"]  # accept default outdir
+        time_msg = "Waiting at most 1.5 hours for final_summary*.txt"
         expected_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
                                                configfile = configfile,
                                                active_config = self.active_config,
                                                outdir = expected_outdir, sequencing_time = 1.5)
-        test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
-                                                        configfile = configfile)
+        with self._caplog.at_level(logging.DEBUG, logger = "amplicon_nanopore"):
+            test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
+                                                            configfile = configfile)
+            assert ("amplicon_nanopore", logging.DEBUG, time_msg) in self._caplog.record_tuples
         assert test_run == expected_run
 
     @mock.patch("builtins.input")
@@ -536,6 +541,8 @@ class TestInitializeRunFromInput(unittest.TestCase):
         test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
                                                         configfile = configfile)
         assert test_run == expected_run
+
+
 class TestInitializeRunFromCommandline(unittest.TestCase):
     active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
                                     / "input_da_old_lis.yaml",
@@ -614,6 +621,10 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
             / "utilities_test"
             / "test_lis_from_db.txt").write_text(data = "", encoding = "latin-1")
 
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_missing_runsheet(self):
         """Fail if runsheet was not entered."""
         args = Namespace(runsheet = None, rundir = self.indir, test_run=None, run_time = None,
@@ -643,7 +654,10 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                                                outdir = self.expected_outdir,
                                                sequencing_time = self.active_config[
                                                    "seq_run_duration_hours"])
-        test_run = snake_wrapper.initialize_commandline_run(args)
+        time_msg = "Waiting at most 1 hours for final_summary*.txt"
+        with self._caplog.at_level(logging.DEBUG, logger = "amplicon_nanopore"):
+            test_run = snake_wrapper.initialize_commandline_run(args)
+            assert ("amplicon_nanopore", logging.DEBUG, time_msg) in self._caplog.record_tuples
         assert expected_run == test_run
 
     def test_set_config(self):
@@ -917,6 +931,9 @@ class TestRunPipeline(unittest.TestCase):
         assert expected_command == test_command.args
         assert expected_outdir.exists()
 
+    @pytest.fixture(autouse = True)
+    def inject_capsys(self, capsys):
+        self._capsys = capsys
     # TODO: test logging
     @mock.patch(f"{snake_wrapper.__name__}.check_if_classic_mode", return_value=True)
     # mock fork so it doesn't actually fork off anything
@@ -947,9 +964,21 @@ class TestRunPipeline(unittest.TestCase):
                          "16s-snake-emu-staging", str(configfile)]
         expected_command = ["echo", f'"{" ".join(nomad_command)}"']
         test_args = ["--workflow_config_file", str(configfile), "--dry_run"]
+        # check that the stream logger is not logging any debug things - caplog stuff here?
+        time_msg = "Waiting at most 1 hours for final_summary*.txt"
         test_command = snake_wrapper.run_pipeline(test_args)
+        captured = self._capsys.readouterr()
+        assert not time_msg in captured.out
+        assert not time_msg in captured.err
+        print(captured.out)
+        print(captured.err)
         assert expected_command == test_command.args
         assert expected_outdir.exists()
+        # get the logged time in the logfile
+        logfile = expected_outdir / "logs" / "start_pipeline.log"
+        with open(logfile, "r", encoding="utf-8") as read_log:
+            lines = read_log.read()
+            assert re.search(re.escape(time_msg), lines)
 
     @mock.patch(f"{snake_wrapper.__name__}.check_if_classic_mode", return_value=True)
     # mock fork so it doesn't actually fork off anything
