@@ -123,7 +123,7 @@ class TestFindRundir(unittest.TestCase):
                     / "test_dir_multi_pass" / "rawdata" / "subdir" / "fastq_pass"
         true_path = pathlib.Path(__file__).parent / "data" / "helpers" \
                     / "test_dir_multi_pass" / "rawdata" / "subdir"
-        log_msg = "Data is retrieved from the following folder:\n" \
+        log_msg = "Data will be retrieved from the following folder:\n" \
                   f"{true_path}"
         with self._caplog.at_level(logging.INFO, logger = "helpers"):
             test_fastq = helpers.get_fastq_pass_parent(test_path)
@@ -135,7 +135,7 @@ class TestFindRundir(unittest.TestCase):
                     / "test_dir_multi_pass" / "rawdata" / "subdir"
         true_path = pathlib.Path(__file__).parent / "data" / "helpers" \
                     / "test_dir_multi_pass" / "rawdata" / "subdir"
-        log_msg = "Data is retrieved from the following folder:\n" \
+        log_msg = "Data will be retrieved from the following folder:\n" \
                   f"{true_path}"
         with self._caplog.at_level(logging.INFO, logger = "helpers"):
             test_fastq = helpers.get_fastq_pass_parent(test_path)
@@ -146,7 +146,7 @@ class TestFindRundir(unittest.TestCase):
         test_path = pathlib.Path(__file__).parent / "data" / "snake_helpers" / "test_dir"
         true_path = pathlib.Path(__file__).parent / "data" / "snake_helpers" / "test_dir" \
                     / "rawdata" / "subdir"
-        log_msg = "Data is retrieved from the following folder:\n" \
+        log_msg = "Data will be retrieved from the following folder:\n" \
                   f"{true_path}"
         with self._caplog.at_level(logging.INFO, logger = "helpers"):
             test_fastq = helpers.get_fastq_pass_parent(test_path)
@@ -158,7 +158,7 @@ class TestFindRundir(unittest.TestCase):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" / "test_dir"
         true_path = pathlib.Path(__file__).parent / "data" / "helpers" / "test_dir" \
                     / "no_sample" / "subdir"
-        log_msg = "Data is retrieved from the following folder:\n" \
+        log_msg = "Data will be retrieved from the following folder:\n" \
                   f"{true_path}"
         with self._caplog.at_level(logging.INFO, logger = "helpers"):
             test_fastq = helpers.get_fastq_pass_parent(test_path)
@@ -217,7 +217,7 @@ class TestFindRundir(unittest.TestCase):
                      / "subdir" / "fastq_pass")
         error_msg =  f"The supplied folder {test_path} does not exist. \n" \
                     "Ensure correct directory and/or directory structure is used.\n" \
-                    "Aborting 16S pipeline..."
+                    "Aborting pipeline..."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
             helpers.get_fastq_pass_parent(test_path)
 

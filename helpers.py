@@ -158,7 +158,7 @@ def get_fastq_pass_parent(rundir: pathlib.Path) -> pathlib.Path:
     if not rundir.exists():
         raise FileNotFoundError(f"The supplied folder {rundir} does not exist. \n"
                                 "Ensure correct directory and/or directory structure is used.\n"
-                                "Aborting 16S pipeline...")
+                                "Aborting pipeline...")
     existing_path = rundir.parts
     try:
         # if the fastq_pass directory already is somewhere in the dirs given, use this
@@ -190,7 +190,7 @@ def get_fastq_pass_parent(rundir: pathlib.Path) -> pathlib.Path:
                        " also mean you have given the wrong path. \n"
                        "Only continue if you are sure. ")
     fastq_pass_parent = fastq_pass_dir.parent
-    logger.info(f"Data is retrieved from the following folder:\n"
+    logger.info(f"Data will be retrieved from the following folder:\n"
                 f"{fastq_pass_parent}")
     return fastq_pass_parent
 
