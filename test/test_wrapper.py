@@ -910,7 +910,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in classic mode with the default config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -944,7 +944,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in classic mode while giving a different config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"
@@ -989,7 +989,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a local run in classic mode."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"
@@ -1030,7 +1030,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in classic mode and set the output directory."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -1061,7 +1061,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in commandline mode with the default config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -1084,7 +1084,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in commandline mode while giving a different config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"
@@ -1110,7 +1110,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a local run in commandline mode."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"
@@ -1140,7 +1140,7 @@ class TestRunPipeline(unittest.TestCase):
         """Pass flags through to Snakemake."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"
@@ -1175,7 +1175,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in commandline mode and specify a logfile."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -1204,7 +1204,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in test mode, overriding config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"
@@ -1232,7 +1232,7 @@ class TestRunPipeline(unittest.TestCase):
         """Fail if the specified output directory already exists."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         expected_outdir = (pathlib.Path(__file__).parent / "data"
@@ -1253,7 +1253,7 @@ class TestRunPipeline(unittest.TestCase):
         """Continue the pipeline if specified in commandline mode."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         expected_outdir = (pathlib.Path(__file__).parent / "data"
@@ -1287,7 +1287,7 @@ class TestRunPipeline(unittest.TestCase):
         watch_seconds = (watch_hours + fudge_hours) * 3600
 
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -1316,7 +1316,7 @@ class TestRunPipeline(unittest.TestCase):
         """Use a LIS report from a file."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"

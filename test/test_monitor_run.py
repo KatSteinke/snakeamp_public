@@ -638,10 +638,10 @@ class TestWaitForFile(unittest.TestCase):
     def test_timeout(self):
         """Stop monitoring when the timeout has been reached."""
         error_msg = ("No file matching pattern test_summary*.txt found in"
-                     f" {self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}")
+                     f" {self.test_run.sequence_dir / 'no_sample' / 'test_subdir'}")
         time_log = "Waiting for sequencing to finish..."
         log_error = ("No file matching pattern test_summary*.txt "
-                     f"found in {self.test_run.sequence_dir / 'rawdata' / 'test_subdir'} "
+                     f"found in {self.test_run.sequence_dir / 'no_sample' / 'test_subdir'} "
                      "after 0.0 hours.")
         with (pytest.raises(FileNotFoundError, match=re.escape(error_msg)),
               self._caplog.at_level(level="INFO", logger="launch_run")):
@@ -680,7 +680,7 @@ class TestWaitForFile(unittest.TestCase):
                                      '16s-snake-emu-prod '
                                      f'{str(self.test_run.configfile)}"')]
         expected_log = ("Found final_summary*.txt in "
-                        f"{self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}"
+                        f"{self.test_run.sequence_dir / 'no_sample' / 'test_subdir'}"
                         " after 0 seconds.")
         with self._caplog.at_level(logging.INFO, logger = "launch_run"):
             test_command = monitor_run.start_on_file_found(self.test_run, "final_summary*.txt",
@@ -705,7 +705,7 @@ class TestWaitForFile(unittest.TestCase):
                                      f'config_path={str(self.config_path)} '
                                      f'--configfile {str(self.config_path)}"')]
         expected_log = ("Found final_summary*.txt in "
-                        f"{self.test_run.sequence_dir / 'rawdata' / 'test_subdir'}"
+                        f"{self.test_run.sequence_dir / 'no_sample' / 'test_subdir'}"
                         " after 0 seconds.")
         with self._caplog.at_level(logging.INFO, logger = "launch_run"):
             test_command = monitor_run.start_on_file_found(test_run, "final_summary*.txt",
