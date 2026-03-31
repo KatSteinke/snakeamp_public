@@ -153,6 +153,18 @@ class TestFindRundir(unittest.TestCase):
             assert ("helpers", logging.INFO, log_msg) in self._caplog.record_tuples
         assert test_fastq == true_path
 
+    def test_handle_different_samples(self):
+        """Handle different sample names."""
+        test_path = pathlib.Path(__file__).parent / "data" / "helpers" / "test_dir"
+        true_path = pathlib.Path(__file__).parent / "data" / "helpers" / "test_dir" \
+                    / "no_sample" / "subdir"
+        with self.assertLogs("helpers", level = "INFO") as logged:
+            log_msg = f"INFO:helpers:Data is retrieved from the following folder:\n" \
+                      f"{true_path}"
+            test_fastq = helpers.get_fastq_pass_parent(test_path)
+        assert log_msg in logged.output
+        assert test_fastq == true_path
+
     def test_fail_path(self):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" / "subdir"
         error_msg = f"fastq_pass folder not found in {test_path} or any subfolders. \n" \
