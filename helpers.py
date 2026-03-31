@@ -172,7 +172,7 @@ def get_fastq_pass_parent(rundir: pathlib.Path) -> pathlib.Path:
         if not check_fastq_pass:
             raise FileNotFoundError(f"fastq_pass folder not found in {rundir} or any subfolders. \n"
                                     "Ensure correct directory and/or directory structure is used.\n"
-                                    "Aborting 16S pipeline...")
+                                    "Aborting pipeline...")
         if len(check_fastq_pass) > 1:
             raise ValueError(f"The directory {rundir} contains "
                              f"multiple fastq_pass directories."

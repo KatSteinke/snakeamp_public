@@ -169,7 +169,7 @@ class TestFindRundir(unittest.TestCase):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" / "subdir"
         error_msg = f"fastq_pass folder not found in {test_path} or any subfolders. \n" \
                     "Ensure correct directory and/or directory structure is used.\n" \
-                    "Aborting 16S pipeline..."
+                    "Aborting pipeline..."
         log_msg = f"Searching for fastq_pass folder in {test_path}..."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)), \
                 self._caplog.at_level(logging.INFO, logger = "helpers"):
@@ -180,7 +180,7 @@ class TestFindRundir(unittest.TestCase):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" / "subdir_3" / "fastq_fail"
         error_msg = f"fastq_pass folder not found in {test_path} or any subfolders. \n" \
                     "Ensure correct directory and/or directory structure is used.\n" \
-                    "Aborting 16S pipeline..."
+                    "Aborting pipeline..."
         log_msg = f"Searching for fastq_pass folder in {test_path}..."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)), \
                 self._caplog.at_level(logging.INFO, logger = "helpers"):
@@ -425,7 +425,7 @@ class TestTranslateSampleNumber(unittest.TestCase):
     @pytest.fixture(autouse = True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
-    
+
     def test_fail_no_match(self):
         """Complain if the input sample number does not match the original format."""
         format_in = re.compile('(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{8})(?P<bact_number>-\d)')
@@ -538,7 +538,7 @@ class TestTranslateSampleNumber(unittest.TestCase):
                                                                 re.compile("PosK"),
                                                                 re.compile('NegK[a-zA-Z0-9_-]*'))
         assert positive_control == test_positive_control
-        
+
     def test_handle_no_type(self):
         """Handle a sample number format without sample type."""
         format_in = re.compile(
