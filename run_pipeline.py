@@ -163,14 +163,14 @@ def ask_seq_time(default_seq_time: float) -> float:
     Returns:
         The sequencing timespan for the run
     """
-    seq_time_accept = input("Expecting sequencing to be finished after"
+    seq_time_accept = input("Assuming maximum sequencing time is set to"
                             f" {default_seq_time} hours. "
                             "Is this correct? [y/n]")
     # if they just accept we're done
     if seq_time_accept == "y":
         return default_seq_time
     if seq_time_accept == "n":
-        sequencing_time = input("Type how many hours the sequencing run is expected to last"
+        sequencing_time = input("Type the maximum sequencing time you set for the run"
                                 " (e.g. 2 if you set it to 2 hours) and press enter: ")
         try:
             sequencing_time = float(sequencing_time)
@@ -179,7 +179,7 @@ def ask_seq_time(default_seq_time: float) -> float:
                              "Sequencing time must be entered as numbers "
                              "(e.g. 8 for eight hours or 0.5 for half an hour).") from value_err
         if sequencing_time < 0:
-            raise ValueError("Expected sequencing time must be greater than 0 hours.")
+            raise ValueError("Maximum sequencing time must be greater than 0 hours.")
         return sequencing_time
     # we should not reach this with valid input
     raise ValueError("Sequencing time not entered. Aborting")
@@ -409,9 +409,10 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
                             help="Determine the pipeline start command,"
                                  " set up required dirs and exit")
     arg_parser.add_argument("--run_time", action="store", type=float,
-                            help = "Expected sequencing time in hours "
-                                   "(will wait for the sequencing run for another hour after this;"
-                                   f" default: {WORKFLOW_CONFIG['seq_run_duration_hours']})")
+                            help = "Maximum sequencing time in hours "
+                                   "(will at most wait for the sequencing run"
+                                   " for another hour after this;"
+                                   f" default: {WORKFLOW_CONFIG['seq_run_duration_hours']} hours)")
     arg_parser.add_argument("--logfile", action = "store",
                             help = "Logfile to store analysis start commands (default: "
                                    f"{WORKFLOW_CONFIG['paths']['output_base_path']}/"

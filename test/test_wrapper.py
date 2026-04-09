@@ -265,7 +265,7 @@ class TestGetSeqTime(unittest.TestCase):
     @mock.patch("builtins.input", side_effect = ["n", -1])
     def test_fail_invalid_time(self, mock_input):
         """Fail if an invalid time was entered."""
-        error_msg = "Expected sequencing time must be greater than 0 hours."
+        error_msg = "Maximum sequencing time must be greater than 0 hours."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             snake_wrapper.ask_seq_time(self.default_time)
 
