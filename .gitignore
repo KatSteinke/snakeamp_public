@@ -6,3 +6,5 @@
 /.idea/
 /.idea/16s-nanopore.iml
 /.idea/misc.xml
+*.hcl
+.gitlab-ci.yml
