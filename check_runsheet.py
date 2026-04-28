@@ -39,69 +39,6 @@ logger = logging.getLogger("check_runsheet")
 logger.setLevel(logging.DEBUG)
 
 
-# TODO: sample year is now already spliced in or should be
-def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_prefix: str,
-                    lab_data_prefix: str,
-                    active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> None:
-    """Check whether samples of a given sample type (indicated by prefix) are contained in a report
-    from the laboratory information system.
-
-    Arguments:
-        sheet_data:         Data contained in runsheet
-        lab_data:           Data contained in laboratory information system report (minimum:
-                            sample numbers and date received)
-        sheet_prefix:       Sample number prefix designating desired sample type in sample sheet
-        lab_data_prefix:    Sample number prefix corresponding to sheet_prefix in the format used in
-                            the LIS report
-        active_config:      configuration to use
-
-    Raises:
-        ValueError: if samples aren't found in the LIS report
-    """
-    runsheet_filtered = sheet_data[sheet_data["Prøvenummer"].str.startswith(sheet_prefix)].copy()
-    # check if this leaves us with any data
-    if runsheet_filtered.empty:
-        raise ValueError(f"No samples with prefix {sheet_prefix} found in runsheet.")
-    # piece sample number together: get the prefix, identify the year, then add the last six
-    # prefix is already known
-    runsheet_filtered["proevenr_prefix"] = sheet_prefix
-    # extract sample number
-    (negative_control_pattern,
-     positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
-                                                              active_config["sample_number_settings"]["positive_control"])
-    sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
-    runsheet_filtered["proevenr_kort"] = runsheet_filtered["Prøvenummer"].apply(lambda x:
-                                                                           extract_sample_number_part(x,
-                                                                                                      "sample_number",
-                                                                                                      sample_format_sheet,
-                                                                                                      negative_control_pattern,
-                                                                                                      positive_control_pattern))
-    # to find year, check lab information system data and go for date *received*
-    # extract relevant samples again
-    lab_data_filtered = lab_data[lab_data["prøvenr"].str.startswith(lab_data_prefix)].copy()
-    # get bare sample number to match the one from the runsheet
-    sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
-    lab_data_filtered["proevenr_kort"] = lab_data_filtered["prøvenr"].apply(lambda x:
-                                                                           extract_sample_number_part(x,
-                                                                                                      "sample_number",
-                                                                                                      sample_format_lis,
-                                                                                                      negative_control_pattern,
-                                                                                                      positive_control_pattern))
-    # check if we have duplicates
-    if any(lab_data_filtered.duplicated(subset=["proevenr_kort"])):
-        raise ValueError("MADS report contains duplicated sample numbers. "
-                         "This likely means the report covers multiple years. "
-                         "Get a new MADS report with the correct start date.")
-    # check if there are mismatches between runsheet and MADS data
-    missing_from_mads = runsheet_filtered[~runsheet_filtered["proevenr_kort"].isin(lab_data_filtered["proevenr_kort"])][
-        "Prøvenummer"].dropna().tolist()
-    if missing_from_mads:
-        raise ValueError(
-            f"Samples {sorted(missing_from_mads)} were not found in MADS report. "
-            "Please check that sample numbers are correct.")
-    logger.debug(f"All samples with prefix {sheet_prefix} found in LIS.")
-
-
 def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
                       active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> None:
     """Check if sample numbers are found in laboratory information system report.
