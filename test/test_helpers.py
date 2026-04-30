@@ -531,7 +531,7 @@ class TestTranslateSampleNumber(unittest.TestCase):
             '(?P<sample_number>\d{8})(?P<bact_number>-\d)')
         format_out = re.compile(
             '(?P<sample_number>\d{8})')
-        prefix_mapping = {"70": "P", "30": "B", "10": "D", "50": "T"}
+        prefix_mapping = {"70": "P", "30": "B", "10": "D", "11": "F", "50": "T"}
         sample_number = "99123456-1"
         expected_number = "99123456"
         log_msg = ("No sample_type given in sample number format specification;"

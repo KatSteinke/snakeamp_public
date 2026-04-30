@@ -130,7 +130,7 @@ class TestProcessRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                    / "test_nanopore_runsheet_16s_only.xlsx"
         active_config = {"sample_number_settings": {"sample_number_format":
-                                                                      r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
+                                                        r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
                                                     "sample_numbers_in": "letter",
                                                     "sample_numbers_out": "letter",
                                                     "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
@@ -139,7 +139,7 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                          "30": "B",
                                                                          "10": "D",
                                                                          "11": "F",
-                                                                          "50": "T"},
+                                                                         "50": "T"},
                                                                   "negative_control": 'NegK[a-zA-Z0-9]*',
                                                                   "positive_control": {}},
                                        "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -427,7 +427,7 @@ class TestInitializeRunFromInput(unittest.TestCase):
             test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
                                           configfile = configfile)
             assert ("amplicon_nanopore", logging.INFO, welcome_msg) in self._caplog.record_tuples
-            assert ("amplicon_nanopore", logging.DEBUG, time_msg)
+            assert ("amplicon_nanopore", logging.DEBUG, time_msg) in self._caplog.record_tuples
         assert test_run == expected_run
 
     @mock.patch("builtins.input")
