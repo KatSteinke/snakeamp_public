@@ -105,14 +105,15 @@ class TestProcessRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test"\
                    / "test_nanopore_runsheet.xlsx"
         active_config = {"sample_number_settings": {"sample_number_format":
-                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                  r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
                                               "sample_numbers_in": "letter",
                                               "sample_numbers_out": "letter",
-                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
-                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                              "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                               "number_to_letter": {"70": "P",
                                                                    "30": "B",
                                                                    "10": "D",
+                                                                   "11": "F",
                                                                    "50": "T"},
                                               "date_settings":
                                                   {"splice_in_date": False,
@@ -132,15 +133,16 @@ class TestProcessRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                    / "test_nanopore_runsheet_16s_only.xlsx"
         active_config = {"sample_number_settings": {"sample_number_format":
-                                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
-                                                                  "sample_numbers_in": "letter",
-                                                                  "sample_numbers_out": "letter",
-                                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
-                                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                                  "number_to_letter": {"70": "P",
-                                                                                       "30": "B",
-                                                                                       "10": "D",
-                                                                                       "50": "T"},
+                                                                      r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
+                                                    "sample_numbers_in": "letter",
+                                                    "sample_numbers_out": "letter",
+                                                    "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                    "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                    "number_to_letter": {"70": "P",
+                                                                         "30": "B",
+                                                                         "10": "D",
+                                                                         "11": "F",
+                                                                          "50": "T"},
                                                                   "date_settings":
                                                                       {"splice_in_date": False,
                                                                        "length_without_date": 8,
@@ -164,14 +166,15 @@ class TestProcessRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                    / "test_nanopore_runsheet.xlsx"
         active_config = {"sample_number_settings": {"sample_number_format":
-                                                        '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                        r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
                                                     "sample_numbers_in": "letter",
                                                     "sample_numbers_out": "letter",
-                                                    "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
-                                                    "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                    "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                    "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                     "number_to_letter": {"70": "P",
                                                                          "30": "B",
                                                                          "10": "D",
+                                                                         "11": "F",
                                                                          "50": "T"},
                                                     "date_settings":
                                                         {"splice_in_date": False,
@@ -780,14 +783,15 @@ class TestRunPipeline(unittest.TestCase):
     active_config = {"input_names": pathlib.Path(__file__).parent.resolve() / "data" / "input_names"
                                     / "input_da_old_lis.yaml",
                      "sample_number_settings": {"sample_number_format":
-                                                    r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                    r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
-                                                "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
-                                                "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                 "number_to_letter": {"70": "P",
                                                                      "30": "B",
                                                                      "10": "D",
+                                                                     "11": "F",
                                                                      "50": "T"},
                                                 "date_settings":
                                                     {"splice_in_date": False,

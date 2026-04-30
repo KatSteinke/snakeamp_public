@@ -24,7 +24,8 @@ class TestGetLISData(unittest.TestCase):
                                                   "sample_numbers_out": "letter",
                                                   "sample_numbers_output": "number",
                                                   "number_to_letter": {"70": "P", "30": "B",
-                                                                       "10": "D", "50": "T"}
+                                                                       "10": "D", "11": "F",
+                                                                       "50": "T"}
                                                   },
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": True,
@@ -37,8 +38,8 @@ class TestGetLISData(unittest.TestCase):
 
     def test_fail_missing_number(self):
         """Fail if the sample number cannot be found in the LIS report."""
-        sample_number = "1199123456-0"
-        error_msg = ("Sample number F99123456 (original number: 1199123456-0)"
+        sample_number = "1199123457-0"
+        error_msg = ("Sample number F99123457 (original number: 1199123457-0)"
                      " not found in LIS report.")
         with pytest.raises(KeyError, match = re.escape(error_msg)):
             summarize_emu.get_lis_information(sample_number, self.lis_data, self.workflow_config)
@@ -572,7 +573,8 @@ class TestExtractCounts(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -657,7 +659,8 @@ class TestExtractCounts(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "number",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -743,7 +746,8 @@ class TestExtractCounts(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "number",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -2009,7 +2013,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -2286,7 +2291,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "number",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -2444,7 +2450,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "number",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -2601,7 +2608,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -2723,7 +2731,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -2847,7 +2856,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -2971,7 +2981,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -3095,7 +3106,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -3219,7 +3231,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,
@@ -3343,7 +3356,8 @@ class TestMergeEmuDir(unittest.TestCase):
                                                       "sample_numbers_out": "letter",
                                                       "sample_numbers_output": "letter",
                                                       "number_to_letter": {"70": "P", "30": "B",
-                                                                           "10": "D", "50": "T"}
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
                                                       },
                            "barcode_format": "RB[0-9]{2}",
                            "lab_info_system": {"use_lis_features": True,

@@ -97,7 +97,7 @@ def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_pref
         "Prøvenummer"].dropna().tolist()
     if missing_from_mads:
         raise ValueError(
-            f"Samples {missing_from_mads} were not found in MADS report. "
+            f"Samples {sorted(missing_from_mads)} were not found in MADS report. "
             "Please check that sample numbers are correct.")
     logger.debug(f"All samples with prefix {sheet_prefix} found in LIS.")
 

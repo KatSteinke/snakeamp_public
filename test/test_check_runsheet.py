@@ -20,14 +20,15 @@ class TestCheckSinglePrefix(unittest.TestCase):
     lab_info_data = pd.read_csv(fake_mads, encoding="latin1", dtype={"afsendt": str, "cprnr.": str,
                                                                      "modtaget": str})
     test_config = {"sample_number_settings": {"sample_number_format":
-                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  '([BDFPT]|[1357]0)([0-9]{8}|[0-9]{6})',
                                               "sample_numbers_in": "number",
                                               "sample_numbers_out": "letter",
-                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                               "number_to_letter": {"70": "P",
                                                                    "30": "B",
                                                                    "10": "D",
+                                                                   "11": "F",
                                                                    "50": "T"},
                                               "date_settings":
                                                   {"splice_in_date": False,
@@ -50,10 +51,10 @@ class TestCheckSinglePrefix(unittest.TestCase):
         fail_data = pd.read_excel(fail_runsheet, usecols="A:C", skiprows=3,
                                   dtype={"Prøvenummer": str, "Barkode": str})
         fail_data = fail_data.dropna()
-        error_msg = "Samples ['1121410000'] were not found in MADS report. " \
+        error_msg = "Samples ['1121400000', '1121410000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_by_prefix(fail_data, self.lab_info_data, "30", "B",
+            check_runsheet.check_by_prefix(fail_data, self.lab_info_data, "11", "F",
                                            active_config = self.test_config)
 
     def test_catch_lis_duplicates(self):
@@ -66,7 +67,7 @@ class TestCheckSinglePrefix(unittest.TestCase):
                     "This likely means the report covers multiple years. " \
                     "Get a new MADS report with the correct start date."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_runsheet.check_by_prefix(self.sheet_data, lab_info_data, "30", "B",
+            check_runsheet.check_by_prefix(self.sheet_data, lab_info_data, "11", "F",
                                            active_config = self.test_config)
 
     def test_success(self):
@@ -74,9 +75,9 @@ class TestCheckSinglePrefix(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "DEBUG:check_runsheet:All samples with prefix 30 found in LIS."
+        success_msg = "DEBUG:check_runsheet:All samples with prefix 11 found in LIS."
         with self.assertLogs("check_runsheet", level="DEBUG") as logged:
-            check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "30", "B",
+            check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "11", "F",
                                            active_config = self.test_config)
             assert success_msg in logged.output
 
@@ -91,23 +92,24 @@ class TestCheckSinglePrefix(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "DEBUG:check_runsheet:All samples with prefix 30 found in LIS."
+        success_msg = "DEBUG:check_runsheet:All samples with prefix 11 found in LIS."
         with self.assertLogs("check_runsheet", level="DEBUG") as logged:
-            check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "30", "B",
+            check_runsheet.check_by_prefix(sheet_data, lab_info_data, "11", "F",
                                            active_config = self.test_config)
             assert success_msg in logged.output
 
     def test_success_controls(self):
         """Ensure comparison against controls is performed"""
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                      r'([BDFPT]|[1357]0)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -122,23 +124,24 @@ class TestCheckSinglePrefix(unittest.TestCase):
         sheet_data = pd.read_excel(test_runsheet, usecols = "A:B", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        success_msg = "DEBUG:check_runsheet:All samples with prefix 30 found in LIS."
+        success_msg = "DEBUG:check_runsheet:All samples with prefix 11 found in LIS."
         with self.assertLogs("check_runsheet", level = "DEBUG") as logged:
-            check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "30", "B",
+            check_runsheet.check_by_prefix(sheet_data, self.lab_info_data, "11", "F",
                                            active_config = test_config)
             assert success_msg in logged.output
 
 
 class TestCheckRunsheetFormat(unittest.TestCase):
     test_config = {"sample_number_settings": {"sample_number_format":
-                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                               "sample_numbers_in": "number",
                                               "sample_numbers_out": "letter",
                                               # TODO: how to handle splicing in year?
-                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})?(?P<sample_number>\d{6})',
-                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})?(?P<sample_number>\d{6})',
+                                              "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                               "number_to_letter": {"70": "P",
                                                                    "30": "B",
+                                                                   "11": "F",
                                                                    "10": "D",
                                                                    "50": "T"},
                                               "date_settings":
@@ -157,7 +160,7 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         sheet_data = pd.read_excel(fail_runsheet, usecols="A:C", skiprows=3,
                                    dtype = {"Prøvenummer": str})
         sheet_data = sheet_data.dropna()
-        error_msg = "Samples ['1121410000', '1121400000'] were not found in MADS report. " \
+        error_msg = "Samples ['1121400000', '1121410000'] were not found in MADS report. " \
                     "Please check that sample numbers are correct."
         with pytest.raises(ValueError, match=re.escape(error_msg)):
             check_runsheet.check_against_lis(sheet_data, fake_mads,
@@ -196,13 +199,14 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         sheet_data = sheet_data.dropna()
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})?(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})?(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDPFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
+                                                                       "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
                                                   "date_settings":
@@ -226,13 +230,14 @@ class TestCheckRunsheetFormat(unittest.TestCase):
         sheet_data = sheet_data.dropna()
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_number>\d{6})(?P<sample_year>\d{2})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_number>\d{6})(?P<sample_year>\d{2})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
+                                                                       "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
                                                   "date_settings":
@@ -261,13 +266,14 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                  "Cannot check if ['bact_number'] component(s) are correct.")
         success_msg = "INFO:check_runsheet:The runsheet is correct."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                      '([BFDPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
+                                                                       "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
                                                   "date_settings":
@@ -287,14 +293,15 @@ class TestCheckRunsheetFormat(unittest.TestCase):
 
 class TestCheckSampleNumbers(unittest.TestCase):
     test_config = {"sample_number_settings": {"sample_number_format":
-                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                               "sample_numbers_in": "number",
                                               "sample_numbers_out": "letter",
-                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
-                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_number>\d{6})',
+                                              "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                               "number_to_letter": {"70": "P",
                                                                    "30": "B",
                                                                    "10": "D",
+                                                                   "11": "F",
                                                                    "50": "T"},
                                               "date_settings":
                                                   {"splice_in_date": False,
@@ -310,7 +317,7 @@ class TestCheckSampleNumbers(unittest.TestCase):
         id_fail_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" / "runsheet-id-fail.xlsx"
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "Sample IDs ['123'] are not valid. " \
-                    "Sample IDs must start with 70 or 30 or 10 or 50 followed by eight numbers" \
+                    "Sample IDs must start with 70 or 30 or 10 or 11 or 50 followed by eight numbers" \
                     " (six if leaving out year). " \
                     "Please correct sample IDs in runsheet."
         sheet_data = pd.read_excel(id_fail_sheet, usecols="A:B", skiprows=3,
@@ -326,16 +333,17 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                    dtype={"Prøvenummer": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nSample IDs ['1199123456'] are not valid." \
-                    " Sample IDs must start with P or B or D or T followed by eight numbers" \
+                    " Sample IDs must start with P or B or D or F or T followed by eight numbers" \
                     " (six if leaving out year). " \
                     "Please correct sample IDs in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '[BDPT]([0-9]{8}|[0-9]{6})',
+                                                      '[BDFPT]([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "letter",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -356,19 +364,20 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                    dtype = {"Prøvenummer": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nSample IDs ['123'] are not valid." \
-                    " Sample IDs must start with 70 or 30 or 10 or 50 followed by eight numbers" \
+                    " Sample IDs must start with 70 or 30 or 10 or 11 or 50 followed by eight numbers" \
                     " (six if leaving out year). " \
                     "Negative controls must be given in the format NegK. " \
                     "Please correct sample IDs in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": '(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": '(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": '(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -400,14 +409,15 @@ class TestCheckSampleNumbers(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "No positive controls given in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -428,14 +438,15 @@ class TestCheckSampleNumbers(unittest.TestCase):
         sheet_data = sheet_data.dropna()
         error_msg = "No negative controls given in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -506,14 +517,15 @@ class TestCheckSampleNumbers(unittest.TestCase):
 
 class TestCheckRunsheet(unittest.TestCase):
     test_config = {"sample_number_settings": {"sample_number_format":
-                                                  '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                  '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                               "sample_numbers_in": "number",
                                               "sample_numbers_out": "letter",
-                                              "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_number>\d{6})',
-                                              "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                              "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_number>\d{6})',
+                                              "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                               "number_to_letter": {"70": "P",
                                                                    "30": "B",
                                                                    "10": "D",
+                                                                   "11": "F",
                                                                    "50": "T"},
                                               "date_settings":
                                                   {"splice_in_date": False,
@@ -532,7 +544,7 @@ class TestCheckRunsheet(unittest.TestCase):
             __file__).parent / "data" / "utilities_test" / "runsheet-id-fail.xlsx"
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "Sample IDs ['123'] are not valid. " \
-                    "Sample IDs must start with 70 or 30 or 10 or 50 followed by eight numbers" \
+                    "Sample IDs must start with 70 or 30 or 10 or 11 or 50 followed by eight numbers" \
                     " (six if leaving out year). " \
                     "Please correct sample IDs in runsheet."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
@@ -543,16 +555,17 @@ class TestCheckRunsheet(unittest.TestCase):
                         / "runsheet-letters.xlsx"
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nSample IDs ['1199123456'] are not valid." \
-                    " Sample IDs must start with P or B or D or T followed by eight numbers" \
+                    " Sample IDs must start with P or B or D or F or T followed by eight numbers" \
                     " (six if leaving out year). " \
                     "Please correct sample IDs in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '[BDPT]([0-9]{8}|[0-9]{6})',
+                                                      '[BDFPT]([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "letter",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -573,19 +586,20 @@ class TestCheckRunsheet(unittest.TestCase):
                         / "runsheet-id-fail-negk.xlsx"
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nSample IDs ['123'] are not valid." \
-                    " Sample IDs must start with 70 or 30 or 10 or 50 followed by eight numbers" \
+                    " Sample IDs must start with 70 or 30 or 10 or 11 or 50 followed by eight numbers" \
                     " (six if leaving out year). " \
                     "Negative controls must be given in the format NegK. " \
                     "Please correct sample IDs in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": '(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": '(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": '(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": '(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -615,14 +629,15 @@ class TestCheckRunsheet(unittest.TestCase):
         error_msg = "The following issue(s) were detected with the runsheet:\n" \
                     "No positive controls given in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -643,14 +658,15 @@ class TestCheckRunsheet(unittest.TestCase):
             __file__).parent / "data" / "utilities_test" / "runsheet-no-negk.xlsx"
         error_msg = "No negative controls given in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})',
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -708,14 +724,15 @@ class TestCheckRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                    / "test_nanopore_runsheet.xlsx"
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})(-\d)?',
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "sample_numbers_in": "letter",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -741,14 +758,15 @@ class TestCheckRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                    / "test_nanopore_runsheet.xlsx"
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})(-\d)?',
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "sample_numbers_in": "letter",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": False,
@@ -779,14 +797,15 @@ class TestCheckRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" \
                    / "test_translate_runsheet.xlsx"
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})(-\d)?',
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": True,
@@ -817,14 +836,15 @@ class TestCheckRunsheet(unittest.TestCase):
         runsheet = pathlib.Path(__file__).parent / "data" / "sample_sheet_test" \
                    / "test_translate_runsheet.xlsx"
         test_config = {"sample_number_settings": {"sample_number_format":
-                                                      r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})(-\d)?',
-                                                  "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
-                                                  "format_in_lis": r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})(-\d)?',
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
                                                   "sample_numbers_in": "number",
                                                   "sample_numbers_out": "letter",
                                                   "number_to_letter": {"70": "P",
                                                                        "30": "B",
                                                                        "10": "D",
+                                                                       "11": "F",
                                                                        "50": "T"},
                                                   "date_settings":
                                                       {"splice_in_date": True,
@@ -879,7 +899,7 @@ class TestRunCheck(unittest.TestCase):
         """Successfully catch a broken runsheet."""
         error_msg = "The following issue(s) were detected with the runsheet:" \
                     "\nSample IDs ['1112345678', '1123456789', '123'] are not valid." \
-                    " Sample IDs must start with P or B or D or T followed by eight numbers" \
+                    " Sample IDs must start with P or B or D or F or T followed by eight numbers" \
                     " (six if leaving out year). " \
                     "Negative controls must be given in the format NegK[a-zA-Z0-9]*. " \
                     "Please correct sample IDs in runsheet."
