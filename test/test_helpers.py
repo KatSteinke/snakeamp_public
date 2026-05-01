@@ -215,7 +215,7 @@ class TestFindRundir(unittest.TestCase):
         assert good_path == test_find
         test_path = (pathlib.Path(__file__).parent / "data" / "helpers" / "scenario3"
                      / "subdir" / "fastq_pass")
-        error_msg =  f"fastq_pass folder {test_path} does not exist. \n" \
+        error_msg =  f"The supplied folder {test_path} does not exist. \n" \
                     "Ensure correct directory and/or directory structure is used.\n" \
                     "Aborting 16S pipeline..."
         with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
