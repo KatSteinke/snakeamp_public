@@ -151,6 +151,11 @@ def get_fastq_pass_parent(rundir: pathlib.Path) -> pathlib.Path:
         fastq_pass_parts = existing_path[:existing_path.index("fastq_pass") + 1]
         # parts contains the initial "/" - resolve the path to clean this up
         fastq_pass_dir = pathlib.Path("/".join(fastq_pass_parts)).resolve()
+        # do we end with something that actually exists?
+        if not fastq_pass_dir.exists():
+            raise FileNotFoundError(f"fastq_pass folder {fastq_pass_dir} does not exist. \n"
+                                    "Ensure correct directory and/or directory structure is used.\n"
+                                    "Aborting 16S pipeline...")
     except ValueError:
         logger.info(f"Searching for fastq_pass folder in {rundir}...")
         check_fastq_pass = list(rundir.glob("**/fastq_pass"))

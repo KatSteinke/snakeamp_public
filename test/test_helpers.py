@@ -158,11 +158,11 @@ class TestFindRundir(unittest.TestCase):
         test_path = pathlib.Path(__file__).parent / "data" / "helpers" / "test_dir"
         true_path = pathlib.Path(__file__).parent / "data" / "helpers" / "test_dir" \
                     / "no_sample" / "subdir"
-        with self.assertLogs("helpers", level = "INFO") as logged:
-            log_msg = f"INFO:helpers:Data is retrieved from the following folder:\n" \
-                      f"{true_path}"
+        log_msg = "Data is retrieved from the following folder:\n" \
+                  f"{true_path}"
+        with self._caplog.at_level(logging.INFO, logger = "helpers"):
             test_fastq = helpers.get_fastq_pass_parent(test_path)
-        assert log_msg in logged.output
+            assert ("helpers", logging.INFO, log_msg) in self._caplog.record_tuples
         assert test_fastq == true_path
 
     def test_fail_path(self):
@@ -206,6 +206,20 @@ class TestFindRundir(unittest.TestCase):
         with self._caplog.at_level(logging.WARNING, logger = "helpers"):
             helpers.get_fastq_pass_parent(test_path)
             assert ("helpers", logging.WARNING, warn_msg) in self._caplog.record_tuples
+
+    def test_fail_nonexistent_dir(self):
+        """Fail if a nonexistent directory is supplied."""
+        good_path = (pathlib.Path(__file__).parent / "data" / "helpers" / "scenario3"
+                     / "rawdata" / "subdir")
+        test_find = helpers.get_fastq_pass_parent(good_path)
+        assert good_path == test_find
+        test_path = (pathlib.Path(__file__).parent / "data" / "helpers" / "scenario3"
+                     / "subdir" / "fastq_pass")
+        error_msg =  f"fastq_pass folder {test_path} does not exist. \n" \
+                    "Ensure correct directory and/or directory structure is used.\n" \
+                    "Aborting 16S pipeline..."
+        with pytest.raises(FileNotFoundError, match = re.escape(error_msg)):
+            helpers.get_fastq_pass_parent(test_path)
 
 
 class TestTranslateSampleType(unittest.TestCase):
