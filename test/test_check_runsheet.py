@@ -295,12 +295,46 @@ class TestCheckSampleNumbers(unittest.TestCase):
             check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
                                               active_config = test_config)
 
-    def test_id_fail_negk(self):
+    def test_id_fail_negk_present(self):
+        """Complain about incorrect ID in runsheet with controls when required control is present."""
         fail_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                         / "runsheet-id-fail-negk.xlsx"
         sheet_data = pd.read_excel(fail_id_sheet, usecols = "A:B", skiprows = 3,
                                    dtype = {"Prøvenummer": str})
         error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nSample IDs ['123'] are not valid." \
+                    " Sample IDs must start with 70 or 30 or 10 or 11 or 50 followed by eight numbers" \
+                    " (six if leaving out year). " \
+                    "Please correct sample IDs in runsheet."
+        test_config = {"sample_number_settings": {"sample_number_format":
+                                                      '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
+                                                  "sample_numbers_in": "number",
+                                                  "sample_numbers_out": "letter",
+                                                  "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                  "number_to_letter": {"70": "P",
+                                                                       "30": "B",
+                                                                       "10": "D",
+                                                                       "11": "F",
+                                                                       "50": "T"},
+
+                                                  "negative_control": 'NegK',
+                                                  "positive_control": {}},
+                       "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
+                       "barcode_prefix": "RB"
+                       # barcode prefix as letter (for transferring original fastqs by barcode)
+                       }
+        with pytest.raises(ValueError, match = re.escape(error_msg)):
+            check_runsheet.check_sheet_format(sheet_data, active_config = test_config)
+
+    def test_id_fail_negk(self):
+        """Complain about incorrect ID when negative control should be present but isn't."""
+        fail_id_sheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                        / "runsheet-id-fail-missing-negk.xlsx"
+        sheet_data = pd.read_excel(fail_id_sheet, usecols = "A:B", skiprows = 3,
+                                   dtype = {"Prøvenummer": str})
+        error_msg = "The following issue(s) were detected with the runsheet:" \
+                    "\nNo negative controls given in runsheet." \
                     "\nSample IDs ['123'] are not valid." \
                     " Sample IDs must start with 70 or 30 or 10 or 11 or 50 followed by eight numbers" \
                     " (six if leaving out year). " \
@@ -570,7 +604,6 @@ class TestCheckRunsheet(unittest.TestCase):
                     "\nSample IDs ['123'] are not valid." \
                     " Sample IDs must start with 70 or 30 or 10 or 11 or 50 followed by eight numbers" \
                     " (six if leaving out year). " \
-                    "Negative controls must be given in the format NegK. " \
                     "Please correct sample IDs in runsheet."
         test_config = {"sample_number_settings": {"sample_number_format":
                                                       '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})',
@@ -947,7 +980,6 @@ class TestRunCheck(unittest.TestCase):
                     "\nSample IDs ['1112345678', '1123456789', '123'] are not valid." \
                     " Sample IDs must start with P or B or D or F or T followed by eight numbers" \
                     " (six if leaving out year). " \
-                    "Negative controls must be given in the format NegK[a-zA-Z0-9]*. " \
                     "Please correct sample IDs in runsheet."
         fail_runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                         / "runsheet-id-fail-negk.xlsx"

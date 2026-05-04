@@ -137,9 +137,10 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     Raises:
         ValueError: if sample IDs are malformed or missing
     """
-    print(active_config)
     sheet_issues = False
     data_missing = False
+    # we need to keep track of negative control issues so we can complain - TODO this is getting unwieldy
+    bad_negk = False
     # set up record of issues so they can all be printed at once - TODO: separate data check function?
     fail_record = "The following issue(s) were detected with the runsheet:"
     no_sample_ids = sheet_data[runsheet_names.sample_number].isna().all()
@@ -190,21 +191,24 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
                        "If you are sure you want to sequence the same sample twice, "
                        "you can ignore this warning.")
     # check controls if given
-    if active_config["sample_number_settings"]["positive_control"]:
-        positive_control_pattern = "|".join(active_config["sample_number_settings"][
-                                                "positive_control"].keys())
-        positive_controls_in_sheet = sheet_data[runsheet_names.sample_number].str.fullmatch(positive_control_pattern,
-                                                                        na = False)
+    pos_controls_needed = active_config["sample_number_settings"]["positive_control"]
+    neg_controls_needed = active_config["sample_number_settings"]["negative_control"]
+    if pos_controls_needed:
+        positive_control_pattern = "|".join(pos_controls_needed.keys())
+        positive_controls_in_sheet = (sheet_data[runsheet_names.sample_number].
+                                      str.fullmatch(positive_control_pattern,
+                                                    na = False))
         if not positive_controls_in_sheet.any():
             sheet_issues = True
             fail_record += f"\nNo positive controls given in runsheet."
-    if active_config["sample_number_settings"]["negative_control"]:
+    if neg_controls_needed:
         # for negative controls: see if there is anything matching negative control pattern
-        negative_controls_in_sheet = sheet_data[runsheet_names.sample_number].str.fullmatch(
-            active_config["sample_number_settings"]["negative_control"],
-            na = False)
+        negative_controls_in_sheet = (sheet_data[runsheet_names.sample_number].
+                                      str.fullmatch(neg_controls_needed,
+                                                    na = False))
         if not negative_controls_in_sheet.any():
             sheet_issues = True
+            bad_negk = True
             fail_record += "\nNo negative controls given in runsheet."
 
     id_pattern = helpers.get_id_pattern(
@@ -225,9 +229,9 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         fail_record += f"\nSample IDs {fail_ids} are not valid. " \
                        f'Sample IDs must start with {" or ".join(allowed_start)} ' \
                        'followed by eight numbers (six if leaving out year). '
-        if active_config['sample_number_settings']['negative_control']:  # TODO: clean structure
+        if neg_controls_needed and bad_negk:  # TODO: clean structure
             fail_record += "Negative controls must be given in the format " \
-                           f"{active_config['sample_number_settings']['negative_control']}. "
+                           f"{neg_controls_needed}. "
         fail_record += "Please correct sample IDs in runsheet."
     if sheet_issues:
         raise ValueError(fail_record)
@@ -260,8 +264,6 @@ def check_runsheet(runsheet: pathlib.Path, check_barcodes: bool = False,
                                                    runsheet_names.barcode], how="all")
     logger.info("Checking runsheet format....")
     # simple error handling, suppressing tracebacks
-    print("config in check_runsheet")
-    print(active_config)
     check_sheet_format(runsheet_data, check_barcodes, runsheet_names = runsheet_names,
                        active_config=active_config)
     if active_config["lab_info_system"]["use_lis_features"]:
