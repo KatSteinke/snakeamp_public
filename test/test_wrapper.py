@@ -505,8 +505,7 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                active_config = active_config,
                                                outdir = expected_outdir,
                                                sequencing_time = active_config[
-                                                   "seq_run_duration_hours"],
-                                               test_run = True)
+                                                   "seq_run_duration_hours"], test_run = True)
         logo_msg = r"""   oo_               _
   /  _)-<           | |          /\
   \__ `. _ __   __ _| | _____   /  \   _ __ ___  _ __
@@ -716,6 +715,19 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
         """Set up a run with settings set through a different config."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
                          run_time = None, outdir = None, snake_flags = None)
+        test_config = self.active_config.copy()
+        test_config["seq_run_duration_hours"] = 0.5
+        expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                               configfile = self.configfile,
+                                               active_config = test_config,
+                                               outdir = self.expected_outdir, sequencing_time = 0.5)
+        test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
+        assert expected_run == test_run
+
+    def test_set_cores(self):
+        """Set up a run with a non-default number of cores."""
+        args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
+                         run_time = None, outdir = None, snake_flags = None, cores = 16)
         test_config = self.active_config.copy()
         test_config["seq_run_duration_hours"] = 0.5
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
@@ -1247,6 +1259,36 @@ class TestRunPipeline(unittest.TestCase):
                             "--configfile", configfile]
         expected_command = ["echo", f'"{" ".join(local_command)}"']
         test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet),
+                     "--workflow_config_file", str(configfile), "--dry_run"]
+        test_command = snake_wrapper.run_pipeline(test_args)
+        assert expected_command == test_command.args
+        assert expected_outdir.exists()
+
+    @mock.patch(f"{snake_wrapper.__name__}.os.fork")
+    def test_run_commandline_local_set_cores(self, mock_fork):
+        """Start a local run in commandline mode and set amount of cores."""
+        mock_fork.return_value = False
+        expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
+                          / "test1" / "no_sample" / "test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = str(pathlib.Path(__file__).parent / "data"
+                         / "utilities_test" / "test_18s_config_local.yaml")
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
+                          / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
+        assert not expected_outdir.exists()
+        local_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "16",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={expected_outdir}",
+                            f"rundir={expected_indir}",
+                            f"runsheet={runsheet}",
+                            f"config_path={configfile}",
+                            "--configfile", configfile]
+        expected_command = ["echo", f'"{" ".join(local_command)}"']
+        test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet), "--cores", "16",
                      "--workflow_config_file", str(configfile), "--dry_run"]
         test_command = snake_wrapper.run_pipeline(test_args)
         assert expected_command == test_command.args
