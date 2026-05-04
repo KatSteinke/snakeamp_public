@@ -27,8 +27,6 @@ import pipeline_config
 import set_log
 import version
 
-from helpers import extract_sample_number_part
-
 __version__ = version.__version__
 
 # import parameters
@@ -141,14 +139,18 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     data_missing = False
     # we need to keep track of negative control issues so we can complain - TODO this is getting unwieldy
     bad_negk = False
+
+    # get the data we want
+    sample_numbers = sheet_data[runsheet_names.sample_number]
+    barcodes = sheet_data[runsheet_names.barcode]
     # set up record of issues so they can all be printed at once - TODO: separate data check function?
     fail_record = "The following issue(s) were detected with the runsheet:"
-    no_sample_ids = sheet_data[runsheet_names.sample_number].isna().all()
+    no_sample_ids = sample_numbers.isna().all()
     if no_sample_ids:
         fail_record += "\nNo sample IDs found."
         data_missing = True
     if check_barcodes:
-        no_barcodes = sheet_data[runsheet_names.barcode].isna().all()
+        no_barcodes = barcodes.isna().all()
         if no_barcodes:
             fail_record += "\nNo barcodes found."
             data_missing = True
@@ -158,17 +160,17 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     if check_barcodes:  # TODO - avoid double check?
         # now we can be sure there are sample IDs and barcodes, we can check them
         # start by checking if we have the same amount of sample IDs and barcodes
-        amount_sample_ids = sheet_data[runsheet_names.sample_number].dropna().size
-        amount_barcodes = sheet_data[runsheet_names.barcode].dropna().size
+        amount_sample_ids = sample_numbers.dropna().size
+        amount_barcodes = barcodes.dropna().size
         if amount_sample_ids != amount_barcodes:
             sheet_issues = True
             fail_record += "\nAmount of sample IDs and barcodes don't match. " \
                            f"There are {amount_sample_ids} sample IDs" \
                            f" but {amount_barcodes} barcodes."
         # check that barcodes have correct format
-        fail_barcodes = sheet_data.loc[~sheet_data[runsheet_names.barcode].apply(str).str.match(active_config["barcode_format"],
-                                                           na = False),
-                                       runsheet_names.barcode].dropna().tolist()
+        fail_barcodes = (barcodes[~barcodes.str.match(active_config["barcode_format"],na = False)]
+                         .dropna()
+                         .tolist())
 
         if fail_barcodes:
             sheet_issues = True
@@ -178,15 +180,13 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
                            "+ a number between 01 and 96."
         # duplicated sample numbers have been checked in the separate runsheet check
         # duplicated barcodes indicate a serious issue though
-        if any(sheet_data[runsheet_names.barcode].dropna().duplicated()):
+        if any(barcodes.dropna().duplicated()):
             sheet_issues = True
-            duplicated_barcodes = sheet_data.loc[sheet_data[runsheet_names.barcode].duplicated(),
-                                                 runsheet_names.barcode].dropna().unique()
+            duplicated_barcodes = barcodes[barcodes.duplicated()].dropna().unique()
             fail_record += f"\nBarcode(s) {duplicated_barcodes} are duplicated."
     # check duplicates early - this only needs to warn, not break
-    if any(sheet_data[runsheet_names.sample_number].dropna().duplicated()):
-        duplicated_ids = sheet_data.loc[sheet_data[runsheet_names.sample_number].duplicated(),
-                                        runsheet_names.sample_number].dropna().unique()
+    if any(sample_numbers.dropna().duplicated()):
+        duplicated_ids = sample_numbers[sample_numbers.duplicated()].dropna().unique()
         logger.warning(f"Sample number(s) {duplicated_ids} are duplicated. "
                        "If you are sure you want to sequence the same sample twice, "
                        "you can ignore this warning.")
@@ -195,17 +195,15 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     neg_controls_needed = active_config["sample_number_settings"]["negative_control"]
     if pos_controls_needed:
         positive_control_pattern = "|".join(pos_controls_needed.keys())
-        positive_controls_in_sheet = (sheet_data[runsheet_names.sample_number].
-                                      str.fullmatch(positive_control_pattern,
-                                                    na = False))
+        positive_controls_in_sheet = sample_numbers.str.fullmatch(positive_control_pattern,
+                                                                  na = False)
         if not positive_controls_in_sheet.any():
             sheet_issues = True
-            fail_record += f"\nNo positive controls given in runsheet."
+            fail_record += "\nNo positive controls given in runsheet."
     if neg_controls_needed:
         # for negative controls: see if there is anything matching negative control pattern
-        negative_controls_in_sheet = (sheet_data[runsheet_names.sample_number].
-                                      str.fullmatch(neg_controls_needed,
-                                                    na = False))
+        negative_controls_in_sheet = sample_numbers.str.fullmatch(neg_controls_needed,
+                                                                  na = False)
         if not negative_controls_in_sheet.any():
             sheet_issues = True
             bad_negk = True
@@ -213,12 +211,12 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
 
     id_pattern = helpers.get_id_pattern(
         active_config["sample_number_settings"]["sample_number_format"],
-        negative_control = active_config["sample_number_settings"]["negative_control"],
-        positive_control = active_config["sample_number_settings"]["positive_control"])
+        negative_control = neg_controls_needed,
+        positive_control = pos_controls_needed,)
     id_pattern = re.compile(f"^{id_pattern.pattern}$")
-    fail_ids = sheet_data.loc[~sheet_data[runsheet_names.sample_number].apply(str).str.match(id_pattern,
-                                                                                             na=False),
-                              runsheet_names.sample_number].dropna().tolist()
+    fail_ids = (sample_numbers[~sample_numbers.apply(str).str.match(id_pattern,na=False)]
+                .dropna()
+                .tolist())
     if active_config['sample_number_settings']['sample_numbers_in'] == "number":
         allowed_start = active_config['sample_number_settings']['number_to_letter'].keys()
     else:
