@@ -446,6 +446,7 @@ class TestInitializeRunFromInput(unittest.TestCase):
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
                      "barcode_prefix": "NB",
                      "amplicon_type": "16S",
+                     "cores": 128,
                      "debug": False,
                      "paths": {"output_base_path": "/path/to/output"},
                      "seq_run_duration_hours": 1}
@@ -617,6 +618,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                      "debug": False,
                      "paths": {"output_base_path": "/path/to/output"},
                      "seq_run_duration_hours": 1,
+                     "cores": 128,
                      "lab_info_system":
                          {"use_lis_features": True,
                           "lis_report": str(pathlib.Path(__file__).parent / "data" / "summarize_emu"
@@ -644,6 +646,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                         "debug": False,
                         "paths": {"output_base_path": "/path/to/output"},
                         "seq_run_duration_hours": 1,
+                        "cores": 128,
                         "lab_info_system":
                             {"use_lis_features": True,
                              "lis_report": str(pathlib.Path(__file__).parent
@@ -679,7 +682,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_missing_runsheet(self):
         """Fail if runsheet was not entered."""
         args = Namespace(runsheet = None, rundir = self.indir, test_run=None, run_time = None,
-                         outdir = None, snake_flags = None)
+                         outdir = None, snake_flags = None, cores = None)
         error_msg = "Runsheet not specified."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             snake_wrapper.initialize_commandline_run(args)
@@ -687,7 +690,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_missing_data(self):
         """Fail if path to sequencing data was not entered."""
         args = Namespace(runsheet = self.runsheet, rundir = None, test_run = False, run_time = None,
-                         outdir = None)
+                         outdir = None, cores = None)
         error_msg = "Nanopore run directory not specified."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             snake_wrapper.initialize_commandline_run(args)
@@ -698,7 +701,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_default_run(self):
         """Set up a run with default settings."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = None)
+                         run_time = None, outdir = None, snake_flags = None, cores = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = snake_wrapper.DEFAULT_CONFIG_FILE,
                                                active_config = self.active_config,
@@ -714,7 +717,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_config(self):
         """Set up a run with settings set through a different config."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = None)
+                         run_time = None, outdir = None, snake_flags = None, cores = None)
         test_config = self.active_config.copy()
         test_config["seq_run_duration_hours"] = 0.5
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
@@ -733,14 +736,15 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = test_config,
-                                               outdir = self.expected_outdir, sequencing_time = 0.5)
+                                               outdir = self.expected_outdir, sequencing_time = 0.5,
+                                               cores = 16)
         test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
         assert expected_run == test_run
 
     def test_set_flag(self):
         """Initialize a run with a flag to pass through to Snakemake."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = ["-n "])
+                         run_time = None, outdir = None, snake_flags = ["-n "], cores = None)
         test_config = self.active_config.copy()
         test_config["run_on"] = "local"
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
@@ -753,7 +757,8 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_flags(self):
         """Initialize a run with flags to pass through to Snakemake."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = ["-n --rerun-incomplete"])
+                         run_time = None, outdir = None, snake_flags = ["-n --rerun-incomplete"],
+                         cores = None)
         test_config = self.active_config.copy()
         test_config["run_on"] = "local"
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
@@ -767,7 +772,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_no_lis(self):
         """Run correctly even if no LIS is specified."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = None)
+                         run_time = None, outdir = None, snake_flags = None, cores = None)
         test_config = self.active_config.copy()
         test_config["lab_info_system"]["use_lis"] = False
         test_config["lab_info_system"]["lis_report"] = ""
@@ -781,7 +786,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_run_time(self):
         """Override run time from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = 0.5, outdir = None, snake_flags = None)
+                         run_time = 0.5, outdir = None, snake_flags = None, cores = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
@@ -793,7 +798,8 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_outdir(self):
         """Override output directory from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = "path/to/test_outdir", snake_flags = None)
+                         run_time = None, outdir = "path/to/test_outdir", snake_flags = None,
+                         cores = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
@@ -807,7 +813,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_test_mode(self):
         """Set debug mode from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = True,
-                         run_time = None, outdir = None, snake_flags = None)
+                         run_time = None, outdir = None, snake_flags = None, cores = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
