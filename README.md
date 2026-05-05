@@ -56,8 +56,9 @@ This pipeline may incorporate data from a laboratory information system (LIS) in
 If LIS data is given, the final report will contain additional data on each sample:
 * sample date ("prøvetagningsdato")
 * patient ID - note that this is *not* the patient's CPR number but a per-run patient ID meant to 
-aid in identifying samples from the same patient in one run; while the pipeline bases this on 
-the patient's CPR number, no mapping of patient ID to CPR number is stored by the pipeline
+aid in identifying samples from the same patient in one run;
+while the pipeline uses the patient's CPR number to unambiguously identify patients in this mapping
+step, no mapping of patient ID to CPR number is stored by the pipeline
 * sample material ("prøvemateriale")
 * anatomical location ("anatomi")
 * indication for sampling ("indikation")
@@ -84,9 +85,22 @@ In order to translate between different sample number formats in the runsheet, t
 optionally the LIS report, sample number formats must be described as regular expressions with named
  groups reflecting the components.
 
-TODO: currently sample_type is required but can we just drop it?
- 
-TODO: number/letter conversion settings
+<details> <summary> Advanced sample number formats - translating between numeric and letter sample type </summary>
+
+For sample type, if this can be marked with both a numeric code or a letter, 
+it is possible to translate between these formats. This has the following requirements:
+* the sample type must be defined as a named group named `sample_type` in the format specifications
+where it is to be used
+* the  format must be given as `"number"` for numeric codes or `"letter"` for letters
+in `sample_numbers_in`, `sample_numbers_out` and `sample_numbers_output` 
+in the `sample_number_settings` part of the config
+* a mapping of numerical codes to letters must be given as `number_to_letter` 
+in the `sample_number_settings` part of the config. For instance, if sample type F has the numeric
+code 11 and sample type U has the numeric code 15, this mapping would be given as
+```yaml
+{"11": "F", "15": "U"}
+```
+</details>
 
 <details> <summary> Advanced sample number formats - rearranging with named groups  </summary>
 The use of named capturing groups allows for rearranging and dropping components as needed.
