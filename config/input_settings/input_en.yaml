@@ -25,6 +25,6 @@ lis_columns:
   # sample material
   material: "sample_category"
   # anatomical site sampled
-  anatomy: "anatomy"
+  anatomy: "anatomical_location"
   # sampling indication
   indication: "indication"

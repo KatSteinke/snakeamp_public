@@ -1,0 +1,55 @@
+# snakeamp
+#
+
+msgid ""
+msgstr ""
+"Project-Id-Version: 2.0.0\n"
+"POT-Creation-Date: 2026-05-12 12:36+0200\n"
+"PO-Revision-Date: 2026-05-12 12:36+0200\n"
+"Last-Translator: Kat Steinke\n"
+"Language-Team: NA\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: pygettext.py 1.5\n"
+
+#: check_results.py:80 check_results.py:216
+msgid "prøvenr"
+msgstr ""
+
+#: check_results.py:145 check_results.py:227 check_results.py:243
+#: summarize_emu.py:65 summarize_emu.py:98 summarize_emu.py:107
+#: summarize_emu.py:352 summarize_emu.py:507
+msgid "modtagedato"
+msgstr ""
+
+#: check_results.py:151 check_results.py:228 summarize_emu.py:63
+#: summarize_emu.py:102 summarize_emu.py:352 summarize_emu.py:508
+#: summarize_emu.py:599 summarize_emu.py:603
+msgid "patient"
+msgstr ""
+
+#: check_results.py:159 check_results.py:229 summarize_emu.py:66
+#: summarize_emu.py:100 summarize_emu.py:352 summarize_emu.py:509
+msgid "prøvemateriale"
+msgstr ""
+
+#: check_results.py:173 check_results.py:231 summarize_emu.py:68
+#: summarize_emu.py:106 summarize_emu.py:353 summarize_emu.py:511
+msgid "indikation"
+msgstr ""
+
+#: check_results.py:226 check_results.py:241 check_results.py:274
+#: summarize_emu.py:339 summarize_emu.py:580
+msgid "prøvenummer"
+msgstr ""
+
+#: summarize_emu.py:67 summarize_emu.py:104 summarize_emu.py:353
+#: summarize_emu.py:510
+msgid "anatomi"
+msgstr ""
+
+#: summarize_emu.py:321 summarize_emu.py:331 summarize_emu.py:498
+msgid "med"
+msgstr ""
+

@@ -4,6 +4,8 @@ debug: True
 # are we running this locally ("local") or on Nomad ("nomad")?
 run_on: nomad
 
+# language settings
+language: da
 input_names: config/input_settings/input_da.yaml
 
 # Settings for sample numbers and negative controls

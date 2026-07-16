@@ -1,6 +1,8 @@
 # run in debug mode?
 debug: False
 
+# language settings
+language: "da"
 input_names: config/input_settings/input_da.yaml
 
 # are we running this locally ("local") or on Nomad ("nomad")?

@@ -208,7 +208,7 @@ class TestLoadFromConfig(unittest.TestCase):
                                     isolate_number = "BACT_NR",
                                     date_received = "received",
                                     material = "sample_category",
-                                    anatomy = "anatomy",
+                                    anatomy = "anatomical_location",
                                     indication = "indication")
         with self._caplog.at_level(logger = "input_names", level = logging.DEBUG):
             (sheet_names_test,

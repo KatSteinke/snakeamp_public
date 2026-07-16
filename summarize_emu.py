@@ -26,6 +26,7 @@ import yaml
 
 import helpers
 import input_names
+import localization_helpers
 import pipeline_config
 import set_log
 import version
@@ -42,7 +43,8 @@ logger = logging.getLogger("summarize_emu")
 
 def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
                         lis_report_names: input_names.LISDataNames = lis_names,
-                        active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
+                        active_config: Dict[str, Any] = workflow_config,
+                        report_language: str = workflow_config["language"]) -> pd.DataFrame:
     """Get sample information from LIS (date received, sample category and anatomy).
 
     Arguments:
@@ -51,6 +53,7 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
                             and anatomical location.
         lis_report_names:   the column names in the LIS report
         active_config:      the config file to use
+        report_language:    the language to use
 
     Returns:
         Date received, sample category and anatomical location for the sample (blank for a control).
@@ -58,16 +61,17 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
     Raises:
         KeyError:   if the sample number cannot be found in the LIS report after translation
     """
+    _ = localization_helpers.set_language(target_language = report_language)
     (negative_control_pattern,
      positive_control_pattern) = helpers.get_control_patterns(
         active_config["sample_number_settings"]["negative_control"],
         active_config["sample_number_settings"]["positive_control"])
-    sample_information = pd.DataFrame(data = {"patient": [""],
+    sample_information = pd.DataFrame(data = {_("patient"): [""],
                                               lis_report_names.sample_number: [sample_number],
-                                              "modtagedato": [""],
-                                              "prøvemateriale": [""],
-                                              "anatomi": [""],
-                                              "indikation": [""]})
+                                              _("modtagedato"): [""],
+                                              _("prøvemateriale"): [""],
+                                              _("anatomi"): [""],
+                                              _("indikation"): [""]})
     if not (re.match(positive_control_pattern, sample_number)
             or re.match(negative_control_pattern, sample_number)):
         prefix_mapping = helpers.get_number_letter_combination(
@@ -97,16 +101,19 @@ def get_lis_information(sample_number: str, lis_report: pd.DataFrame,
                                                                    lis_report_names.anatomy,
                                                                    lis_report_names.indication])
         sample_information = sample_information.rename(columns = {lis_report_names.date_received:
-                                                                      "modtagedato",
+                                                                      _("modtagedato"),
                                                                   lis_report_names.material:
-                                                                      "prøvemateriale",
+                                                                      _("prøvemateriale"),
                                                                   lis_report_names.patient_id:
-                                                                      "patient",
+                                                                      _("patient"),
+                                                                  lis_report_names.anatomy:
+                                                                      _("anatomi"),
                                                                   lis_report_names.indication:
-                                                                      "indikation"})
-        sample_information["modtagedato"] = sample_information["modtagedato"].apply(lambda x:
-                                                                              datetime.strptime(x,
-                                                                                        "%d%m%Y").strftime("%Y-%m-%d"))
+                                                                      _("indikation")})
+        sample_information[_("modtagedato")] = (sample_information[_("modtagedato")].
+                                                apply(lambda x: datetime
+                                                      .strptime(x,"%d%m%Y").
+                                                      strftime("%Y-%m-%d")))
         sample_information = sample_information.fillna("").reset_index(drop=True)
     return sample_information
 
@@ -255,8 +262,9 @@ def extract_name_components(report_name: str, active_config: Dict[str, Any] = wo
 
 
 def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
-                               lis_report_names: input_names.LISDataNames=lis_names,
-                               active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
+                               lis_report_names: input_names.LISDataNames = lis_names,
+                               active_config: Dict[str, Any] = workflow_config,
+                               report_language: str = workflow_config["language"]) -> pd.DataFrame:
     """Extract estimated species counts from Emu output (with estimated counts, --keep_counts)
      and recalculate read percentage to include unclassified reads.
      If LIS data is to be used, sample material is added from the LIS report.
@@ -266,6 +274,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
         base_dir:           the base directory for all pipeline results
         lis_report_names:   the column names in the LIS report
         active_config:      the config file to use
+        report_language:    the language to use for the report
 
 
     Returns:
@@ -275,6 +284,8 @@ def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
     Raises:
         ValueError: if the name cannot be extracted or if relative abundance does not sum to 1
     """
+    # TODO do we have a smart thing where we can set target language based on the config?
+    _ = localization_helpers.set_language(target_language = report_language)
     # check if name can be extracted to begin with - TODO: nicer flow
     sample_name_components = extract_name_components(emu_counts.name, active_config)
     # get read counts per species
@@ -313,7 +324,7 @@ def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
     emu_read_counts = emu_read_counts.round({"estimated counts": 0, "abundance_from_all [%]": 2})
     emu_read_counts = emu_read_counts.astype({"estimated counts": "Int64"})
     # cut down to required columns and add approval column
-    cols_for_report = ["species", "abundance_from_all [%]", "estimated counts", "med"]
+    cols_for_report = ["species", "abundance_from_all [%]", "estimated counts", _("med")]
     emu_read_counts = emu_read_counts.reindex(columns = cols_for_report)
     emu_read_counts = emu_read_counts.rename(columns={"abundance_from_all [%]": "abundance",
                                                       "estimated counts": "counts"})
@@ -322,8 +333,8 @@ def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
     # deduplicate species names
     # this also sets species as index so we keep it out of the multiindexed columns
     emu_read_counts = emu_read_counts.groupby(by="species").sum()
-    # blank out "medtages" column
-    emu_read_counts["med"] = np.nan
+    # blank out "keep" column
+    emu_read_counts[_("med")] = np.nan
     # note down relevant information
     run_header = [sample_name_components.run_name] * len(emu_read_counts.columns)
     version_header = [f"Version_{__version__}"] * len(emu_read_counts.columns)
@@ -331,18 +342,21 @@ def report_species_per_barcode(emu_counts: pathlib.Path, base_dir: pathlib.Path,
     name_header = [sample_name_components.sample_name] * len(emu_read_counts.columns)
 
     report_headers = [run_header, version_header, barcode_header, name_header]
-    header_names = ["run", "pipeline_version", "barcode", "prøvenummer"]
+    header_names = ["run", "pipeline_version", "barcode", _("prøvenummer")]
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_data = pd.read_csv(active_config["lab_info_system"]["lis_report"],
-                               encoding = "latin1", dtype = {"modtaget": str,
-                                                             "cprnr.": str})
+                               encoding = "latin1", dtype = {lis_report_names.date_received: str,
+                                                             lis_report_names.patient_id: str})
         data_from_lis = get_lis_information(sample_name_components.sample_name, lis_data,
-                                            lis_report_names,
-                                            active_config)
+                                            lis_report_names, active_config,
+                                            report_language = report_language)
         # rename sample number if needed - TODO: more prettily! Or just avoid it?
-        name_header = [data_from_lis["prøvenr"].squeeze()] * len(emu_read_counts.columns)
+        name_header = ([data_from_lis[lis_report_names.sample_number].squeeze()]
+                       * len(emu_read_counts.columns))
         report_headers[-1] = name_header
-        lis_data_cols = ["modtagedato", "patient", "prøvemateriale", "anatomi", "indikation"]
+        # TODO: rename anatomy earlier up
+        lis_data_cols = [_("modtagedato"), _("patient"), _("prøvemateriale"),
+                         _("anatomi"), _("indikation")]
         lis_headers = [[data_from_lis[sample_metadata].squeeze()] * len(emu_read_counts.columns)
                        if pd.notna(data_from_lis[sample_metadata].squeeze())
                        else [""] * len(emu_read_counts.columns)
@@ -407,7 +421,11 @@ def sort_report_samples(emu_report: pd.DataFrame,
         active_config["sample_number_settings"]["negative_control"],
         active_config["sample_number_settings"]["positive_control"])
     controls = re.compile(f"{negative_control.pattern}|{positive_control.pattern}")
-    sample_numbers = emu_report.columns.get_level_values("prøvenummer")
+    # get the sample number part of the multiindex by position
+    # - avoids having to bring translation into it
+    sample_number_header_pos = 3
+    sample_numbers = emu_report.columns.get_level_values(sample_number_header_pos)
+    print(sample_numbers)
     # control columns should be sorted alphabetically to ensure same order
     control_columns = sorted(list({sample_nr
                                    for sample_nr in sample_numbers
@@ -418,14 +436,16 @@ def sort_report_samples(emu_report: pd.DataFrame,
                          for (position, colname) in enumerate(sample_numbers)
                          if colname == sample_nr]
     # non-controls need to be sorted by barcode
-    # find all sample numbers not matching control format - predefined slice since it's a lot of writing
+    # find all sample numbers not matching control format
+    # - predefined slice since it's a lot of writing
     non_control_slice = ~sample_numbers.str.match(controls)
     non_control_header = emu_report.loc[:, non_control_slice].columns.to_frame(index=False)
     # now sort non-control on barcodes since they're guaranteed to be unique
     # (aside from coming in groups of three due to the multiindex setup)
     non_control_barcodes = sorted(list(non_control_header["barcode"].unique()))
     barcodes = emu_report.columns.get_level_values("barcode")
-    # get the positions so we can combine them with the controls' positions (based on sample number)
+    # get the positions so we can combine them with the controls' positions
+    # (based on sample number)
     # TODO: avoid repetition?
     non_control_positions = [position for barcode in non_control_barcodes
                              for (position, colname) in enumerate(barcodes)
@@ -443,7 +463,8 @@ def sort_report_samples(emu_report: pd.DataFrame,
 # TODO: smarter way of setting lis_names?
 def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                          lis_report_names: input_names.LISDataNames = lis_names,
-                         active_config: Dict[str, Any] = workflow_config) -> pd.DataFrame:
+                         active_config: Dict[str, Any] = workflow_config,
+                         report_language: str = workflow_config["language"]) -> pd.DataFrame:
     """Merge all Emu reports in the supplied directory.
 
     Arguments:
@@ -452,6 +473,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
         basedir:            the base dir containing read QC reports for all samples
         lis_report_names:   the column names in the LIS report
         active_config:      the config file to use
+        report_language:    the language to use for the report
 
     Returns:
         All Emu reports in the directory whose names match the name format combined.
@@ -459,6 +481,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
     Raises:
         FileNotFoundError:  if the directory does not contain any Emu reports
     """
+    _ = localization_helpers.set_language(target_language = report_language)
     if not emu_dir.exists():
         raise FileNotFoundError(f"Emu report directory {emu_dir} does not exist")
     if not emu_dir.is_dir():
@@ -478,7 +501,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                  ["", "", ""],
                  ["abundance",
                   "counts",
-                  "med"]]
+                  _("med")]]
     base_names = ["PhHV", "notes", None]
     # ... but we don't want to have to check whether we're using LIS features for every sample
     if active_config["lab_info_system"]["use_lis_features"]:
@@ -487,11 +510,11 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                     ["", "", ""],
                     ["", "", ""],
                     ["", "", ""]]
-        lis_colnames = ["modtagedato",
-                        "patient",
-                        "prøvemateriale",
-                        "anatomi",
-                        "indikation"]
+        lis_colnames = [_("modtagedato"),
+                        _("patient"),
+                        _("prøvemateriale"),
+                        _("anatomi"),
+                        _("indikation")]
     else:
         lis_cols = []
         lis_colnames = []
@@ -499,7 +522,8 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
         try:
             emu_data = report_species_per_barcode(emu_report, basedir,
                                                   lis_report_names = lis_report_names,
-                                                  active_config = active_config)
+                                                  active_config = active_config,
+                                                  report_language = report_language)
         except ValueError as value_err:
             logger.error(f"Error in {emu_report}:\n"
                          f"{value_err}\n"
@@ -559,7 +583,7 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
                                      + lis_cols  # blank if we don't have LIS
                                      + qc_cols
                                      + base_cols)
-            current_fallback_names = (["run", "pipeline_version", "barcode", "prøvenummer"]
+            current_fallback_names = (["run", "pipeline_version", "barcode", _("prøvenummer")]
                                       + lis_colnames  # blank if we don't have LIS
                                       + qc_names
                                       + base_names)
@@ -578,9 +602,13 @@ def merge_all_in_emu_dir(emu_dir: pathlib.Path, basedir: pathlib.Path,
         log_msg = f"Data appear to be from multiple runs ({run_names})."
         logger.warning(log_msg)
     # if we're using LIS data we're giving out a patient ID here
-    if "patient" in all_merged.columns.names:
+    if _("patient") in all_merged.columns.names:
         patient_ids = [pt_id
-                       for pt_id in all_merged.columns.get_level_values("patient").unique().tolist()
+                       for pt_id in (all_merged.
+                                     columns.
+                                     get_level_values(_("patient")).
+                                     unique().
+                                     tolist())
                        if pt_id]
         # we want to make it clear that this is the ID for this batch of *results*
         # -> use run number from all runs
@@ -618,8 +646,13 @@ def write_to_sheets(merged_report: pd.DataFrame, outfile: pathlib.Path) -> None:
                               "abundance")].to_excel(outfile_writer, sheet_name = "abundance")
         merged_report.loc[:, (*header_col_slice,
                               "counts")].to_excel(outfile_writer, sheet_name = "count")
-        unique_samples = merged_report.columns.get_level_values("prøvenummer").unique()
-        notes = pd.DataFrame(index=pd.Index(unique_samples, name="Prøvenummer"),
+        sample_number_header_position = 3
+        sample_number_name = merged_report.columns.names[sample_number_header_position]
+        unique_samples = (merged_report.columns.
+                          get_level_values(sample_number_header_position).
+                          unique())
+        notes = pd.DataFrame(index=pd.Index(unique_samples,
+                                            name=str.capitalize(sample_number_name)),
                              columns = ["notes"])
         notes.to_excel(outfile_writer, sheet_name = "notes")
 
@@ -654,6 +687,7 @@ def summarize_emu(input_args: List[Any]) -> None:
         with open(workflow_config_file, "r", encoding = "utf-8") as config_file:
             active_config = yaml.safe_load(config_file)
     runsheet_names, lis_report_names = input_names.load_input_from_config(active_config)
+    report_language = active_config["language"]
     input_dir = pathlib.Path(args.indir)
     output_file = pathlib.Path(args.outfile)
     output_file_raw = pathlib.Path(args.outfile_raw)
@@ -662,7 +696,8 @@ def summarize_emu(input_args: List[Any]) -> None:
         base_dir = input_dir.parent
     base_dir = pathlib.Path(base_dir)
     merged_emu = merge_all_in_emu_dir(input_dir, base_dir, lis_report_names = lis_report_names,
-                                      active_config = active_config)
+                                      active_config = active_config,
+                                      report_language = report_language)
     write_to_sheets(merged_emu, output_file)
     merged_emu.to_csv(output_file_raw, sep = "\t")
 

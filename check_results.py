@@ -17,11 +17,21 @@ from argparse import ArgumentParser
 from typing import List
 
 import pandas as pd
+import yaml
 
+import pipeline_config
+import input_names
+import localization_helpers
 import set_log
 import version
 
 __version__ = version.__version__
+
+# import parameters
+DEFAULT_CONFIG_FILE = pipeline_config.default_config_file
+WORKFLOW_CONFIG = pipeline_config.WORKFLOW_DEFAULT_CONF
+
+sheet_names, lis_names = input_names.load_input_from_config(WORKFLOW_CONFIG)
 
 # start logging
 logger = logging.getLogger("QATest")
@@ -54,21 +64,26 @@ def check_files_present(output_dir: pathlib.Path) -> bool:
 
 
 # check whether emu report file contains everything that's needed:
-def check_emu_result_file(emu_report: pathlib.Path) -> bool:
+def check_emu_result_file(emu_report: pathlib.Path,
+                          lis_report_names: input_names.LISDataNames = lis_names,
+                          report_language: str = WORKFLOW_CONFIG["language"]) -> bool:
     """Check if Emu report contains all data and if the results are correct.
 
     Arguments:
-        emu_report: the path to the Emu report to be checked
+        emu_report:         the path to the Emu report to be checked
+        lis_report_names:   column names in the LIS report
+        report_language:    the language of the result file
 
     Returns:
         True if all results are correct, False otherwise.
     """
+    _ = localization_helpers.set_language(target_language = report_language)
     num_samples = 5
     expected_organisms = pd.DataFrame(data={"organism": ["Streptococcus agalactiae",
                                                          "Cutibacterium acnes",
                                                          "Lactococcus lactis"]},
                                       index = pd.Index(["F99123457", "F99123456", "F99123458"],
-                                                       name = "prøvenr"))
+                                                       name = _("prøvenr")))
     expected_positive_control = pd.DataFrame(data = {"abundance": [15.89,
                                                                    19.58,
                                                                    3.89,
@@ -133,13 +148,13 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                 *["RB51"] * cols_per_sample,
                                                                 *["RB60"] * cols_per_sample,
                                                                 ],
-                                                    "modtagedato": [*[""] * cols_per_sample,
+                                                    _("modtagedato"): [*[""] * cols_per_sample,
                                                                     *[""] * cols_per_sample,
                                                                     *["2021-01-02"] * cols_per_sample,
                                                                     *["2021-01-02"] * cols_per_sample,
                                                                     *["2021-01-02"] * cols_per_sample
                                                                     ],
-                                                    "patient": [*[""] * cols_per_sample,
+                                                    _("patient"): [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
                                                                 *["RUN0001_pt_0"]
                                                                  * cols_per_sample,
@@ -147,21 +162,21 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                  * cols_per_sample,
                                                                 *["RUN0001_pt_0"]
                                                                  * cols_per_sample],
-                                                    "prøvemateriale": [*[""] * cols_per_sample,
+                                                    _("prøvemateriale"): [*[""] * cols_per_sample,
                                                         *[""] * cols_per_sample,
                                                         *["Hjerneventrikelvæske <liquor>"]
                                                          * cols_per_sample,
                                                         *["Podning"] * cols_per_sample,
                                                         *["Spinalvæske"] * cols_per_sample,
                                                         ],
-                                                    "anatomi": [*[""] * cols_per_sample,
+                                                    lis_report_names.anatomy: [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
                                                                 *["Shunt ""(hjerneventrikel)"]
                                                                  * cols_per_sample,
                                                                 *["Svælg/tonsil"] * cols_per_sample,
                                                                 *[""] * cols_per_sample
                                                                 ],
-                                                    "indikation": [*[""] * cols_per_sample,
+                                                    _("indikation"): [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
                                                                 *["!!!"] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
@@ -204,7 +219,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                                                     *["F99123458"]
                                                                      * cols_per_sample
                                                                     ],
-                                                                        name="prøvenr"))
+                                                                        name= _("prøvenr")))
             # are the headers correct? use MultiIndex.to_frame(index=False)
             # strip the "Unnamed" parts out
             sheet_data = sheet_data.rename(columns = lambda colname: "" if "Unnamed" in str(colname)
@@ -214,12 +229,12 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
             header_cols = sheet_data.columns.to_frame(index = False)[["run",
                                                                       "pipeline_version",
                                                                       "barcode",
-                                                                      "prøvenummer",
-                                                                      "modtagedato",
-                                                                      "patient",
-                                                                      "prøvemateriale",
-                                                                      "anatomi",
-                                                                      "indikation",
+                                                                      _("prøvenummer"),
+                                                                      _("modtagedato"),
+                                                                      _("patient"),
+                                                                      _("prøvemateriale"),
+                                                                      lis_report_names.anatomy,
+                                                                      _("indikation"),
                                                                       "total_before_qc",
                                                                       "total_after_qc",
                                                                       "human"]]
@@ -229,13 +244,12 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                 raise ValueError(f"Report was created with {report_version}, "
                                  f"is being checked with Version_{__version__}.\n"
                                  "Cannot check reports from a different version of the pipeline.")
-            header_cols = header_cols.rename(columns={"prøvenummer": "prøvenr"})
+            header_cols = header_cols.rename(columns={_("prøvenummer"): "prøvenr"})
             header_cols = header_cols.set_index("prøvenr")
-            header_cols["modtagedato"] = pd.to_datetime(header_cols["modtagedato"]).apply(lambda x:
-                                                                                          x.strftime(
-                                                                                              "%Y-%m-%d")
-                                                                                          if pd.notnull(x)
-                                                                                          else "")
+            header_cols[_("modtagedato")] = (pd.to_datetime(header_cols[_("modtagedato")])
+                                          .apply(lambda x: x.strftime("%Y-%m-%d")
+                                                          if pd.notnull(x)
+                                                          else ""))
             try:
                 compare_headers = expected_headers.compare(header_cols, result_names = ("expected",
                                                                                         "found"))
@@ -263,7 +277,7 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                 header_col_slice = [slice(None)] * amount_header_cols
                 abundances = sheet_data.loc[:, (*header_col_slice, "abundance")]
                 # we don't need the extra information now - just keep sample numbers
-                abundances.columns = abundances.columns.get_level_values("prøvenummer")
+                abundances.columns = abundances.columns.get_level_values(_("prøvenummer"))
                 # for the routine samples, is the highest scoring organism what we should expect?
                 routine_orgs = abundances.loc[:, ["F99123457",
                                                   "F99123456",
@@ -281,9 +295,8 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
                                    f"{compare_organisms.sort_index().to_string()}")
                 # for the positive control, are the n highest what we would expect?
                 n_expected_species = len(expected_positive_control.index)
-                species_found = abundances.loc[:,
-                                               ["PosK"]].sort_values(by = "PosK",
-                                                                     ascending = False)[:n_expected_species]
+                species_found = (abundances.loc[:,["PosK"]]
+                                 .sort_values(by = "PosK", ascending = False)[:n_expected_species])
                 species_found.index.names = ["organism"]
                 species_found.columns.name = None
                 species_found = species_found.rename(columns={"PosK": "abundance"})
@@ -321,11 +334,14 @@ def check_emu_result_file(emu_report: pathlib.Path) -> bool:
     return results_okay
 
 
-def check_all_qc(results_dir: pathlib.Path) -> bool:
+def check_all_qc(results_dir: pathlib.Path, lis_report_names: input_names.LISDataNames = lis_names,
+                 report_language: str = WORKFLOW_CONFIG["language"]) -> bool:
     """Run all QC checks on a result directory and report success/failure.
 
     Arguments:
-        results_dir: Directory containing test run results to evaluate
+        results_dir:        Directory containing test run results to evaluate
+        lis_report_names:   column names in the LIS report
+        report_language:    the language of the report to check
 
     Returns:
         True if all QC checks pass, False otherwise
@@ -334,7 +350,8 @@ def check_all_qc(results_dir: pathlib.Path) -> bool:
     if not files_present:
         return False
     emu_file = list(results_dir.glob("*_emu-combined.xlsx"))[0]
-    check_emu = check_emu_result_file(emu_file)
+    check_emu = check_emu_result_file(emu_file, lis_report_names = lis_report_names,
+                                      report_language = report_language)
     if not check_emu:
         return False
     logger.info("All QC checks passed")
@@ -351,8 +368,11 @@ def check_results(start_args: List[str]) -> None:
                                               "expected results")
     arg_parser.add_argument("result_dir",
                             help = "Directory containing test run results to evaluate")
-    arg_parser.add_argument("-l", "--logfile", help = "File to write log to "
-                                                      "(default: logs/pipeline_qa.log in result dir)",
+    arg_parser.add_argument("-l", "--logfile",
+                            help = "File to write log to "
+                                   "(default: logs/pipeline_qa.log in result dir)",
+                            default = None)
+    arg_parser.add_argument("--workflow_config_file", help = "Config file to use",
                             default = None)
     args = arg_parser.parse_args(start_args)
     # TODO make this less messy
@@ -368,7 +388,15 @@ def check_results(start_args: List[str]) -> None:
     logfile_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     log_file.setFormatter(logfile_formatter)
     pipeline_logger.addHandler(log_file)
-    check_qc = check_all_qc(result_dir)
+    active_config = WORKFLOW_CONFIG
+    if args.workflow_config_file:
+        config_file = pathlib.Path(args.workflow_config_file).resolve()
+        with open(config_file, "r", encoding = "utf-8") as read_config:
+            active_config = yaml.safe_load(read_config)
+    runsheet_names, lis_report_names = input_names.load_input_from_config(active_config)
+    print(lis_report_names)
+    check_qc = check_all_qc(result_dir, lis_report_names = lis_report_names,
+                            report_language = active_config["language"])
     if not check_qc:
         logger.error("One or more QC steps failed. Check log for details.")
         set_log.clean_up_handlers(pipeline_logger)
