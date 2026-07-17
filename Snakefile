@@ -22,7 +22,6 @@ CONFIG_PATH = config["config_path"] if "config_path" in config \
 
 sheet_names, lis_names = input_names.load_input_from_config(config)
 
-
 workdir: config["outdir"]
 
 # we'll need to know whether we're running locally for conda directives
@@ -45,7 +44,7 @@ prefix_translate = helpers.get_number_letter_combination(config["sample_number_s
  negative_control) = helpers.get_control_patterns(config["sample_number_settings"]["negative_control"],
                                                   config["sample_number_settings"]["positive_control"])
 
-# set up constraings
+# set up constraints
 BARCODE_PREFIX = config["barcode_prefix"]
 
 wildcard_constraints:
@@ -58,11 +57,11 @@ wildcard_constraints:
 CONTAMINANT = config["quality_params"].get("contaminant_seq", False)
 
 sheet_data = pd.read_excel(config["runsheet"],usecols = "A:D",skiprows = 3,
-                           dtype = {"Prøvenummer": str, "Eluat nr.": str})
-sheet_data = sheet_data.dropna(subset=["Prøvenummer", "Barkode"])
-sheet_data = sheet_data[sheet_data["Analyse"] == config["amplicon_type"]]
+                           dtype = {sheet_names.sample_number: str, "Eluat nr.": str})
+sheet_data = sheet_data.dropna(subset=[sheet_names.sample_number, sheet_names.barcode])
+sheet_data = sheet_data[sheet_data[sheet_names.amplicon_type] == config["amplicon_type"]]
 # TODO: do we need to translate here?
-sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
+sheet_data["prøvenr"] = sheet_data[sheet_names.sample_number].apply(lambda sample_number:
                                                        helpers.translate_sample_number(sample_number,
                                                                                        input_format,
                                                                                        output_format,
@@ -71,7 +70,7 @@ sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
                                                                                        negative_control))
 
 ALL_IDS = list(sheet_data["prøvenr"])
-ALL_BARCODES = list(sheet_data["Barkode"])
+ALL_BARCODES = list(sheet_data[sheet_names.barcode])
 
 # we need to name some files after the experiment name (plus amplicon type so we can distinguish)
 EXPERIMENT_NAME = (helpers.extract_nanopore_run_name(pathlib.Path(config['runsheet']), sheet_names)+"-"+
