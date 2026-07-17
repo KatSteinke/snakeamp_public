@@ -20,8 +20,7 @@ configfile: pipeline_config.default_config_file
 CONFIG_PATH = config["config_path"] if "config_path" in config \
     else pipeline_config.default_config_file
 
-
-sheet_names, lis_names = input_names.load_input_from_config(CONFIG_PATH)
+sheet_names, lis_names = input_names.load_input_from_config(config)
 
 
 workdir: config["outdir"]
