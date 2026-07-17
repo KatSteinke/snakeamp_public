@@ -20,7 +20,6 @@ import pandas as pd
 import yaml
 
 import pipeline_config
-import input_names
 import localization_helpers
 import set_log
 import version
@@ -31,7 +30,6 @@ __version__ = version.__version__
 DEFAULT_CONFIG_FILE = pipeline_config.default_config_file
 WORKFLOW_CONFIG = pipeline_config.WORKFLOW_DEFAULT_CONF
 
-sheet_names, lis_names = input_names.load_input_from_config(WORKFLOW_CONFIG)
 
 # start logging
 logger = logging.getLogger("QATest")
@@ -65,13 +63,11 @@ def check_files_present(output_dir: pathlib.Path) -> bool:
 
 # check whether emu report file contains everything that's needed:
 def check_emu_result_file(emu_report: pathlib.Path,
-                          lis_report_names: input_names.LISDataNames = lis_names,
                           report_language: str = WORKFLOW_CONFIG["language"]) -> bool:
     """Check if Emu report contains all data and if the results are correct.
 
     Arguments:
         emu_report:         the path to the Emu report to be checked
-        lis_report_names:   column names in the LIS report
         report_language:    the language of the result file
 
     Returns:
@@ -169,7 +165,7 @@ def check_emu_result_file(emu_report: pathlib.Path,
                                                         *["Podning"] * cols_per_sample,
                                                         *["Spinalvæske"] * cols_per_sample,
                                                         ],
-                                                    lis_report_names.anatomy: [*[""] * cols_per_sample,
+                                                    _("anatomi"): [*[""] * cols_per_sample,
                                                                 *[""] * cols_per_sample,
                                                                 *["Shunt ""(hjerneventrikel)"]
                                                                  * cols_per_sample,
@@ -233,7 +229,7 @@ def check_emu_result_file(emu_report: pathlib.Path,
                                                                       _("modtagedato"),
                                                                       _("patient"),
                                                                       _("prøvemateriale"),
-                                                                      lis_report_names.anatomy,
+                                                                      _("anatomi"),
                                                                       _("indikation"),
                                                                       "total_before_qc",
                                                                       "total_after_qc",
@@ -334,13 +330,12 @@ def check_emu_result_file(emu_report: pathlib.Path,
     return results_okay
 
 
-def check_all_qc(results_dir: pathlib.Path, lis_report_names: input_names.LISDataNames = lis_names,
+def check_all_qc(results_dir: pathlib.Path,
                  report_language: str = WORKFLOW_CONFIG["language"]) -> bool:
     """Run all QC checks on a result directory and report success/failure.
 
     Arguments:
         results_dir:        Directory containing test run results to evaluate
-        lis_report_names:   column names in the LIS report
         report_language:    the language of the report to check
 
     Returns:
@@ -350,8 +345,7 @@ def check_all_qc(results_dir: pathlib.Path, lis_report_names: input_names.LISDat
     if not files_present:
         return False
     emu_file = list(results_dir.glob("*_emu-combined.xlsx"))[0]
-    check_emu = check_emu_result_file(emu_file, lis_report_names = lis_report_names,
-                                      report_language = report_language)
+    check_emu = check_emu_result_file(emu_file, report_language = report_language)
     if not check_emu:
         return False
     logger.info("All QC checks passed")
@@ -393,10 +387,7 @@ def check_results(start_args: List[str]) -> None:
         config_file = pathlib.Path(args.workflow_config_file).resolve()
         with open(config_file, "r", encoding = "utf-8") as read_config:
             active_config = yaml.safe_load(read_config)
-    runsheet_names, lis_report_names = input_names.load_input_from_config(active_config)
-    print(lis_report_names)
-    check_qc = check_all_qc(result_dir, lis_report_names = lis_report_names,
-                            report_language = active_config["language"])
+    check_qc = check_all_qc(result_dir, report_language = active_config["language"])
     if not check_qc:
         logger.error("One or more QC steps failed. Check log for details.")
         set_log.clean_up_handlers(pipeline_logger)

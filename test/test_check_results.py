@@ -1,17 +1,14 @@
-import io
 import logging
 import pathlib
 import re
 import unittest
 
 from unittest import mock
-from unittest.mock import PropertyMock
 
 import pandas as pd
 import pytest
 
 import check_results
-import input_names
 import version
 
 
@@ -56,14 +53,6 @@ class TestCheckFilePresence(unittest.TestCase):
 
 @mock.patch(f"{check_results.__name__}.__version__")
 class TestCheckEmuResults(unittest.TestCase):
-    lis_names = input_names.LISDataNames(sample_number = "PRV_NR", sample_type = "P_TYPE",
-                                                   patient_id = "cprnr",
-                                                   isolate_number = "BAKT_NR",
-                                                   date_received = "modtaget",
-                                                   material = "prøvekategori",
-                                                   anatomy = "anatomi",
-                                                   indication = "Indikation")
-
     @pytest.fixture(autouse = True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -77,33 +66,22 @@ class TestCheckEmuResults(unittest.TestCase):
         error_msg = ("Report was created with Version_1.2.3, is being checked with Version_0.4.2.\n"
                      "Cannot check reports from a different version of the pipeline.")
         with pytest.raises(ValueError, match=re.escape(error_msg)):
-            check_results.check_emu_result_file(test_report, lis_report_names = self.lis_names)
+            check_results.check_emu_result_file(test_report)
 
     def test_all_good(self, mock_version):
         """Don't complain for an Emu report without any issues."""
         mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir"
                        / "RUN0001_emu-combined.xlsx")
-        check_report = check_results.check_emu_result_file(test_report,
-                                                           lis_report_names = self.lis_names)
+        check_report = check_results.check_emu_result_file(test_report)
         assert check_report
 
     def test_success_en(self, mock_version):
         """"Handle a translated Emu report."""
-        lis_report_names = input_names.LISDataNames(sample_number = "SAMPLENR",
-                                                    sample_type = "SAMPLETYPE",
-                                                    patient_id = "patient_id",
-                                                    isolate_number = "BACT_NR",
-                                                    date_received = "received",
-                                                    material = "sample_category",
-                                                    anatomy = "anatomy",
-                                                    indication = "indication")
         mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir_en"
                        / "RUN0001_emu-combined.xlsx")
-        check_report = check_results.check_emu_result_file(test_report,
-                                                           lis_report_names = lis_report_names,
-                                                           report_language = "en")
+        check_report = check_results.check_emu_result_file(test_report, report_language = "en")
         assert check_report
 
     def test_success_minor_abundance_diff(self, mock_version):
@@ -112,8 +90,7 @@ class TestCheckEmuResults(unittest.TestCase):
         mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_minor_diff_emu-combined.xlsx")
-        check_report = check_results.check_emu_result_file(test_report,
-                                                           lis_report_names = self.lis_names)
+        check_report = check_results.check_emu_result_file(test_report)
         assert check_report
 
     def test_warn_missing_tabs(self, mock_version):
@@ -124,8 +101,7 @@ class TestCheckEmuResults(unittest.TestCase):
         warn_msg = ("Tab(s) ['abundance', 'count'] not found in Emu report. "
                     "Cannot evaluate results for these tabs.")
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_report = check_results.check_emu_result_file(test_report,
-                                                               lis_report_names = self.lis_names)
+            check_report = check_results.check_emu_result_file(test_report)
             assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
@@ -143,8 +119,7 @@ class TestCheckEmuResults(unittest.TestCase):
                     " overview:\n"
                     f"{mismatched.to_string()}")
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_report = check_results.check_emu_result_file(test_report,
-                                                               lis_report_names = self.lis_names)
+            check_report = check_results.check_emu_result_file(test_report)
             assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
@@ -197,8 +172,7 @@ class TestCheckEmuResults(unittest.TestCase):
                     f"Expected columns: {expected_cols}\n"
                     f"Found columns: {found_cols}")
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_report = check_results.check_emu_result_file(test_report,
-                                                               lis_report_names = self.lis_names)
+            check_report = check_results.check_emu_result_file(test_report)
             assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
@@ -219,8 +193,7 @@ class TestCheckEmuResults(unittest.TestCase):
                     " Expected organism(s):\n"
                     f"{expected_data.to_string()}")
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_report = check_results.check_emu_result_file(test_report,
-                                                               lis_report_names = self.lis_names)
+            check_report = check_results.check_emu_result_file(test_report)
             assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
@@ -249,8 +222,7 @@ class TestCheckEmuResults(unittest.TestCase):
                     " (missing: {'Pseudomonas aeruginosa'}, "
                     "extra: {'Placeholderia bielefeldensis'}")
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_report = check_results.check_emu_result_file(test_report,
-                                                               lis_report_names = self.lis_names)
+            check_report = check_results.check_emu_result_file(test_report)
             assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
@@ -268,8 +240,7 @@ class TestCheckEmuResults(unittest.TestCase):
                     " Expected abundance:\n"
                     f"{expected_data.to_string()}")
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_report = check_results.check_emu_result_file(test_report,
-                                                               lis_report_names = self.lis_names)
+            check_report = check_results.check_emu_result_file(test_report)
             assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
@@ -305,8 +276,7 @@ class TestCheckEmuResults(unittest.TestCase):
                            " Expected abundance:\n"
                            f"{expected_data.to_string()}")
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_report = check_results.check_emu_result_file(test_report,
-                                                               lis_report_names = self.lis_names)
+            check_report = check_results.check_emu_result_file(test_report)
             assert ("QATest", logging.WARNING, wrong_organism) in self._caplog.record_tuples
             assert ("QATest", logging.WARNING, wrong_abundance) in self._caplog.record_tuples
         assert not check_report
@@ -329,22 +299,13 @@ class TestCheckEmuResults(unittest.TestCase):
                     " Expected organism(s):\n"
                     f"{expected_data.to_string()}")
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_report = check_results.check_emu_result_file(test_report,
-                                                               lis_report_names = self.lis_names)
+            check_report = check_results.check_emu_result_file(test_report)
             assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
 
 @mock.patch(f"{check_results.__name__}.__version__")
 class TestCheckAllQC(unittest.TestCase):
-    lis_names = input_names.LISDataNames(sample_number = "PRV_NR", sample_type = "P_TYPE",
-                                                   patient_id = "cprnr",
-                                                   isolate_number = "BAKT_NR",
-                                                   date_received = "modtaget",
-                                                   material = "prøvekategori",
-                                                   anatomy = "anatomi",
-                                                   indication = "Indikation")
-
     @pytest.fixture(autouse = True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -355,7 +316,7 @@ class TestCheckAllQC(unittest.TestCase):
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "empty_dir"
         warn_msg = "Emu report is missing. Cannot evaluate Emu results."
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_files = check_results.check_all_qc(test_dir, lis_report_names = self.lis_names)
+            check_files = check_results.check_all_qc(test_dir)
             assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_files
 
@@ -371,7 +332,7 @@ class TestCheckAllQC(unittest.TestCase):
                     " Expected abundance:\n"
                     f"{expected_data.to_string()}")
         with self._caplog.at_level(logging.WARNING, logger = "QATest"):
-            check_report = check_results.check_all_qc(test_dir, lis_report_names = self.lis_names)
+            check_report = check_results.check_all_qc(test_dir)
             assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
@@ -381,27 +342,17 @@ class TestCheckAllQC(unittest.TestCase):
         test_dir = pathlib.Path(__file__).parent / "data"/"check_results"/"success_emu_dir"
         success_msg = "All QC checks passed"
         with self._caplog.at_level(logging.INFO, logger = "QATest"):
-            check_files = check_results.check_all_qc(test_dir, lis_report_names = self.lis_names)
+            check_files = check_results.check_all_qc(test_dir)
             assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
         assert check_files
 
     def test_success_en(self, mock_version):
         """Report success if all checks pass for a translated result."""
         mock_version.__str__.return_value = "0.4.2"
-        lis_report_names = input_names.LISDataNames(sample_number = "SAMPLENR",
-                                                    sample_type = "SAMPLETYPE",
-                                                    patient_id = "patient_id",
-                                                    isolate_number = "BACT_NR",
-                                                    date_received = "received",
-                                                    material = "sample_category",
-                                                    anatomy = "anatomy",
-                                                    indication = "indication")
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir_en"
         success_msg = "All QC checks passed"
         with self._caplog.at_level(logging.INFO, logger = "QATest"):
-            check_files = check_results.check_all_qc(test_dir,
-                                                     lis_report_names = lis_report_names,
-                                                     report_language = "en")
+            check_files = check_results.check_all_qc(test_dir, report_language = "en")
             assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
         assert check_files
 
