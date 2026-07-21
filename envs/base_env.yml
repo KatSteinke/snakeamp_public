@@ -2,6 +2,7 @@ name: snake_amp
 channels:
   - conda-forge
   - bioconda
+  - nodefaults
 dependencies:
   - biopython
   - numpy>=1.22.2
@@ -10,4 +11,4 @@ dependencies:
   - pyarrow  # so pandas won't complain
   - python>=3.9.*
   - pyyaml
-  - snakemake=7.*  # for compatibility with --profile
+  - snakemake==9.14
