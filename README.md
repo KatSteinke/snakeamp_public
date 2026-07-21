@@ -304,3 +304,13 @@ run-level patient identifier) for all samples. Abundance data is reported in sev
   * in the abundance tab, only relative abundance is shown
   * in the count tab, only read counts are shown
 * `RUN_NAME-AMPLICON_emu-combined.tsv`: a raw copy of the "overview" tab of the xlsx file
+
+## License
+The Snakeamp pipeline is released under version 3 of the GNU General Public License;
+a copy of the license's text can be found [here](licenses/RSYD_BASIC_GPL).
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
