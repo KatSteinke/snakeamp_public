@@ -105,7 +105,8 @@ rule concatenate_fastqs:
     conda:
         "envs/nanopore_qc.yml" if IS_LOCAL else "nanopore_qc_env"
     resources:
-        mem_mb = 200
+        mem_mb = 200,
+        runtime = "10m"
     shell:
         """
          find \
@@ -129,7 +130,8 @@ rule get_qc_statistics:
     conda: "envs/nanopore_qc.yml" if IS_LOCAL else "nanopore_qc_env"
     threads: 2
     resources:
-        mem_mb = 200
+        mem_mb = 200,
+        runtime = "10m"
     shell:
         """
         NanoStat --fastq "{input.concat_fastq}" --tsv --threads {threads} > "{output.read_stats}" \
@@ -152,6 +154,9 @@ rule clean_nanopore_reads:
         min_quality = "--min_mean_q "+ str(config['quality_params']['min_qscore']) \
                       if config['quality_params']['min_qscore'] else ''
     conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
+    resources:
+        mem_mb = 500,
+        runtime = "15m"
     log:
         "logs/filtlong/{sample_number}_{barcode}.log"
     shell:
@@ -201,7 +206,8 @@ rule remove_human_reads:
     conda: "envs/kraken_env.yml" if IS_LOCAL else  "kraken_env"
     log: "logs/kraken/{sample_number}_{barcode}.log"
     resources:
-        mem_mb = 5000  # database + a bit extra
+        mem_mb = 5000,  # database + a bit extra
+        runtime = "30m"
     threads: workflow.cores
     shell:
         """
@@ -219,7 +225,8 @@ rule get_qc_statistics_cleaned:
     conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     threads: 2
     resources:
-        mem_mb = 200
+        mem_mb = 200,
+        runtime = "10m"
     shell:
         """
         NanoStat --fastq "{input.depleted_fastq}" --tsv --threads {threads} > "{output.read_stats}" \
@@ -237,7 +244,8 @@ rule compress_nanopore_reads:
         "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     threads: 2
     resources:
-        mem_mb = 100
+        mem_mb = 100,
+        runtime = "10m"
     shell:
         """
         pigz -p {threads} -c -n "{input.filtered_fastq}" > "{output.compressed_fastq}"
@@ -258,6 +266,9 @@ rule run_emu:
     conda:
         "envs/emu_env.yml" if IS_LOCAL else  "emu_env"
     threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
+    resources:
+        mem_mb = 8000,
+        runtime = "4h"
     log:
         "logs/emu/{sample_number}_{barcode}.log"
     shell:
@@ -286,6 +297,9 @@ rule combine_emu:
         emu_dir = "emu",
         basedir = workflow.current_basedir,
         configfile = CONFIG_PATH
+    resources:
+        mem_mb = 500,
+        runtime = "15m"
     log:
         "logs/emu/combine_all.log"
     shell:
