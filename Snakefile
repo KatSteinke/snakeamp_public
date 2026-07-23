@@ -265,7 +265,9 @@ rule run_emu:
         fallback_header = r"tax_id\tabundance\testimated counts\n"
     conda:
         "envs/emu_env.yml" if IS_LOCAL else  "emu_env"
-    threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
+    # based on https://github.com/treangenlab/emu/issues/33#issuecomment-2523529974
+    # we want at least 12 cores but 32 is where we've hit diminishing returns for sure
+    threads: max(12, (workflow.cores / 4 )) if (workflow.cores / 4 ) <= 32 else 32
     resources:
         mem_mb = 8000,
         runtime = "4h"
