@@ -14,3 +14,4 @@ dependencies:
   - pytest
   - python>=3.9.*
   - pyyaml
+  - snakemake=9.14
