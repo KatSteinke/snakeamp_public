@@ -170,6 +170,9 @@ rule filter_contaminants:
     log:
         "logs/chopper/{sample_number}_{barcode}.log"
     threads: 4
+    resources:
+        mem_mb = 500,
+        runtime = "15m"
     shell:
         """
         chopper -i "{input.filtered_fastq}" --threads {threads} \
