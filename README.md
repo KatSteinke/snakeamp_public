@@ -1,5 +1,4 @@
 # SnakeAmp: Snakemake-based Nanopore amplicon analysis
-<!--- # (Name TBD; may find a punny acronym so long as it starts with S. Snatched? taxonomy, clinical, EMU) --->
 
 This is a pipeline for amplicon-based taxonomic assignment on the basis of Nanopore sequences.
 The core functionality is based around cleaning input reads and assigning taxonomy using Emu,
@@ -49,33 +48,67 @@ A default config file with placeholders is provided as `pipeline_routine.yaml`; 
 the placeholders and you're ready to go. For testing etc., it is recommended to create separate 
 config files.
 
+#### Language settings
+The pipeline can produce output in Danish or English. For Danish output, set the `"language"` parameter in the config
+file to `"da"`. For English output, set the `"language"` parameter in the config  file to `"en"`.
+
+##### Input settings
+The expected names of columns in the metadata "runsheet" and the output from the LIS can be configured in 
+a YAML file describing input settings. A template for this can be found in `config/input_config/input_template.yaml`,
+and suggested Danish and English language settings can be found in this directory as well. 
+
+<details> <summary> Overview of available input settings </summary>
+<h6>Runsheet</h6>
+The runsheet is defined in the <code>run_sheet</code> section of the input config. Column names that can be set are
+<ul>
+<li><code>sample_number</code>: column for the sample number(s) </li>
+<li><code>barcode</code>: column for the barcode used for the samples</li>
+<li><code>experiment_name</code>: column in the header containing the experiment name</li>
+<li><code>amplicon_type</code>: column containing the amplicon that was sequenced for the sample in question 
+(e.g. 16S, 18S, RGN3)</li>
+</ul>
+<h6>Laboratory information system metadata (optional)</h6>
+LIS metadata is defined in the <code>lis_columns</code> section of the input config. Column names that can be set are
+<ul>
+<li><code>sample_number</code>: field for the sample number</li>
+<li><code>sample_type</code>: field for sample type identifier (as part of unique sample identifier)</li>
+<li><code>isolate_number</code>: field for isolate number (as part of unique sample identifier)</li>
+<li><code>patient_id</code>: field for patient identifier</li>
+<li><code>date_received</code>: when the sample was received</li>
+<li><code>material</code>: sample material</li>
+<li><code>anatomy</code>: the anatomical site that was sampled</li>
+<li><code>indication</code>: the indication for sampling</li>
+</ul>
+</details>
+
+
 #### Laboratory information system settings
 This pipeline may incorporate data from a laboratory information system (LIS) in the final report. LIS data is read from the file given under
 `lis_report`.
 
 If LIS data is given, the final report will contain additional data on each sample:
-* sample date ("prøvetagningsdato")
-* patient ID - note that this is *not* the patient's CPR number but a per-run patient ID meant to 
+* sample date
+* patient ID - note for a Danish context that this is *not* the patient's CPR number but a per-run patient ID meant to 
 aid in identifying samples from the same patient in one run;
 while the pipeline uses the patient's CPR number to unambiguously identify patients in this mapping
-step, no mapping of patient ID to CPR number is stored by the pipeline
-* sample material ("prøvemateriale")
-* anatomical location ("anatomi")
-* indication for sampling ("indikation")
+step if this is what is given in the LIS data, no mapping of patient ID to CPR number is stored by the pipeline
+* sample material
+* anatomical location
+* indication for sampling
 
 The pipeline was designed with OUH's MADS setup in mind. Report files therefore are 
 assumed to
 * be semicolon-separated
 * be encoded using `latin-1` encoding
 * contain fields for:
-  * sample number ("prøvenr") 
-  * date received ("modtaget")
-  * patient CPR number ("cprnr.")
-  * sample material/category ("prøvekategori")
-  * anatomical location ("anatomi")
-  * indication for sampling ("Indikation")
+  * sample number (set under `sample_number` in the `lis_columns` section in the input settings) 
+  * date received (set under `date_received` in the `lis_columns` section in the input settings)
+  * patient identifier (set under `patient_id` in the `lis_columns` section in the input settings)
+  * sample material/category (set under `material` in the `lis_columns` section in the input settings)
+  * anatomical location (set under `anatomy` in the `lis_columns` section in the input settings)
+  * indication for sampling (set under `indication` in the `lis_columns` section in the input settings)
 
-An example of a LIS report file can be found [here](docs/sample_mads.csv).  
+An example of a Danish LIS report file can be found [here](docs/sample_mads.csv).  
 
 If your laboratory information system differs, get in touch with this pipeline's maintainer(s) for help with
 implementation - the idea is to make things as flexible as needed over time.
@@ -191,24 +224,27 @@ or a "base" directory with the default Nanopore output structure (`rawdata/*/fas
 * a "runsheet" with information about each sample in .xlsx format.
 * and optionally:
   * a report from your laboratory information system, containing at least
-    * sample numbers ("prøvenr")
-    * date received ("modtaget")
-    * patient CPR number ("cprnr.")
-    * sample material/category ("prøvekategori")
-    * anatomical location ("anatomi")
-    * indication for sampling ("Indikation")
+    * sample number (set under `sample_number` in the `lis_columns` section in the input settings) 
+    * date received (set under `date_received` in the `lis_columns` section in the input settings)
+    * patient identifier (set under `patient_id` in the `lis_columns` section in the input settings)
+    * sample material/category (set under `material` in the `lis_columns` section in the input settings)
+    * anatomical location (set under `anatomy` in the `lis_columns` section in the input settings)
+    * indication for sampling (set under `indication` in the `lis_columns` section in the input settings)
 
 #### Minimal runsheet
 As the pipeline was developed with the runsheets in use at KMA Odense in mind, the runsheet 
-is expected to be an Excel sheet. 
+is expected to be an Excel sheet.
 
 The runsheet is expected to consist of two sections:
-* a three-row "header" section with the experiment name given in 
-* a section of arbitrary length containing sample information in the following columns:
-  * **Prøvenummer**: the sample number(s)
-  * **Barkode**: the barcodes used for the samples, in the format specified in the config
+* a three-row "header" section with the experiment name given in the third row; this column can be named by '
+setting the `experiment_name` key in the input config
+* a section of arbitrary length containing sample information:
+  * sample number(s) (set under `sample_number` in the `run_sheet` section in the input settings)
+  * the barcodes used for the samples (set under `barcode` in the `run_sheet` section in the input settings)
+  Barcodes are expected to be in the format specified in the config
   (by default, RB \[rapid barcoding\] or NB \[native barcoding\] followed by the barcode number)
-  * **Analyse**: the amplicon that was sequenced for the sample in question (e.g. 16S, 18S, RGN3).
+  * the amplicon that was sequenced for the sample in question (e.g. 16S, 18S, RGN3) 
+  (set under `amplicon_type` in the `run_sheet` section in the input settings)
   The pipeline will only analyze samples with the amplicon type specified in the config under
   `amplicon_type` - if a runsheet contains samples for multiple amplicons, the pipeline will have to
   be started separately for each amplicon type with the respective config. 
