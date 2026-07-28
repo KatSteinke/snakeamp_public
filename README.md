@@ -20,8 +20,7 @@ script is executed on. Additional configuration is possible, both through the co
 passing flags directly to Snakemake. For easier execution on a cluster, a profile may be specified 
 in the `profile` section of the config file.\
 This mode requires Snakemake to be installed in the environment it is run in. \
-**Note**: convenience features for running the pipeline on a cluster are currently only compatible
-with Snakemake version 7.* or lower. \
+**Note**: convenience features for running the pipeline on a cluster require Snakemake version 8 or higher. \
 It is possible (and recommended) to use conda or mamba for managing environments.
 
 ## Setting up the pipeline
