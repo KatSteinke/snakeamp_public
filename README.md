@@ -23,6 +23,14 @@ This mode requires Snakemake to be installed in the environment it is run in. \
 **Note**: convenience features for running the pipeline on a cluster require Snakemake version 8 or higher. \
 It is possible (and recommended) to use conda or mamba for managing environments.
 
+### Required data sources for analysis
+The pipeline requires a number of databases. Paths to these databases can be specified in the config file (see below.)
+* `emu_db`: The database Emu should use for amplicon identification. 
+* `human_reads`: The Kraken database to use for human read depletion
+
+Additionally, a file with the sequence of a known contaminant or spike-in can **optionally** be given under
+`quality_params: contaminant_seq`. If this is given, reads matching this sequence are removed using chopper.
+
 ## Setting up the pipeline
 
 ### Installation
@@ -254,7 +262,7 @@ pipeline with samples F99123456-1 and F99123456-2 as well as a negative and posi
  config that specifies `amplicon_type: 18S`, the pipeline will  be run for samples F99123456-3 and 
 a positive and negative control. \
 **Note** that it is up to the user to supply the appropriate 
-databases under `databases: emu_db: ...` for all amplicon types in use.
+databases under `databases: emu_db: ...` for the amplicon type in use.
 
 ### Starting SnakeAmp before sequencing is done
 SnakeAmp may be started before sequencing is complete; in this case, it will wait until 
