@@ -1,0 +1,30 @@
+### Sheet and column name settings for input data ###
+### Suggested English version ###
+# !!!!! NOTE !!!!!
+# LIS column names will likely have to be altered to match output from your LIS
+
+# metadata "runsheet" - required
+run_sheet:
+  # columns in sheet with sample information
+  sample_number: "Sample_number"
+  barcode: "Barcode"
+  experiment_name: "Experiment name"
+  amplicon_type: "Analysis"
+
+# data from LIS - optional
+lis_columns:
+  sample_number: "SAMPLENR"
+  # sample type (as part of unique sample identifier)
+  sample_type: "SAMPLETYPE"
+  # isolate number (as part of unique isolate identifier)
+  isolate_number: "BACT_NR"
+  # patient identifier
+  patient_id: "patient_id"
+  # date the sample was received
+  date_received: "received"
+  # sample material
+  material: "sample_category"
+  # anatomical site sampled
+  anatomy: "anatomical_location"
+  # sampling indication
+  indication: "indication"

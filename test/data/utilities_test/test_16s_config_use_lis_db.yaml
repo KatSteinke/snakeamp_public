@@ -6,10 +6,6 @@
   "format_in_sheet": '(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?'
   "format_in_lis": '(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})'
   "number_to_letter": { "70": "P", "30": "B", "10": "D", "11": "F", "50": "T" }
-  "date_settings":
-    "splice_in_date": False
-    "length_without_date": 8
-    "splice_after": 2
   "negative_control": 'NegK[a-zA-Z0-9]*'
   "positive_control": {}
 "barcode_format": "NB[0-9]{2}"  # format of barcodes in runsheet
@@ -29,3 +25,9 @@ check_interval_seconds: 5
   "filter_column": "16S"
   "filter_value": 16S
   "schema": None
+run_on: nomad
+cores: 8
+conda:
+  use_conda: False
+  frontend: ""
+  prefix: ""

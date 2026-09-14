@@ -1,5 +1,7 @@
 debug: False
 
+run_on: nomad
+
 sample_number_settings:
   sample_number_format: '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?'
   sample_numbers_in: "letter"
@@ -7,10 +9,6 @@ sample_number_settings:
   format_in_sheet: r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?'
   format_in_lis: r'(?P<sample_type>[BDPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})'
   number_to_letter: { "70": "P", "30": "B", "10": "D", "50": "T" }
-  date_settings:
-    splice_in_date: False
-    length_without_date: 8
-    splice_after: 2
   negative_control: 'NegK[a-zA-Z0-9]*'
   positive_control: { }
 

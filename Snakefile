@@ -1,9 +1,16 @@
+#  Copyright (c) 2026 Kat Steinke
+#     This program is distributed under version 3 of the GNU General Public License.
+#      You should have received a copy of the GNU General Public License
+#        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
 import pathlib
 import re
 
 import pandas as pd
 
 import helpers
+import input_names
 import pipeline_config
 import snake_helpers
 
@@ -13,14 +20,16 @@ configfile: pipeline_config.default_config_file
 CONFIG_PATH = config["config_path"] if "config_path" in config \
     else pipeline_config.default_config_file
 
+sheet_names, lis_names = input_names.load_input_from_config(config)
 
 workdir: config["outdir"]
 
-# set relevant dirs
+# we'll need to know whether we're running locally for conda directives
+IS_LOCAL = True if config["run_on"] == "local" else False
 
+# set relevant dirs
 RUNDIR = pathlib.Path(config["rundir"])
 FASTQ_DIR = helpers.get_fastq_pass_parent(RUNDIR) / "fastq_pass"
-print(FASTQ_DIR)
 helpers.check_barcode_dirs(FASTQ_DIR)
 sample_number_pattern = helpers.get_id_pattern(config["sample_number_settings"]["sample_number_format"],
         negative_control = config["sample_number_settings"]["negative_control"],
@@ -34,18 +43,25 @@ prefix_translate = helpers.get_number_letter_combination(config["sample_number_s
 (positive_control,
  negative_control) = helpers.get_control_patterns(config["sample_number_settings"]["negative_control"],
                                                   config["sample_number_settings"]["positive_control"])
+
+# set up constraints
+BARCODE_PREFIX = config["barcode_prefix"]
+
 wildcard_constraints:
     barcode_number = r"\d{2}",
+    barcode_prefix = BARCODE_PREFIX,
     barcode = config["barcode_format"],
     #sample_number = sample_number_pattern
-# TODO: we can absolutely solve this better - runsheets or such - use what's in place or have a new one?
+
+# set defaults
+CONTAMINANT = config["quality_params"].get("contaminant_seq", False)
 
 sheet_data = pd.read_excel(config["runsheet"],usecols = "A:D",skiprows = 3,
-                           dtype = {"Prøvenummer": str, "Eluat nr.": str})
-sheet_data = sheet_data.dropna(subset=["Prøvenummer", "Barkode"])
-sheet_data = sheet_data[sheet_data["Analyse"] == config["amplicon_type"]]
+                           dtype = {sheet_names.sample_number: str, "Eluat nr.": str})
+sheet_data = sheet_data.dropna(subset=[sheet_names.sample_number, sheet_names.barcode])
+sheet_data = sheet_data[sheet_data[sheet_names.amplicon_type] == config["amplicon_type"]]
 # TODO: do we need to translate here?
-sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
+sheet_data["prøvenr"] = sheet_data[sheet_names.sample_number].apply(lambda sample_number:
                                                        helpers.translate_sample_number(sample_number,
                                                                                        input_format,
                                                                                        output_format,
@@ -53,19 +69,16 @@ sheet_data["prøvenr"] = sheet_data["Prøvenummer"].apply(lambda sample_number:
                                                                                        positive_control,
                                                                                        negative_control))
 
-BARCODE_PREFIX = config["barcode_prefix"]
 ALL_IDS = list(sheet_data["prøvenr"])
-print(ALL_IDS)
-print(sheet_data["prøvenr"].str.match(sample_number_pattern, na=False))
-ALL_BARCODES = list(sheet_data["Barkode"])
+ALL_BARCODES = list(sheet_data[sheet_names.barcode])
 
 # we need to name some files after the experiment name (plus amplicon type so we can distinguish)
-EXPERIMENT_NAME = (f"{helpers.extract_nanopore_run_name(pathlib.Path(config['runsheet']))}"
-                   f"-{config['amplicon_type']}")
+EXPERIMENT_NAME = (helpers.extract_nanopore_run_name(pathlib.Path(config['runsheet']), sheet_names)+"-"+
+                   config['amplicon_type'])
 
 rule all:
     input:
-        all_results = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
+        all_results = EXPERIMENT_NAME+"_emu-combined.xlsx",
         all_compressed =  expand("{sample_number}_{barcode}/reads/" 
                                  "{sample_number}_{barcode}.filtered.fastq.gz", zip,
                                  sample_number=ALL_IDS, barcode=ALL_BARCODES),
@@ -78,7 +91,7 @@ rule all:
 
 rule concatenate_fastqs:
     params:
-        barcode_dir = f"{FASTQ_DIR}/barcode{{barcode_number}}",
+        barcode_dir = str(FASTQ_DIR) + "/barcode{barcode_number}",
         file_format = lambda wildcards: "fastq.gz" if snake_helpers.is_gzipped(FASTQ_DIR,
                                                                                wildcards.barcode_number)
                                                     else "fastq",
@@ -86,15 +99,16 @@ rule concatenate_fastqs:
                                                                            wildcards.barcode_number)
                                                else "cat"
     output:
-        concat_fasta = temp(f"{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}/reads/"
-                            f"{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}.reads.fastq")
-    message: f"# Concatenating fastq files for barcode {{wildcards.barcode_number}}...."
+        concat_fasta = temp("{sample_number}_{barcode_prefix}{barcode_number}/reads/"
+                            "{sample_number}_{barcode_prefix}{barcode_number}.reads.fastq")
+    message: "# Concatenating fastq files for barcode {wildcards.barcode_number}...."
     log:
-        f"logs/concat_fastq/{{sample_number}}_{BARCODE_PREFIX}{{barcode_number}}_log.txt"
+        "logs/concat_fastq/{sample_number}_{barcode_prefix}{barcode_number}_log.txt"
     conda:
-        "nanopore_qc_env"
+        "envs/nanopore_qc.yml" if IS_LOCAL else "nanopore_qc_env"
     resources:
-        mem_mb = 200
+        mem_mb = 200,
+        runtime = "10m"
     shell:
         """
          find \
@@ -115,10 +129,11 @@ rule get_qc_statistics:
         concat_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.reads.fastq"
     output:
         read_stats = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.stats.tsv"
-    conda: "nanopore_qc_env"
+    conda: "envs/nanopore_qc.yml" if IS_LOCAL else "nanopore_qc_env"
     threads: 2
     resources:
-        mem_mb = 200
+        mem_mb = 200,
+        runtime = "10m"
     shell:
         """
         NanoStat --fastq "{input.concat_fastq}" --tsv --threads {threads} > "{output.read_stats}" \
@@ -134,13 +149,16 @@ rule clean_nanopore_reads:
         filtered_fastq = temp("{sample_number}_{barcode}/reads/"
                               "{sample_number}_{barcode}.filtered.fastq")
     params:
-        min_length = f"--min_length {config['quality_params']['min_length']}" \
+        min_length = "--min_length "+str(config['quality_params']['min_length']) \
                       if config['quality_params']['min_length'] else '',
-        max_length= f"--max_length {config['quality_params']['max_length']}" \
+        max_length= "--max_length " + str(config['quality_params']['max_length']) \
                     if config['quality_params']['max_length'] else '',
-        min_quality = f"--min_mean_q {config['quality_params']['min_qscore']}" \
+        min_quality = "--min_mean_q "+ str(config['quality_params']['min_qscore']) \
                       if config['quality_params']['min_qscore'] else ''
-    conda: "nanopore_qc_env" # TODO: set up env!
+    conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
+    resources:
+        mem_mb = 500,
+        runtime = "15m"
     log:
         "logs/filtlong/{sample_number}_{barcode}.log"
     shell:
@@ -152,11 +170,34 @@ rule clean_nanopore_reads:
          {input.concat_fastq} 1>  "{output.filtered_fastq}" 2> "{log}"
         """
 
+# TODO: should we just replace filtlong with chopper?
+rule filter_contaminants:
+    input:
+        filtered_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.filtered.fastq"
+    output:
+        trimmed_fastq = temp("{sample_number}_{barcode}/"
+                             "reads/{sample_number}_{barcode}.trimmed.fastq")
+    params:
+        contaminant = f'--contam {config["quality_params"]["contaminant_seq"]}' if CONTAMINANT else ""
+    conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
+    log:
+        "logs/chopper/{sample_number}_{barcode}.log"
+    threads: 4
+    resources:
+        mem_mb = 500,
+        runtime = "15m"
+    shell:
+        """
+        chopper -i "{input.filtered_fastq}" --threads {threads} \
+        {params.contaminant} 1> "{output.trimmed_fastq}" 2> "{log}"
+        """
+
 
 rule remove_human_reads:
     input:
-        filtered_fastq = "{sample_number}_{barcode}/reads/"
-                              "{sample_number}_{barcode}.filtered.fastq"
+        filtered_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.trimmed.fastq"
+                         if CONTAMINANT else
+                         "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.filtered.fastq"
     output:
         human_depleted = temp("{sample_number}_{barcode}/reads"
                               "/{sample_number}_{barcode}.depleted.fastq"),
@@ -164,10 +205,11 @@ rule remove_human_reads:
                               "/{sample_number}_{barcode}.kraken.tsv")
     params:
         kraken_db = pathlib.Path(config['databases']['human_reads']),
-    conda: "kraken_env"
+    conda: "envs/kraken_env.yml" if IS_LOCAL else  "kraken_env"
     log: "logs/kraken/{sample_number}_{barcode}.log"
     resources:
-        mem_mb = 5000  # database + a bit extra
+        mem_mb = 5000,  # database + a bit extra
+        runtime = "30m"
     threads: workflow.cores
     shell:
         """
@@ -182,10 +224,11 @@ rule get_qc_statistics_cleaned:
         depleted_fastq = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.fastq"
     output:
         read_stats = "{sample_number}_{barcode}/reads/{sample_number}_{barcode}.depleted.stats.tsv"
-    conda: "nanopore_qc_env"
+    conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     threads: 2
     resources:
-        mem_mb = 200
+        mem_mb = 200,
+        runtime = "10m"
     shell:
         """
         NanoStat --fastq "{input.depleted_fastq}" --tsv --threads {threads} > "{output.read_stats}" \
@@ -200,10 +243,11 @@ rule compress_nanopore_reads:
         compressed_fastq = "{sample_number}_{barcode}/reads/" \
                            "{sample_number}_{barcode}.filtered.fastq.gz"
     conda:
-        "nanopore_qc_env"  # TODO: needs to have pigz
+        "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     threads: 2
     resources:
-        mem_mb = 100
+        mem_mb = 100,
+        runtime = "10m"
     shell:
         """
         pigz -p {threads} -c -n "{input.filtered_fastq}" > "{output.compressed_fastq}"
@@ -214,16 +258,21 @@ rule run_emu:
         filtered_fastq = "{sample_number}_{barcode}/reads/" \
                          "{sample_number}_{barcode}.depleted.fastq"
     output:
-        relative_abundance = f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv"
+        relative_abundance = "emu/"+EXPERIMENT_NAME+"_{sample_number}_{barcode}_rel-abundance.tsv"
     params:
         emu_db = config["databases"]["emu_db"],
         outdir = lambda wildcards, output: str(pathlib.Path(output.relative_abundance).parent),
-        basename = f"{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}",
+        basename = EXPERIMENT_NAME + "_{sample_number}_{barcode}",
         # add very minimal results if emu fails
         fallback_header = r"tax_id\tabundance\testimated counts\n"
     conda:
-        "emu_env"
-    threads: (workflow.cores / 4 ) if (workflow.cores / 4 ) <= 64 else 64
+        "envs/emu_env.yml" if IS_LOCAL else  "emu_env"
+    # based on https://github.com/treangenlab/emu/issues/33#issuecomment-2523529974
+    # we want at least 12 cores but 32 is where we've hit diminishing returns for sure
+    threads: max(12, (workflow.cores / 4 )) if (workflow.cores / 4 ) <= 32 else 32
+    resources:
+        mem_mb = 8000,
+        runtime = "4h"
     log:
         "logs/emu/{sample_number}_{barcode}.log"
     shell:
@@ -236,9 +285,8 @@ rule run_emu:
 
 rule combine_emu:
     input:
-        all_relative_abundance = expand(f"emu/{EXPERIMENT_NAME}_{{sample_number}}_{{barcode}}_rel-abundance.tsv",
-                                        zip,
-                                        sample_number=ALL_IDS, barcode=ALL_BARCODES),
+        all_relative_abundance = ["emu/"+EXPERIMENT_NAME+"_"+sample_number+"_"+barcode+"_rel-abundance.tsv"
+                                  for sample_number, barcode in zip(ALL_IDS, ALL_BARCODES)],
         all_read_qc = expand("{sample_number}_{barcode}/reads/{sample_number}_{barcode}.stats.tsv",
                             zip,
                             sample_number=ALL_IDS, barcode=ALL_BARCODES),
@@ -247,12 +295,15 @@ rule combine_emu:
                             zip,
                             sample_number = ALL_IDS,barcode = ALL_BARCODES)
     output:
-        counts_combined = f"{EXPERIMENT_NAME}_emu-combined.xlsx",
-        counts_raw = f"{EXPERIMENT_NAME}_emu-combined.tsv"
+        counts_combined = EXPERIMENT_NAME+"_emu-combined.xlsx",
+        counts_raw = EXPERIMENT_NAME+"_emu-combined.tsv"
     params:
         emu_dir = "emu",
         basedir = workflow.current_basedir,
         configfile = CONFIG_PATH
+    resources:
+        mem_mb = 500,
+        runtime = "15m"
     log:
         "logs/emu/combine_all.log"
     shell:

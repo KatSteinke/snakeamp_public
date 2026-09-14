@@ -2,6 +2,12 @@
 
 __author__ = "Kat Steinke"
 
+#  Copyright (c) 2026 Kat Steinke
+#     This program is distributed under version 3 of the GNU General Public License.
+#      You should have received a copy of the GNU General Public License
+#        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
 import argparse
 import logging
 import os
@@ -20,6 +26,7 @@ import yaml
 
 import check_runsheet
 import helpers
+import input_names
 import monitor_run
 import pipeline_config
 import set_log
@@ -31,6 +38,8 @@ __version__ = version.__version__
 # import parameters
 DEFAULT_CONFIG_FILE = pipeline_config.default_config_file
 WORKFLOW_CONFIG = pipeline_config.WORKFLOW_DEFAULT_CONF
+
+sheet_names, lis_names = input_names.load_input_from_config(WORKFLOW_CONFIG)
 
 # start logging
 # TODO: capture warnings etc
@@ -50,12 +59,14 @@ class BadPathError(Exception):
 
 # read runsheet
 def process_runsheet(runsheet_path: pathlib.Path,
+                     runsheet_names: input_names.RunsheetNames = sheet_names,
                      active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> pd.DataFrame:
     """Read a runsheet, filter it down to the samples for which the analysis specified in config
     should be performed and check the format.
 
     Arguments:
         runsheet_path:  the path to the runsheet to process
+        runsheet_names: column names in the runsheet
         active_config:  the config in use
 
     Returns:
@@ -65,14 +76,15 @@ def process_runsheet(runsheet_path: pathlib.Path,
         KeyError:   if there are no samples for which the analysis should be performed
     """
     run_data = pd.read_excel(runsheet_path, usecols = "A:D", skiprows = 3,  # don't check CP for now
-                             dtype = {"Prøvenummer": str, "Eluat nr.": str})
-    run_data = run_data.dropna(subset = "Prøvenummer")
+                             dtype = {runsheet_names.sample_number: str, "Eluat nr.": str})
+    run_data = run_data.dropna(subset = runsheet_names.sample_number)
     # filter down to correct analysis
-    run_data = run_data[run_data["Analyse"] == active_config["amplicon_type"]]
+    run_data = run_data.query(f"{runsheet_names.amplicon_type} == @active_config['amplicon_type']")
     if run_data.empty:
         raise KeyError(f"No samples with amplicon type {active_config['amplicon_type']} "
                        "found in runsheet")
     check_runsheet.check_sheet_format(run_data, check_barcodes = True,
+                                      runsheet_names = runsheet_names,
                                       active_config = active_config)
     return run_data
 
@@ -151,14 +163,14 @@ def ask_seq_time(default_seq_time: float) -> float:
     Returns:
         The sequencing timespan for the run
     """
-    seq_time_accept = input("Expecting sequencing to be finished after"
+    seq_time_accept = input("Assuming maximum sequencing time is set to"
                             f" {default_seq_time} hours. "
                             "Is this correct? [y/n]")
     # if they just accept we're done
     if seq_time_accept == "y":
         return default_seq_time
     if seq_time_accept == "n":
-        sequencing_time = input("Type how many hours the sequencing run is expected to last"
+        sequencing_time = input("Type the maximum sequencing time you set for the run"
                                 " (e.g. 2 if you set it to 2 hours) and press enter: ")
         try:
             sequencing_time = float(sequencing_time)
@@ -167,7 +179,7 @@ def ask_seq_time(default_seq_time: float) -> float:
                              "Sequencing time must be entered as numbers "
                              "(e.g. 8 for eight hours or 0.5 for half an hour).") from value_err
         if sequencing_time < 0:
-            raise ValueError("Expected sequencing time must be greater than 0 hours.")
+            raise ValueError("Maximum sequencing time must be greater than 0 hours.")
         return sequencing_time
     # we should not reach this with valid input
     raise ValueError("Sequencing time not entered. Aborting")
@@ -225,18 +237,26 @@ def initialize_classic_run(active_config: Dict[str, Any],
 
     """
     # greet the user - TODO: simplified logging here or generally?
+    logger.info(r"""   oo_               _
+  /  _)-<           | |          /\
+  \__ `. _ __   __ _| | _____   /  \   _ __ ___  _ __
+     `. | '_ \ / _` | |/ / _ \ / /\ \ | '_ ` _ \| '_ \
+     _| | | | | (_| |   <  __// ____ \| | | | | | |_) |
+  ,-'   |_| |_|\__,_|_|\_\___/_/    \_\_| |_| |_| .__/
+ (_..--'                                        | |
+                                                |_|""")
     logger.info(f"### Nanopore {active_config['amplicon_type']} analysis\n"
                 "# Setup analysis -------------------------------")
     run_dir = pathlib.Path(input("Type full path or name of Nanopore "
                                  "sequencing folder and press enter: ").strip().strip("'"))
     run_dir = helpers.get_fastq_pass_parent(run_dir)
     sequencing_time = ask_seq_time(active_config["seq_run_duration_hours"])
+    logger.debug(f"Waiting at most {sequencing_time} hours for final_summary*.txt")
     run_sheet = pathlib.Path(input("Output directory will be based on experiment name."
                                    "\n"
                                    "Enter path to runsheet: ").strip().strip("'")).resolve()
     basic_run = monitor_run.AmpliconRun(sequence_dir = run_dir, runsheet = run_sheet,
-                                        configfile = configfile,
-                                        active_config = active_config,
+                                        configfile = configfile, active_config = active_config,
                                         sequencing_time = sequencing_time)
     outdir = ask_output_dir(basic_run.outdir)
     basic_run.outdir = outdir
@@ -270,11 +290,17 @@ def initialize_commandline_run(start_args: argparse.Namespace,
         seqtime = start_args.run_time
     if start_args.test_run:
         test_run = True
+    # if we have anything to pass through to snakemake, get it here
+    if start_args.snake_flags:
+        snake_flags = start_args.snake_flags[0].split()
+    else:
+        snake_flags = None
+    logger.debug(f"Waiting at most {seqtime} hours for final_summary*.txt")
     current_amplicon_run = monitor_run.AmpliconRun(sequence_dir = run_dir, runsheet = run_sheet,
-                                                   sequencing_time = seqtime,
                                                    configfile = config_file,
                                                    active_config = active_config,
-                                                   test_run = test_run)
+                                                   sequencing_time = seqtime, test_run = test_run,
+                                                   snake_flags = snake_flags)
     if start_args.outdir:  # can only be given in commandline mode
         current_amplicon_run.outdir = get_clean_outdir(pathlib.Path(start_args.outdir))
     return current_amplicon_run
@@ -383,17 +409,25 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
                             help="Determine the pipeline start command,"
                                  " set up required dirs and exit")
     arg_parser.add_argument("--run_time", action="store", type=float,
-                            help = "Expected sequencing time in hours "
-                                   "(will wait for the sequencing run for another hour after this;"
-                                   f" default: {WORKFLOW_CONFIG['seq_run_duration_hours']})")
+                            help = "Maximum sequencing time in hours "
+                                   "(will at most wait for the sequencing run"
+                                   " for another hour after this;"
+                                   f" default: {WORKFLOW_CONFIG['seq_run_duration_hours']} hours)")
     arg_parser.add_argument("--logfile", action = "store",
                             help = "Logfile to store analysis start commands (default: "
                                    f"{WORKFLOW_CONFIG['paths']['output_base_path']}/"
                                    "[experiment_name]/logs/start_pipeline.log",
                             default = None)
+    arg_parser.add_argument("--snake_flags", nargs = "*",
+                            help = "Flags to be passed to Snakemake, enclosed in quotes")
     args = arg_parser.parse_args(start_args)
-    # initialize root logger
-    pipeline_logger = set_log.get_stream_log()
+    # initialize root logger - we need it at debug for the logfile...
+    pipeline_logger = logging.getLogger()
+    pipeline_logger.setLevel(logging.DEBUG)
+    # ...but not in what we're logging to the console
+    console_log = logging.StreamHandler()
+    console_log.setLevel(logging.INFO)
+    pipeline_logger.addHandler(console_log)
     # we'll save to file later, but some things will be logged before we know where to save them to
     # -> store them in the meantime
     log_store = set_log.RecordsListHandler()
@@ -407,6 +441,7 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
         config_file = pathlib.Path(args.workflow_config_file).resolve()
         with open(config_file, "r", encoding = "utf-8") as read_config:
             active_config = yaml.safe_load(read_config)
+    runsheet_names, lis_report_names = input_names.load_input_from_config(active_config)
     manual_mode = check_if_classic_mode(args, arg_parser,
                                         classic_mode_args = ["workflow_config_file"])
 
@@ -427,11 +462,14 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
         current_run = initialize_commandline_run(args, active_config, config_file)
 
     # check runsheet
-    runsheet_data = process_runsheet(current_run.runsheet, active_config)
+    runsheet_data = process_runsheet(current_run.runsheet,  runsheet_names = runsheet_names,
+                                     active_config = active_config)
     # set up use of LIS features if enabled - TODO: do we only use them for the runsheet check?
     if active_config["lab_info_system"]["use_lis_features"]:
         lis_report = active_config["lab_info_system"]["lis_report"]
-        check_runsheet.check_against_lis(runsheet_data, lis_report, active_config = active_config)
+        check_runsheet.check_against_lis(runsheet_data, lis_report, runsheet_names = runsheet_names,
+                                         lis_report_names = lis_report_names, active_config = active_config)
+
 
     # manual mode has set up the output dir, commandline may still have to
     if args.outdir:  # can only be given in commandline mode
@@ -476,8 +514,9 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
         sys.exit()
     analysis_run = monitor_run.start_on_file_found(current_run, "final_summary*.txt",
                                                    dry_run = args.dry_run,
+                                                   watch_interval = check_interval,
                                                    watch_timeout = int(total_time.total_seconds()),
-                                                   watch_interval = check_interval)  # TODO: add logging interval
+                                                   log_interval = 3600)  # TODO make configurable?
     logger.info(f"Started pipeline with command {' '.join(analysis_run.args)}")
     # clean up the remaining handlers
     set_log.clean_up_handlers(pipeline_logger)

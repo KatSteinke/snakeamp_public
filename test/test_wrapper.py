@@ -12,6 +12,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 
+import input_names
 import monitor_run
 import run_pipeline as snake_wrapper
 
@@ -104,7 +105,9 @@ class TestProcessRunsheet(unittest.TestCase):
         """Fail if no samples have the amplicon type specified in the config."""
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test"\
                    / "test_nanopore_runsheet.xlsx"
-        active_config = {"sample_number_settings": {"sample_number_format":
+        active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                         "sample_number_settings": {"sample_number_format":
                                                   r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
                                               "sample_numbers_in": "letter",
                                               "sample_numbers_out": "letter",
@@ -115,25 +118,27 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                    "10": "D",
                                                                    "11": "F",
                                                                    "50": "T"},
-                                              "date_settings":
-                                                  {"splice_in_date": False,
-                                                   "length_without_date": 8,
-                                                   "splice_after": 2},
+
                                               "negative_control": 'NegK[a-zA-Z0-9]*',
                                               "positive_control": {}},
                          "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
                          "barcode_prefix": "RB",
                          "amplicon_type": "ITS"}
+        sheet_names, lis_names = input_names.load_input_from_config(active_config)
+
         error_msg = "No samples with amplicon type ITS found in runsheet"
         with pytest.raises(KeyError, match=re.escape(error_msg)):
-            snake_wrapper.process_runsheet(runsheet, active_config)
+            snake_wrapper.process_runsheet(runsheet, runsheet_names = sheet_names,
+                                           active_config = active_config)
 
     def test_filter_all_one_analysis(self):
         """Filter and check a runsheet in which all samples have the desired amplicon type."""
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                    / "test_nanopore_runsheet_16s_only.xlsx"
-        active_config = {"sample_number_settings": {"sample_number_format":
-                                                                      r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
+        active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                         "sample_number_settings": {"sample_number_format":
+                                                        r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
                                                     "sample_numbers_in": "letter",
                                                     "sample_numbers_out": "letter",
                                                     "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
@@ -142,31 +147,69 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                          "30": "B",
                                                                          "10": "D",
                                                                          "11": "F",
-                                                                          "50": "T"},
-                                                                  "date_settings":
-                                                                      {"splice_in_date": False,
-                                                                       "length_without_date": 8,
-                                                                       "splice_after": 2},
+                                                                         "50": "T"},
                                                                   "negative_control": 'NegK[a-zA-Z0-9]*',
                                                                   "positive_control": {}},
                                        "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
                                        "barcode_prefix": "NB",
                                        "amplicon_type": "16S"}
+        sheet_names, lis_names = input_names.load_input_from_config(active_config)
+
         expected_runsheet = pd.DataFrame(data={"Prøvenummer": ["F99123456-1",
                                                                "F99123456-2",
                                                                "NegK16S"],
                                                "Barkode": ["NB01", "NB42", "NB02"],
                                                "Eluat nr.": ["1", "2", "3"],
                                                "Analyse": ["16S", "16S", "16S"]})
-        test_runsheet = snake_wrapper.process_runsheet(runsheet, active_config)
+        test_runsheet = snake_wrapper.process_runsheet(runsheet, runsheet_names = sheet_names,
+                                           active_config = active_config)
         pd.testing.assert_frame_equal(test_runsheet, expected_runsheet)
 
     def test_filter_multiple_types(self):
         """Filter and check a runsheet in which only some samples have the desired amplicon type."""
         runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
                    / "test_nanopore_runsheet.xlsx"
-        active_config = {"sample_number_settings": {"sample_number_format":
+        active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                         "sample_number_settings": {"sample_number_format":
                                                         r'([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
+                                                    "sample_numbers_in": "letter",
+                                                    "sample_numbers_out": "letter",
+                                                    "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
+                                                    "format_in_lis": r'(?P<sample_type>[BDFPT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                    "number_to_letter": {"70": "P",
+                                                                         "30": "B",
+                                                                         "10": "D",
+                                                                         "11": "F",
+                                                                         "50": "T"},
+
+                                                    "negative_control": 'NegK[a-zA-Z0-9]*',
+                                                    "positive_control": {}},
+                         "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
+                         "barcode_prefix": "NB",
+                         "amplicon_type": "16S"}
+        sheet_names, lis_names = input_names.load_input_from_config(active_config)
+
+        expected_runsheet = pd.DataFrame(data = {"Prøvenummer": ["F99123456-1",
+                                                                 "F99123456-2",
+                                                                 "NegK16S"],
+                                                 "Barkode": ["NB01", "NB42", "NB02"],
+                                                 "Eluat nr.": ["1", "2", "3"],
+                                                 "Analyse": ["16S", "16S", "16S"]})
+        test_runsheet = snake_wrapper.process_runsheet(runsheet, runsheet_names = sheet_names,
+                                                       active_config = active_config)
+        pd.testing.assert_frame_equal(test_runsheet, expected_runsheet)
+
+    def test_filter_multiple_types_en(self):
+        """Filter and check a runsheet in which only some samples have the desired amplicon type
+        and columns have nonstandard names
+        """
+        runsheet = pathlib.Path(__file__).parent / "data" / "utilities_test" \
+                   / "test_nanopore_runsheet_en.xlsx"
+        active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_en.yaml",
+                         "sample_number_settings": {"sample_number_format":
+                                                        '([BDFPT]|[1357]0|11)([0-9]{8}|[0-9]{6})-\d?',
                                                     "sample_numbers_in": "letter",
                                                     "sample_numbers_out": "letter",
                                                     "format_in_sheet": r'(?P<sample_type>[BDFPT]|[1357]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
@@ -185,13 +228,17 @@ class TestProcessRunsheet(unittest.TestCase):
                          "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
                          "barcode_prefix": "NB",
                          "amplicon_type": "16S"}
-        expected_runsheet = pd.DataFrame(data = {"Prøvenummer": ["F99123456-1",
-                                                                 "F99123456-2",
-                                                                 "NegK16S"],
-                                                 "Barkode": ["NB01", "NB42", "NB02"],
+        sheet_names, lis_names = input_names.load_input_from_config(active_config)
+
+        expected_runsheet = pd.DataFrame(data = {"Sample_number": ["F99123456-1",
+                                                                   "F99123456-2",
+                                                                   "NegK16S"],
+                                                 "Barcode": ["NB01", "NB42", "NB02"],
                                                  "Eluat nr.": ["1", "2", "3"],
-                                                 "Analyse": ["16S", "16S", "16S"]})
-        test_runsheet = snake_wrapper.process_runsheet(runsheet, active_config)
+                                                 "Analysis": ["16S", "16S", "16S"]})
+        test_runsheet = snake_wrapper.process_runsheet(runsheet,
+                                                       runsheet_names = sheet_names,
+                                                       active_config = active_config)
         pd.testing.assert_frame_equal(test_runsheet, expected_runsheet)
 
 
@@ -218,7 +265,7 @@ class TestGetSeqTime(unittest.TestCase):
     @mock.patch("builtins.input", side_effect = ["n", -1])
     def test_fail_invalid_time(self, mock_input):
         """Fail if an invalid time was entered."""
-        error_msg = "Expected sequencing time must be greater than 0 hours."
+        error_msg = "Maximum sequencing time must be greater than 0 hours."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             snake_wrapper.ask_seq_time(self.default_time)
 
@@ -240,6 +287,10 @@ class TestGetSeqTime(unittest.TestCase):
 
 class TestAskOutputPath(unittest.TestCase):
     default_path = pathlib.Path("data/test_run")
+
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
 
     @mock.patch("builtins.input")
     def test_fail_invalid_accept(self, mock_input):
@@ -274,22 +325,23 @@ class TestAskOutputPath(unittest.TestCase):
                            "can't be used in Windows in an existing folder's name. "
                            "This can break the pipeline. "
                            "\nAborting....")
-        log_msg = ("WARNING:amplicon_nanopore:The default target folder contains characters "
+        log_msg = ("The default target folder contains characters "
                    "that can break the pipeline.")
-        with pytest.raises(snake_wrapper.BadPathError,
-                           match=re.escape(error_msg)), self.assertLogs("amplicon_nanopore") as logged:
+        with (pytest.raises(snake_wrapper.BadPathError,
+                           match=re.escape(error_msg)),
+              self._caplog.at_level(logging.WARNING, logger = "amplicon_nanopore")):
             snake_wrapper.ask_output_dir(default_path)
-        assert log_msg in logged.output
+        assert ("amplicon_nanopore", logging.WARNING, log_msg) in self._caplog.record_tuples
 
     @mock.patch("builtins.input")
     def test_success_valid_default(self, mock_input):
         """Return the default output path when the user accepts it."""
         mock_input.return_value = "y"
         expected_path = self.default_path
-        log_msg = f"INFO:amplicon_nanopore:Saving results to {self.default_path}"
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        log_msg = f"Saving results to {self.default_path}"
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(self.default_path)
-            assert log_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, log_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
     @mock.patch("builtins.input", side_effect = ["n",  # user rejects the path
@@ -297,10 +349,10 @@ class TestAskOutputPath(unittest.TestCase):
     def test_success_valid_user_path(self, mock_input):
         """Return the user's new path if it's valid."""
         expected_path = pathlib.Path("/data/test_run2")
-        log_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        log_msg = f"Saving results to {expected_path}"
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(self.default_path)
-            assert log_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, log_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
     @mock.patch("builtins.input", side_effect = ["/data/test_run2"])  # user needs to give a new path because the old one is broken
@@ -309,13 +361,13 @@ class TestAskOutputPath(unittest.TestCase):
         user's correction fixes it."""
         default_path = pathlib.Path(__file__).parent / "data" / "utilities_test" / "test dir spaces"
         expected_path = pathlib.Path("/data/test_run2")
-        log_msg = ("WARNING:amplicon_nanopore:The default target folder contains characters "
+        log_msg = ("The default target folder contains characters "
                    "that can break the pipeline.")
-        success_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
-        with self.assertLogs("amplicon_nanopore", level="INFO") as logged:
+        success_msg = f"Saving results to {expected_path}"
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(default_path)
-            assert log_msg in logged.output
-            assert success_msg in logged.output
+            assert ("amplicon_nanopore", logging.WARNING, log_msg) in self._caplog.record_tuples
+            assert ("amplicon_nanopore", logging.INFO, success_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
     @mock.patch("builtins.input")
@@ -324,10 +376,10 @@ class TestAskOutputPath(unittest.TestCase):
         mock_input.return_value = "y"
         default_path = pathlib.Path("data/test run")
         expected_path = self.default_path
-        log_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        log_msg = f"Saving results to {expected_path}"
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(default_path)
-            assert log_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, log_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
     @mock.patch("builtins.input", side_effect = ["n",  # user rejects the path
@@ -335,10 +387,10 @@ class TestAskOutputPath(unittest.TestCase):
     def test_success_correct_fixable_user(self, mock_input):
         """Correct a fixable bad path from user input."""
         expected_path = pathlib.Path("/data/test_run2")
-        log_msg = f"INFO:amplicon_nanopore:Saving results to {expected_path}"
-        with self.assertLogs("amplicon_nanopore") as logged:
+        log_msg = f"Saving results to {expected_path}"  # TODO: be more explicit about the path being changed?
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_path = snake_wrapper.ask_output_dir(self.default_path)
-            assert log_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, log_msg) in self._caplog.record_tuples
         assert expected_path == test_path
 
 
@@ -381,8 +433,10 @@ class TestCreateOutputDirs(unittest.TestCase):
 
 
 class TestInitializeRunFromInput(unittest.TestCase):
-    active_config = {"sample_number_settings": {"sample_number_format":
-                                                    '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+    active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                     "sample_number_settings": {"sample_number_format":
+                                                    r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
                                                 "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
@@ -391,10 +445,7 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                                      "30": "B",
                                                                      "10": "D",
                                                                      "50": "T"},
-                                                "date_settings":
-                                                    {"splice_in_date": False,
-                                                     "length_without_date": 8,
-                                                     "splice_after": 2},
+
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -403,6 +454,10 @@ class TestInitializeRunFromInput(unittest.TestCase):
                      "debug": False,
                      "paths": {"output_base_path": "/path/to/output"},
                      "seq_run_duration_hours": 1}
+
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
 
     @mock.patch("builtins.input")
     def test_success_use_default_time(self, mock_input):
@@ -421,13 +476,17 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                configfile = configfile,
                                                active_config = self.active_config,
                                                outdir = expected_outdir,
-                                               sequencing_time = self.active_config["seq_run_duration_hours"])
-        welcome_msg = ("INFO:amplicon_nanopore:### Nanopore 16S analysis\n"
+                                               sequencing_time = self.active_config[
+                                                   "seq_run_duration_hours"])
+        welcome_msg = ("### Nanopore 16S analysis\n"
                        "# Setup analysis -------------------------------")
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        time_msg = "Waiting at most 1 hours for final_summary*.txt"
+
+        with self._caplog.at_level(logging.DEBUG, logger = "amplicon_nanopore"):
             test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
-                                                            configfile = configfile)
-            assert welcome_msg in logged.output
+                                          configfile = configfile)
+            assert ("amplicon_nanopore", logging.INFO, welcome_msg) in self._caplog.record_tuples
+            assert ("amplicon_nanopore", logging.DEBUG, time_msg) in self._caplog.record_tuples
         assert test_run == expected_run
 
     @mock.patch("builtins.input")
@@ -450,14 +509,24 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                configfile = configfile,
                                                active_config = active_config,
                                                outdir = expected_outdir,
-                                               sequencing_time = active_config["seq_run_duration_hours"],
+                                               sequencing_time = active_config[
+                                                   "seq_run_duration_hours"],
                                                test_run = True)
-        welcome_msg = ("INFO:amplicon_nanopore:### Nanopore 16S analysis\n"
+        logo_msg = r"""   oo_               _
+  /  _)-<           | |          /\
+  \__ `. _ __   __ _| | _____   /  \   _ __ ___  _ __
+     `. | '_ \ / _` | |/ / _ \ / /\ \ | '_ ` _ \| '_ \
+     _| | | | | (_| |   <  __// ____ \| | | | | | |_) |
+  ,-'   |_| |_|\__,_|_|\_\___/_/    \_\_| |_| |_| .__/
+ (_..--'                                        | |
+                                                |_|"""
+        welcome_msg = ("### Nanopore 16S analysis\n"
                        "# Setup analysis -------------------------------")
-        with self.assertLogs("amplicon_nanopore", level = "INFO") as logged:
+        with self._caplog.at_level(logging.INFO, logger = "amplicon_nanopore"):
             test_run = snake_wrapper.initialize_classic_run(active_config = active_config,
                                                             configfile = configfile)
-            assert welcome_msg in logged.output
+            assert ("amplicon_nanopore", logging.INFO, logo_msg) in self._caplog.record_tuples
+            assert ("amplicon_nanopore", logging.INFO, welcome_msg) in self._caplog.record_tuples
         assert test_run == expected_run
 
     @mock.patch("builtins.input")
@@ -474,13 +543,15 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                   1.5,  # set new sequencing time
                                   str(runsheet),  # runsheet
                                   "y"]  # accept default outdir
+        time_msg = "Waiting at most 1.5 hours for final_summary*.txt"
         expected_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
                                                configfile = configfile,
                                                active_config = self.active_config,
-                                               outdir = expected_outdir,
-                                               sequencing_time = 1.5)
-        test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
-                                                        configfile = configfile)
+                                               outdir = expected_outdir, sequencing_time = 1.5)
+        with self._caplog.at_level(logging.DEBUG, logger = "amplicon_nanopore"):
+            test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
+                                                            configfile = configfile)
+            assert ("amplicon_nanopore", logging.DEBUG, time_msg) in self._caplog.record_tuples
         assert test_run == expected_run
 
     @mock.patch("builtins.input")
@@ -525,16 +596,17 @@ class TestInitializeRunFromInput(unittest.TestCase):
         expected_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
                                                configfile = configfile,
                                                active_config = self.active_config,
-                                               outdir = expected_outdir,
-                                               sequencing_time = 1.5)
+                                               outdir = expected_outdir, sequencing_time = 1.5)
         test_run = snake_wrapper.initialize_classic_run(active_config = self.active_config,
                                                         configfile = configfile)
         assert test_run == expected_run
+
+
 class TestInitializeRunFromCommandline(unittest.TestCase):
     active_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
                                     / "input_da_old_lis.yaml",
                      "sample_number_settings": {"sample_number_format":
-                                                    '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                    r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                 "sample_numbers_in": "letter",
                                                 "sample_numbers_out": "letter",
                                                 "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
@@ -543,10 +615,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                                                                      "30": "B",
                                                                      "10": "D",
                                                                      "50": "T"},
-                                                "date_settings":
-                                                    {"splice_in_date": False,
-                                                     "length_without_date": 8,
-                                                     "splice_after": 2},
+
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -565,7 +634,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     fetch_lis_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
                                        / "input_da_old_lis.yaml",
                         "sample_number_settings": {"sample_number_format":
-                                                       '([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
+                                                       r'([BDPT]|[1357]0)([0-9]{8}|[0-9]{6})-\d?',
                                                    "sample_numbers_in": "letter",
                                                    "sample_numbers_out": "letter",
                                                    "format_in_sheet": r'(?P<sample_type>[BDPT]|[1357]0)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)?',
@@ -574,10 +643,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                                                                         "30": "B",
                                                                         "10": "D",
                                                                         "50": "T"},
-                                                   "date_settings":
-                                                       {"splice_in_date": False,
-                                                        "length_without_date": 8,
-                                                        "splice_after": 2},
+
                                                    "negative_control": 'NegK[a-zA-Z0-9]*',
                                                    "positive_control": {}},
                         "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -614,10 +680,14 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
             / "utilities_test"
             / "test_lis_from_db.txt").write_text(data = "", encoding = "latin-1")
 
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_missing_runsheet(self):
         """Fail if runsheet was not entered."""
         args = Namespace(runsheet = None, rundir = self.indir, test_run=None, run_time = None,
-                         outdir = None)
+                         outdir = None, snake_flags = None)
         error_msg = "Runsheet not specified."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             snake_wrapper.initialize_commandline_run(args)
@@ -636,53 +706,82 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_default_run(self):
         """Set up a run with default settings."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None)
+                         run_time = None, outdir = None, snake_flags = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = snake_wrapper.DEFAULT_CONFIG_FILE,
                                                active_config = self.active_config,
                                                outdir = self.expected_outdir,
-                                               sequencing_time = self.active_config["seq_run_duration_hours"])
-        test_run = snake_wrapper.initialize_commandline_run(args)
+                                               sequencing_time = self.active_config[
+                                                   "seq_run_duration_hours"])
+        time_msg = "Waiting at most 1 hours for final_summary*.txt"
+        with self._caplog.at_level(logging.DEBUG, logger = "amplicon_nanopore"):
+            test_run = snake_wrapper.initialize_commandline_run(args)
+            assert ("amplicon_nanopore", logging.DEBUG, time_msg) in self._caplog.record_tuples
         assert expected_run == test_run
 
     def test_set_config(self):
         """Set up a run with settings set through a different config."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None)
+                         run_time = None, outdir = None, snake_flags = None)
         test_config = self.active_config.copy()
         test_config["seq_run_duration_hours"] = 0.5
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = test_config,
+                                               outdir = self.expected_outdir, sequencing_time = 0.5)
+        test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
+        assert expected_run == test_run
+
+    def test_set_flag(self):
+        """Initialize a run with a flag to pass through to Snakemake."""
+        args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
+                         run_time = None, outdir = None, snake_flags = ["-n "])
+        test_config = self.active_config.copy()
+        test_config["run_on"] = "local"
+        expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                               configfile = self.configfile,
+                                               active_config = test_config,
                                                outdir = self.expected_outdir,
-                                               sequencing_time = 0.5)
+                                               snake_flags = ["-n"])
+        test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
+        assert expected_run == test_run
+
+    def test_set_flags(self):
+        """Initialize a run with flags to pass through to Snakemake."""
+        args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
+                         run_time = None, outdir = None, snake_flags = ["-n --rerun-incomplete"])
+        test_config = self.active_config.copy()
+        test_config["run_on"] = "local"
+        expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                               configfile = self.configfile,
+                                               active_config = test_config,
+                                               outdir = self.expected_outdir,
+                                               snake_flags = ["-n", "--rerun-incomplete"])
         test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
         assert expected_run == test_run
 
     def test_no_lis(self):
         """Run correctly even if no LIS is specified."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None)
+                         run_time = None, outdir = None, snake_flags = None)
         test_config = self.active_config.copy()
         test_config["lab_info_system"]["use_lis"] = False
         test_config["lab_info_system"]["lis_report"] = ""
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = test_config,
-                                               outdir = self.expected_outdir,
-                                               sequencing_time = 1)
+                                               outdir = self.expected_outdir, sequencing_time = 1)
         test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
         assert expected_run == test_run
 
     def test_set_run_time(self):
         """Override run time from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = 0.5, outdir = None)
+                         run_time = 0.5, outdir = None, snake_flags = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
-                                               outdir = self.expected_outdir,
-                                               sequencing_time = 0.5)
+                                               outdir = self.expected_outdir, sequencing_time = 0.5)
         test_run = snake_wrapper.initialize_commandline_run(args, self.active_config,
                                                             self.configfile)
         assert expected_run == test_run
@@ -690,12 +789,13 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_outdir(self):
         """Override output directory from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = "path/to/test_outdir")
+                         run_time = None, outdir = "path/to/test_outdir", snake_flags = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
                                                outdir = pathlib.Path("path/to/test_outdir"),
-                                               sequencing_time = self.active_config["seq_run_duration_hours"])
+                                               sequencing_time = self.active_config[
+                                                   "seq_run_duration_hours"])
         test_run = snake_wrapper.initialize_commandline_run(args, self.active_config,
                                                             self.configfile)
         assert expected_run == test_run
@@ -703,13 +803,13 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_test_mode(self):
         """Set debug mode from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = True,
-                         run_time = None, outdir = None)
+                         run_time = None, outdir = None, snake_flags = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
                                                outdir = self.expected_outdir,
-                                               sequencing_time = self.active_config["seq_run_duration_hours"],
-                                               test_run = True)
+                                               sequencing_time = self.active_config[
+                                                   "seq_run_duration_hours"], test_run = True)
         test_run = snake_wrapper.initialize_commandline_run(args, self.active_config,
                                                             self.configfile)
         assert expected_run == test_run
@@ -793,16 +893,15 @@ class TestRunPipeline(unittest.TestCase):
                                                                      "10": "D",
                                                                      "11": "F",
                                                                      "50": "T"},
-                                                "date_settings":
-                                                    {"splice_in_date": False,
-                                                     "length_without_date": 8,
-                                                     "splice_after": 2},
+
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
                      "barcode_prefix": "NB",
                      "amplicon_type": "16S",
                      "debug": True,
+                     "run_on": "nomad",
+                     "cores": 8,
                      "paths": {"output_base_path": str(pathlib.Path(__file__).parent / "data"
                                                        / "utilities_test" / "test_outdir")},
                      "seq_run_duration_hours": 1,
@@ -819,6 +918,14 @@ class TestRunPipeline(unittest.TestCase):
 
     def tearDown(self):
         # clean up any existing paths
+        logfiles = [pathlib.Path(__file__).parent / "data" / "utilities_test" / "new_logfile.log",
+                    (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                     / "test_existing_output" / "logs" / "start_pipeline.log")
+                    ]
+        for logfile in logfiles:
+            if logfile.exists():
+                os.unlink(logfile)
+
         output_paths = [(pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_outdir"
                          / "NANO_Amplicon_Y20990101_RUN0001_XYZ-16S"),
                         (pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_outdir"
@@ -828,15 +935,12 @@ class TestRunPipeline(unittest.TestCase):
                         (pathlib.Path(__file__).parent / "data" / "utilities_test" / "test_outdir"
                          / "test_manual_outdir_commandline"),
                         (pathlib.Path(__file__).parent / "data" / "utilities_test"
-                          / "test_existing_output" / "logs")
+                         / "test_existing_output" / "logs")
                         ]
         for path in output_paths:
             if path.exists():
                 shutil.rmtree(path)
 
-        custom_logfile = pathlib.Path(__file__).parent / "data" / "utilities_test" / "new_logfile.log"
-        if custom_logfile.exists():
-            os.unlink(custom_logfile)
 
         mads_db_file = (pathlib.Path(__file__).parent
                         / "data"
@@ -865,7 +969,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in classic mode with the default config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -886,9 +990,11 @@ class TestRunPipeline(unittest.TestCase):
         assert expected_command == test_command.args
         assert expected_outdir.exists()
 
+    @pytest.fixture(autouse = True)
+    def inject_capsys(self, capsys):
+        self._capsys = capsys
     # TODO: test logging
     @mock.patch(f"{snake_wrapper.__name__}.check_if_classic_mode", return_value=True)
-
     # mock fork so it doesn't actually fork off anything
     @mock.patch(f"{snake_wrapper.__name__}.os.fork")
     # mock input
@@ -897,12 +1003,13 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in classic mode while giving a different config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"
                                                    /"utilities_test"/"test_18s_config.yaml")
-        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).relative_to(pathlib.Path(__file__).parent.parent)
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
                           / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
         mock_input.side_effect = [str(expected_indir),  # sequencing directory
                                   "y",  # accept sequencing time
@@ -915,6 +1022,55 @@ class TestRunPipeline(unittest.TestCase):
                          "-meta", f"runsheet={runsheet}",
                          "16s-snake-emu-staging", str(configfile)]
         expected_command = ["echo", f'"{" ".join(nomad_command)}"']
+        test_args = ["--workflow_config_file", str(configfile), "--dry_run"]
+        # check that the stream logger is not logging any debug things - caplog stuff here?
+        time_msg = "Waiting at most 1 hours for final_summary*.txt"
+        test_command = snake_wrapper.run_pipeline(test_args)
+        captured = self._capsys.readouterr()
+        assert not time_msg in captured.out
+        assert not time_msg in captured.err
+        print(captured.out)
+        print(captured.err)
+        assert expected_command == test_command.args
+        assert expected_outdir.exists()
+        # get the logged time in the logfile
+        logfile = expected_outdir / "logs" / "start_pipeline.log"
+        with open(logfile, "r", encoding="utf-8") as read_log:
+            lines = read_log.read()
+            assert re.search(re.escape(time_msg), lines)
+
+    @mock.patch(f"{snake_wrapper.__name__}.check_if_classic_mode", return_value=True)
+    # mock fork so it doesn't actually fork off anything
+    @mock.patch(f"{snake_wrapper.__name__}.os.fork")
+    # mock input
+    @mock.patch("builtins.input")
+    def test_run_classic_local(self, mock_input, mock_fork, mock_mode):
+        """Start a local run in classic mode."""
+        mock_fork.return_value = False
+        expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
+                          / "test1" / "no_sample" / "test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = str(pathlib.Path(__file__).parent / "data"
+                                                   /"utilities_test"/"test_18s_config_local.yaml")
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
+                          / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
+        mock_input.side_effect = [str(expected_indir),  # sequencing directory
+                                  "y",  # accept sequencing time
+                                  str(runsheet),  # runsheet
+                                  "y"]  # accept default outdir
+        assert not expected_outdir.exists()
+        local_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "8",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={expected_outdir}",
+                            f"rundir={expected_indir}",
+                            f"runsheet={runsheet}",
+                            f"config_path={configfile}",
+                            "--configfile", configfile]
+        expected_command = ["echo", f'"{" ".join(local_command)}"']
         test_args = ["--workflow_config_file", str(configfile), "--dry_run"]
         test_command = snake_wrapper.run_pipeline(test_args)
         assert expected_command == test_command.args
@@ -933,7 +1089,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in classic mode and set the output directory."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -964,7 +1120,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in commandline mode with the default config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -987,12 +1143,13 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in commandline mode while giving a different config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"
                          / "utilities_test" / "test_18s_config.yaml")
-        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).relative_to(pathlib.Path(__file__).parent.parent)
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
                           / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
         assert not expected_outdir.exists()
         nomad_command = ["nomad", "job", "dispatch",
@@ -1007,6 +1164,67 @@ class TestRunPipeline(unittest.TestCase):
         assert expected_command == test_command.args
         assert expected_outdir.exists()
 
+    @mock.patch(f"{snake_wrapper.__name__}.os.fork")
+    def test_run_commandline_local(self, mock_fork):
+        """Start a local run in commandline mode."""
+        mock_fork.return_value = False
+        expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
+                          / "test1" / "no_sample" / "test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = str(pathlib.Path(__file__).parent / "data"
+                         / "utilities_test" / "test_18s_config_local.yaml")
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
+                          / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
+        assert not expected_outdir.exists()
+        local_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "8",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={expected_outdir}",
+                            f"rundir={expected_indir}",
+                            f"runsheet={runsheet}",
+                            f"config_path={configfile}",
+                            "--configfile", configfile]
+        expected_command = ["echo", f'"{" ".join(local_command)}"']
+        test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet),
+                     "--workflow_config_file", str(configfile), "--dry_run"]
+        test_command = snake_wrapper.run_pipeline(test_args)
+        assert expected_command == test_command.args
+        assert expected_outdir.exists()
+
+    @mock.patch(f"{snake_wrapper.__name__}.os.fork")
+    def test_run_commandline_snake_flags(self, mock_fork):
+        """Pass flags through to Snakemake."""
+        mock_fork.return_value = False
+        expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
+                          / "test1" / "no_sample" / "test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = str(pathlib.Path(__file__).parent / "data"
+                         / "utilities_test" / "test_18s_config_local.yaml")
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
+                           / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
+        assert not expected_outdir.exists()
+        local_command = ["snakemake", "-s", "Snakefile",
+                         "--cores", "8",
+                         "--keep-going",
+                         "--config",
+                         f"outdir={expected_outdir}",
+                         f"rundir={expected_indir}",
+                         f"runsheet={runsheet}",
+                         f"config_path={configfile}",
+                         "--configfile", configfile,
+                         "-n"]
+        expected_command = ["echo", f'"{" ".join(local_command)}"']
+        test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet),
+                     "--workflow_config_file", str(configfile), "--dry_run", '--snake_flags', "-n "]
+        test_command = snake_wrapper.run_pipeline(test_args)
+        assert expected_command == test_command.args
+        assert expected_outdir.exists()
+
     @mock.patch.dict(f"{snake_wrapper.__name__}.WORKFLOW_CONFIG", active_config,
                      clear = True)
     @mock.patch(f"{snake_wrapper.__name__}.DEFAULT_CONFIG_FILE", active_config_file)
@@ -1016,7 +1234,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in commandline mode and specify a logfile."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -1045,7 +1263,7 @@ class TestRunPipeline(unittest.TestCase):
         """Start a run in test mode, overriding config."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"
@@ -1073,7 +1291,7 @@ class TestRunPipeline(unittest.TestCase):
         """Fail if the specified output directory already exists."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         expected_outdir = (pathlib.Path(__file__).parent / "data"
@@ -1094,7 +1312,7 @@ class TestRunPipeline(unittest.TestCase):
         """Continue the pipeline if specified in commandline mode."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         expected_outdir = (pathlib.Path(__file__).parent / "data"
@@ -1128,7 +1346,7 @@ class TestRunPipeline(unittest.TestCase):
         watch_seconds = (watch_hours + fudge_hours) * 3600
 
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = self.active_config_file
@@ -1149,14 +1367,15 @@ class TestRunPipeline(unittest.TestCase):
                                       "final_summary*.txt",
                                       dry_run=True,
                                       watch_timeout = watch_seconds,
-                                      watch_interval = mock.ANY)
+                                      watch_interval = mock.ANY,
+                                      log_interval=3600)
 
     @mock.patch(f"{snake_wrapper.__name__}.os.fork")
     def test_use_lis_from_file(self, mock_fork):
         """Use a LIS report from a file."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
-                          / "test1" / "rawdata" / "test_subdir")
+                          / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
         configfile = str(pathlib.Path(__file__).parent / "data"

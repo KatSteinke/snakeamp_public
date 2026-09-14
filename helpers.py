@@ -2,6 +2,12 @@
 
 __author__ = "Kat Steinke"
 
+#  Copyright (c) 2026 Kat Steinke
+#     This program is distributed under version 3 of the GNU General Public License.
+#      You should have received a copy of the GNU General Public License
+#        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
 import logging
 import pathlib
 import re
@@ -11,6 +17,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import pandas as pd
 from pandas._libs.missing import NAType
 
+import input_names
 import pipeline_config
 
 # import parameters
@@ -19,6 +26,9 @@ workflow_config = pipeline_config.WORKFLOW_DEFAULT_CONF
 
 
 logger = logging.getLogger("helpers")
+
+
+sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
 
 
 class PrettyKeyErrorMessage(str):
@@ -145,19 +155,24 @@ def get_fastq_pass_parent(rundir: pathlib.Path) -> pathlib.Path:
     """
     # we may need to give the fastq_pass directory directly
     # or a group of dirs in the fastq_pass dir
+    if not rundir.exists():
+        raise FileNotFoundError(f"The supplied folder {rundir} does not exist. \n"
+                                "Ensure correct directory and/or directory structure is used.\n"
+                                "Aborting pipeline...")
     existing_path = rundir.parts
     try:
         # if the fastq_pass directory already is somewhere in the dirs given, use this
         fastq_pass_parts = existing_path[:existing_path.index("fastq_pass") + 1]
         # parts contains the initial "/" - resolve the path to clean this up
         fastq_pass_dir = pathlib.Path("/".join(fastq_pass_parts)).resolve()
+        # do we end with something that actually exists?
     except ValueError:
         logger.info(f"Searching for fastq_pass folder in {rundir}...")
         check_fastq_pass = list(rundir.glob("**/fastq_pass"))
         if not check_fastq_pass:
             raise FileNotFoundError(f"fastq_pass folder not found in {rundir} or any subfolders. \n"
                                     "Ensure correct directory and/or directory structure is used.\n"
-                                    "Aborting 16S pipeline...")
+                                    "Aborting pipeline...")
         if len(check_fastq_pass) > 1:
             raise ValueError(f"The directory {rundir} contains "
                              f"multiple fastq_pass directories."
@@ -175,7 +190,7 @@ def get_fastq_pass_parent(rundir: pathlib.Path) -> pathlib.Path:
                        " also mean you have given the wrong path. \n"
                        "Only continue if you are sure. ")
     fastq_pass_parent = fastq_pass_dir.parent
-    logger.info(f"Data is retrieved from the following folder:\n"
+    logger.info(f"Data will be retrieved from the following folder:\n"
                 f"{fastq_pass_parent}")
     return fastq_pass_parent
 
@@ -316,16 +331,21 @@ def translate_sample_number(sample_number: str, pattern_in: re.Pattern, pattern_
     if not original_format_match:
         error_msg = f"Sample number {sample_number} does not match specified input format."
         raise ValueError(error_msg)
-    start_pattern = re.compile(r"^" + parse_out_group_pattern(pattern_in,
-                                                              "sample_type").pattern)
-    current_start = original_format_match.group("sample_type")
-    if current_start not in prefix_mapping:
-        error_msg = (f"Prefix {current_start} not found "
-                     f"(allowed prefixes are {list(prefix_mapping.keys())}).")
-        raise KeyError(error_msg)
-    name_translate = re.sub(start_pattern, lambda match: prefix_mapping.get(match.group(),
-                                                                            match.group()),
-                            sample_number)
+    if "sample_type" in pattern_in.groupindex:
+        start_pattern = re.compile(r"^" + parse_out_group_pattern(pattern_in,
+                                                                  "sample_type").pattern)
+        current_start = original_format_match.group("sample_type")
+        if current_start not in prefix_mapping:
+            error_msg = (f"Prefix {current_start} not found "
+                         f"(allowed prefixes are {list(prefix_mapping.keys())}).")
+            raise KeyError(error_msg)
+        name_translate = re.sub(start_pattern, lambda match: prefix_mapping.get(match.group(),
+                                                                                match.group()),
+                                sample_number)
+    else:
+        logger.info("No sample_type given in sample number format specification;"
+                    " cannot translate sample type.")
+        name_translate = sample_number
     component_order_out = {value: key for key, value in pattern_out.groupindex.items()}
     name_translate = rearrange_sample_number(name_translate, pattern_in,
                                              component_order_out)
@@ -366,11 +386,14 @@ def check_experiment_name_problems(experiment_name: str) -> None:
     logger.debug(f"No issues found with experiment name {experiment_name}.")
 
 
-def extract_nanopore_run_name(runsheet: pathlib.Path) -> str:
+def extract_nanopore_run_name(runsheet: pathlib.Path,
+                              runsheet_names: input_names.RunsheetNames=sheet_names) -> str:
     """Extract the name of a Nanopore sequencing run from its Excel runsheet.
 
     Arguments:
-         runsheet:  Path to an Excel runsheet containing the Nanopore runsheet
+         runsheet:          Path to an Excel runsheet containing the Nanopore runsheet
+         runsheet_names:    Column names in the runsheet
+
      Returns:
          The run's name as specified under "RUNxxxx-INI".
 
@@ -380,7 +403,7 @@ def extract_nanopore_run_name(runsheet: pathlib.Path) -> str:
     """
     experiment_sheet = pd.read_excel(runsheet, sheet_name = "Runsheet",
                                    usecols = "A:D", skiprows = 1, nrows=2)
-    experiment_name = experiment_sheet.at[0, "RUNxxxx-INI"]
+    experiment_name = experiment_sheet.at[0, runsheet_names.experiment_name]
     # the experiment name is used as file names for a lot of things, so catch if it breaks something
     # could break something from containing characters that aren't allowed in Windows
     check_experiment_name_problems(experiment_name)

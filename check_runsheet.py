@@ -2,6 +2,12 @@
 
 __author__ = "Kat Steinke"
 
+#  Copyright (c) 2026 Kat Steinke
+#     This program is distributed under version 3 of the GNU General Public License.
+#      You should have received a copy of the GNU General Public License
+#        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
 import logging
 import pathlib
 import re
@@ -16,17 +22,19 @@ import pandas as pd
 import yaml
 
 import helpers
+import input_names
 import pipeline_config
 import set_log
 import version
-
-from helpers import extract_sample_number_part
 
 __version__ = version.__version__
 
 # import parameters
 DEFAULT_CONFIG_FILE = pipeline_config.default_config_file
 WORKFLOW_CONFIG = pipeline_config.WORKFLOW_DEFAULT_CONF
+
+sheet_names, lis_names = input_names.load_input_from_config(WORKFLOW_CONFIG)
+
 
 # convert sample numbers to MADS-friendly format
 # see if any weren't found, point at relevant number in runsheet if so
@@ -39,77 +47,18 @@ logger = logging.getLogger("check_runsheet")
 logger.setLevel(logging.DEBUG)
 
 
-# TODO: sample year is now already spliced in or should be
-def check_by_prefix(sheet_data: pd.DataFrame, lab_data: pd.DataFrame, sheet_prefix: str,
-                    lab_data_prefix: str,
-                    active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> None:
-    """Check whether samples of a given sample type (indicated by prefix) are contained in a report
-    from the laboratory information system.
-
-    Arguments:
-        sheet_data:         Data contained in runsheet
-        lab_data:           Data contained in laboratory information system report (minimum:
-                            sample numbers and date received)
-        sheet_prefix:       Sample number prefix designating desired sample type in sample sheet
-        lab_data_prefix:    Sample number prefix corresponding to sheet_prefix in the format used in
-                            the LIS report
-        active_config:      configuration to use
-
-    Raises:
-        ValueError: if samples aren't found in the LIS report
-    """
-    runsheet_filtered = sheet_data[sheet_data["Prøvenummer"].str.startswith(sheet_prefix)].copy()
-    # check if this leaves us with any data
-    if runsheet_filtered.empty:
-        raise ValueError(f"No samples with prefix {sheet_prefix} found in runsheet.")
-    # piece sample number together: get the prefix, identify the year, then add the last six
-    # prefix is already known
-    runsheet_filtered["proevenr_prefix"] = sheet_prefix
-    # extract sample number
-    (negative_control_pattern,
-     positive_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
-                                                              active_config["sample_number_settings"]["positive_control"])
-    sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
-    runsheet_filtered["proevenr_kort"] = runsheet_filtered["Prøvenummer"].apply(lambda x:
-                                                                           extract_sample_number_part(x,
-                                                                                                      "sample_number",
-                                                                                                      sample_format_sheet,
-                                                                                                      negative_control_pattern,
-                                                                                                      positive_control_pattern))
-    # to find year, check lab information system data and go for date *received*
-    # extract relevant samples again
-    lab_data_filtered = lab_data[lab_data["prøvenr"].str.startswith(lab_data_prefix)].copy()
-    # get bare sample number to match the one from the runsheet
-    sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
-    lab_data_filtered["proevenr_kort"] = lab_data_filtered["prøvenr"].apply(lambda x:
-                                                                           extract_sample_number_part(x,
-                                                                                                      "sample_number",
-                                                                                                      sample_format_lis,
-                                                                                                      negative_control_pattern,
-                                                                                                      positive_control_pattern))
-    # check if we have duplicates
-    if any(lab_data_filtered.duplicated(subset=["proevenr_kort"])):
-        raise ValueError("MADS report contains duplicated sample numbers. "
-                         "This likely means the report covers multiple years. "
-                         "Get a new MADS report with the correct start date.")
-    # check if there are mismatches between runsheet and MADS data
-    missing_from_mads = runsheet_filtered[~runsheet_filtered["proevenr_kort"].isin(lab_data_filtered["proevenr_kort"])][
-        "Prøvenummer"].dropna().tolist()
-    if missing_from_mads:
-        raise ValueError(
-            f"Samples {sorted(missing_from_mads)} were not found in MADS report. "
-            "Please check that sample numbers are correct.")
-    logger.debug(f"All samples with prefix {sheet_prefix} found in LIS.")
-
-
 def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
+                      runsheet_names: input_names.RunsheetNames = sheet_names,
+                      lis_report_names: input_names.LISDataNames = lis_names,
                       active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> None:
     """Check if sample numbers are found in laboratory information system report.
 
     Arguments:
-        sheet_data:     DataFrame representation of samples in runsheet
-        lab_report:     Path to lab information system's report to check for presence of samples
-        active_config:  configuration to use
+        sheet_data:         DataFrame representation of samples in runsheet
+        lab_report:         Path to lab information system's report to check for presence of samples
+        runsheet_names:     column names in the runsheet used
+        lis_report_names:   column names in the LIS report used
+        active_config:      configuration to use
 
     Raises:
         ValueError: if sample(s) are not found in LIS report
@@ -123,20 +72,21 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
                                                                "sample_numbers_out"])
     # load and prepare LIS report
 
-    lab_info_data = pd.read_csv(lab_report, encoding="latin1", dtype = {"afsendt": str,
-                                                                        "cprnr.": str,
-                                                                        "modtaget": str})
+    lab_info_data = pd.read_csv(lab_report, encoding="latin1",
+                                dtype = {lis_report_names.patient_id: str,
+                                         lis_report_names.date_received: str})
     # match column names for sample number in sheet and LIS
-    sheet_data = sheet_data.rename(columns = {"Prøvenummer": "prøvenr"})
+    sheet_data = sheet_data.rename(columns = {runsheet_names.sample_number:
+                                                  lis_report_names.sample_number})
     # remove both negative and positive controls here
     (neg_control_pattern,
      pos_control_pattern) = helpers.get_control_patterns(active_config["sample_number_settings"]["negative_control"],
                                                          active_config["sample_number_settings"][
                                                              "positive_control"])
     # TODO: might be prettier but it's the only way that shuts the warning up
-    non_controls = sheet_data[~(sheet_data["prøvenr"].str.fullmatch(pos_control_pattern)
-                                | sheet_data["prøvenr"].str.fullmatch(neg_control_pattern))].copy()
-    # get the order of components in the sheetvs the  LIS and rearrange accordingly
+    non_controls = sheet_data[~(sheet_data[lis_report_names.sample_number].str.fullmatch(pos_control_pattern)
+                                | sheet_data[lis_report_names.sample_number].str.fullmatch(neg_control_pattern))].copy()
+    # get the order of components in the sheet vs the LIS and rearrange accordingly
     sample_format_sheet = re.compile(active_config["sample_number_settings"]["format_in_sheet"])
     sample_format_lis = re.compile(active_config["sample_number_settings"]["format_in_lis"])
     component_order_lis = {value: key for key, value in
@@ -146,7 +96,7 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
     if extra_components:
         logger.info(f"Comparing only {list(component_order_lis.values())} to LIS report. "
                     f"Cannot check if {list(extra_components)} component(s) are correct.")
-    non_controls["prøvenr_translate"] = non_controls["prøvenr"].apply(lambda x:
+    non_controls["prøvenr_translate"] = non_controls[lis_report_names.sample_number].apply(lambda x:
                                                                       helpers.translate_sample_number(
                                                                           x,
                                                                           sample_format_sheet,
@@ -157,10 +107,12 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
 
     # left join the rest on the LIS report
     samples_in_lis = non_controls.merge(lab_info_data, how = "left",
-                                        left_on = "prøvenr_translate", right_on = "prøvenr",
+                                        left_on = "prøvenr_translate",
+                                        right_on = lis_report_names.sample_number,
                                         suffixes = ("_sheet", "_lis"))
     # check if anything is missing
-    missing_in_mads = samples_in_lis[samples_in_lis["prøvenr_lis"].isna()]["prøvenr_sheet"].tolist()
+    missing_in_mads = samples_in_lis.loc[samples_in_lis[f"{lis_report_names.sample_number}_lis"].isna(),
+                                         f"{lis_report_names.sample_number}_sheet"].tolist()
     if missing_in_mads:
         raise ValueError(
             f"Samples {sorted(missing_in_mads)} were not found in MADS report. "
@@ -169,12 +121,14 @@ def check_against_lis(sheet_data: pd.DataFrame, lab_report: pathlib.Path,
 
 
 def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
+                       runsheet_names: input_names.RunsheetNames = sheet_names,
                        active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> None:
     """Check if sample numbers are present and in the correct format.
 
     Arguments:
         sheet_data:     DataFrame representation of samples in runsheet
         check_barcodes: whether or not to check barcodes
+        runsheet_names: column names in the runsheet used
         active_config:  configuration to use
 
 
@@ -183,14 +137,20 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     """
     sheet_issues = False
     data_missing = False
+    # we need to keep track of negative control issues so we can complain - TODO this is getting unwieldy
+    bad_negk = False
+
+    # get the data we want
+    sample_numbers = sheet_data[runsheet_names.sample_number]
+    barcodes = sheet_data[runsheet_names.barcode]
     # set up record of issues so they can all be printed at once - TODO: separate data check function?
     fail_record = "The following issue(s) were detected with the runsheet:"
-    no_sample_ids = sheet_data["Prøvenummer"].isna().all()
+    no_sample_ids = sample_numbers.isna().all()
     if no_sample_ids:
         fail_record += "\nNo sample IDs found."
         data_missing = True
     if check_barcodes:
-        no_barcodes = sheet_data["Barkode"].isna().all()
+        no_barcodes = barcodes.isna().all()
         if no_barcodes:
             fail_record += "\nNo barcodes found."
             data_missing = True
@@ -200,17 +160,17 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
     if check_barcodes:  # TODO - avoid double check?
         # now we can be sure there are sample IDs and barcodes, we can check them
         # start by checking if we have the same amount of sample IDs and barcodes
-        amount_sample_ids = sheet_data["Prøvenummer"].dropna().size
-        amount_barcodes = sheet_data["Barkode"].dropna().size
+        amount_sample_ids = sample_numbers.dropna().size
+        amount_barcodes = barcodes.dropna().size
         if amount_sample_ids != amount_barcodes:
             sheet_issues = True
             fail_record += "\nAmount of sample IDs and barcodes don't match. " \
                            f"There are {amount_sample_ids} sample IDs" \
                            f" but {amount_barcodes} barcodes."
         # check that barcodes have correct format
-        fail_barcodes = sheet_data["Barkode"][
-            ~sheet_data["Barkode"].apply(str).str.match(active_config["barcode_format"],
-                                                           na = False)].dropna().tolist()
+        fail_barcodes = (barcodes[~barcodes.str.match(active_config["barcode_format"],na = False)]
+                         .dropna()
+                         .tolist())
 
         if fail_barcodes:
             sheet_issues = True
@@ -220,41 +180,43 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
                            "+ a number between 01 and 96."
         # duplicated sample numbers have been checked in the separate runsheet check
         # duplicated barcodes indicate a serious issue though
-        if any(sheet_data["Barkode"].dropna().duplicated()):
+        if any(barcodes.dropna().duplicated()):
             sheet_issues = True
-            duplicated_barcodes = sheet_data["Barkode"][sheet_data["Barkode"].duplicated()].dropna().unique()
+            duplicated_barcodes = barcodes[barcodes.duplicated()].dropna().unique()
             fail_record += f"\nBarcode(s) {duplicated_barcodes} are duplicated."
     # check duplicates early - this only needs to warn, not break
-    if any(sheet_data["Prøvenummer"].dropna().duplicated()):
-        duplicated_ids = sheet_data["Prøvenummer"][sheet_data["Prøvenummer"].duplicated()].dropna().unique()
+    if any(sample_numbers.dropna().duplicated()):
+        duplicated_ids = sample_numbers[sample_numbers.duplicated()].dropna().unique()
         logger.warning(f"Sample number(s) {duplicated_ids} are duplicated. "
                        "If you are sure you want to sequence the same sample twice, "
                        "you can ignore this warning.")
     # check controls if given
-    if active_config["sample_number_settings"]["positive_control"]:
-        positive_control_pattern = "|".join(active_config["sample_number_settings"][
-                                                "positive_control"].keys())
-        positive_controls_in_sheet = sheet_data["Prøvenummer"].str.fullmatch(positive_control_pattern,
-                                                                        na = False)
+    pos_controls_needed = active_config["sample_number_settings"]["positive_control"]
+    neg_controls_needed = active_config["sample_number_settings"]["negative_control"]
+    if pos_controls_needed:
+        positive_control_pattern = "|".join(pos_controls_needed.keys())
+        positive_controls_in_sheet = sample_numbers.str.fullmatch(positive_control_pattern,
+                                                                  na = False)
         if not positive_controls_in_sheet.any():
             sheet_issues = True
-            fail_record += f"\nNo positive controls given in runsheet."
-    if active_config["sample_number_settings"]["negative_control"]:
+            fail_record += "\nNo positive controls given in runsheet."
+    if neg_controls_needed:
         # for negative controls: see if there is anything matching negative control pattern
-        negative_controls_in_sheet = sheet_data["Prøvenummer"].str.fullmatch(
-            active_config["sample_number_settings"]["negative_control"],
-            na = False)
+        negative_controls_in_sheet = sample_numbers.str.fullmatch(neg_controls_needed,
+                                                                  na = False)
         if not negative_controls_in_sheet.any():
             sheet_issues = True
+            bad_negk = True
             fail_record += "\nNo negative controls given in runsheet."
 
     id_pattern = helpers.get_id_pattern(
         active_config["sample_number_settings"]["sample_number_format"],
-        negative_control = active_config["sample_number_settings"]["negative_control"],
-        positive_control = active_config["sample_number_settings"]["positive_control"])
+        negative_control = neg_controls_needed,
+        positive_control = pos_controls_needed,)
     id_pattern = re.compile(f"^{id_pattern.pattern}$")
-    fail_ids = sheet_data["Prøvenummer"][~sheet_data["Prøvenummer"].apply(str).str.match(id_pattern,
-                                                                               na=False)].dropna().tolist()
+    fail_ids = (sample_numbers[~sample_numbers.apply(str).str.match(id_pattern,na=False)]
+                .dropna()
+                .tolist())
     if active_config['sample_number_settings']['sample_numbers_in'] == "number":
         allowed_start = active_config['sample_number_settings']['number_to_letter'].keys()
     else:
@@ -265,23 +227,27 @@ def check_sheet_format(sheet_data: pd.DataFrame, check_barcodes=False,
         fail_record += f"\nSample IDs {fail_ids} are not valid. " \
                        f'Sample IDs must start with {" or ".join(allowed_start)} ' \
                        'followed by eight numbers (six if leaving out year). '
-        if active_config['sample_number_settings']['negative_control']:  # TODO: clean structure
+        if neg_controls_needed and bad_negk:  # TODO: clean structure
             fail_record += "Negative controls must be given in the format " \
-                           f"{active_config['sample_number_settings']['negative_control']}. "
+                           f"{neg_controls_needed}. "
         fail_record += "Please correct sample IDs in runsheet."
     if sheet_issues:
         raise ValueError(fail_record)
 
 
 def check_runsheet(runsheet: pathlib.Path, check_barcodes: bool = False,
+                   runsheet_names: input_names.RunsheetNames = sheet_names,
+                   lis_report_names: input_names.LISDataNames = lis_names,
                    active_config: Dict[str, Any] = WORKFLOW_CONFIG) -> bool:
     """Check whether the runsheet format is correct and the samples are present in the LIS report
     if one is used.
 
     Arguments:
-        runsheet:       the path to the runsheet to check
-        check_barcodes: whether to check barcodes
-        active_config:  the configuration to use
+        runsheet:           the path to the runsheet to check
+        check_barcodes:     whether to check barcodes
+        runsheet_names:     column names in the runsheet used
+        lis_report_names:   column names in the LIS report used
+        active_config:      the configuration to use
 
     Returns:
         True if the runsheet format is correct and the samples are present in the LIS report
@@ -291,15 +257,18 @@ def check_runsheet(runsheet: pathlib.Path, check_barcodes: bool = False,
     logger.info("Loading runsheet...")
     # TODO: handle this part in a function?
     runsheet_data = pd.read_excel(runsheet, usecols = "A:B", skiprows = 3,  # don't check CP for now
-                                  dtype = {"Prøvenummer": str})
-    runsheet_data = runsheet_data.dropna(subset = ["Prøvenummer", "Barkode"], how="all")
+                                  dtype = {runsheet_names.sample_number: str})
+    runsheet_data = runsheet_data.dropna(subset = [runsheet_names.sample_number,
+                                                   runsheet_names.barcode], how="all")
     logger.info("Checking runsheet format....")
     # simple error handling, suppressing tracebacks
-    check_sheet_format(runsheet_data, check_barcodes, active_config=active_config)
+    check_sheet_format(runsheet_data, check_barcodes, runsheet_names = runsheet_names,
+                       active_config=active_config)
     if active_config["lab_info_system"]["use_lis_features"]:
         lab_info_report = pathlib.Path(active_config["lab_info_system"]["lis_report"])
         logger.info("Comparing to samples in MADS......")
-        check_against_lis(runsheet_data, lab_info_report, active_config=active_config)
+        check_against_lis(runsheet_data, lab_info_report, runsheet_names = runsheet_names,
+                          lis_report_names = lis_report_names, active_config = active_config)
     # if we haven't crashed by now we're fine
     return True
 
@@ -322,10 +291,12 @@ def run_check(input_args: List[Any]) -> None:
     warnings.filterwarnings('ignore',
                             message = "Data Validation extension is not supported and will be removed",
                             module = "openpyxl")
+    workflow_config = WORKFLOW_CONFIG
     if args.workflow_config_file:
         default_config_file = pathlib.Path(args.workflow_config_file).resolve()
         with open(default_config_file, "r", encoding = "utf-8") as config_file:
             workflow_config = yaml.safe_load(config_file)
+    sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
     if args.runsheet:
         run_sheet = pathlib.Path(args.runsheet).resolve()
     else:
@@ -339,7 +310,8 @@ def run_check(input_args: List[Any]) -> None:
 
         run_sheet = pathlib.Path(input("Enter path to runsheet: ").strip().strip("'")).resolve()
     try:
-        check_runsheet(run_sheet, active_config = workflow_config)
+        check_runsheet(run_sheet, runsheet_names = sheet_names, lis_report_names = lis_names,
+                       active_config = workflow_config)
     except ValueError as value_error:
         logger.error(str(value_error))
         set_log.clean_up_handlers(pipeline_logger)

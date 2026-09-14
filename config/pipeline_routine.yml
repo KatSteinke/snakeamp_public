@@ -1,6 +1,13 @@
 # run in debug mode?
 debug: False
 
+# language settings
+language: "da"
+input_names: config/input_settings/input_da.yaml
+
+# are we running this locally ("local") or on Nomad ("nomad")?
+run_on: nomad
+
 # Settings for sample numbers and negative controls
 sample_number_settings:
   # specify the format for sample numbers used in the input runsheet as a regex
@@ -15,10 +22,6 @@ sample_number_settings:
   sample_numbers_output: number
   # mapping between sample number/letter if needed
   number_to_letter: { "70": "P", "30": "B", "10": "D", "50": "T"}
-  date_settings:  # TODO: do we need this separately?
-    splice_in_date: False  # for now we're assuming the date is there
-    length_without_date: 8 # length is based on sample_numbers_in format - TODO: how to handle all this in sample sheet creation
-    splice_after: 2 # location (1-based) at which to add year
   negative_control: '' # TODO: do we have negative controls?
   # list of positive controls - TODO: do we have them?
   positive_control: {}
@@ -52,3 +55,9 @@ quality_params:
 databases:
   emu_db: /path/to/emu_db
   human_reads: /path/to/human_reads
+
+cores: 128
+conda:
+  use_conda: True
+  frontend: ""
+  prefix: ""

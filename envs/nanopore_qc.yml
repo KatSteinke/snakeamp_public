@@ -3,6 +3,7 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
+  - chopper=0.9.1
   - filtlong=0.2.1
   - nanostat=1.6.0
   - pigz

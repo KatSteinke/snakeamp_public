@@ -1,11 +1,9 @@
-import io
 import logging
 import pathlib
 import re
 import unittest
 
 from unittest import mock
-from unittest.mock import PropertyMock
 
 import pandas as pd
 import pytest
@@ -15,6 +13,10 @@ import version
 
 
 class TestCheckFilePresence(unittest.TestCase):
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+    
     def test_success(self):
         """Successfully find all relevant files."""
         test_dir = pathlib.Path(__file__).parent / "data"/"check_results"/"success_emu_dir"
@@ -24,33 +26,37 @@ class TestCheckFilePresence(unittest.TestCase):
     def test_missing_emu_files(self):
         """Alert when the Emu report is missing"""
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "empty_dir"
-        warn_msg = "WARNING:QATest:Emu report is missing. Cannot evaluate Emu results."
-        with self.assertLogs("QATest") as logged:
+        warn_msg = "Emu report is missing. Cannot evaluate Emu results."
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_files = check_results.check_files_present(test_dir)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_files
 
     def test_missing_raw_backup(self):
         """Alert when the backup file is missing."""
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "emu_dir_no_backup"
-        warn_msg = "WARNING:QATest:Raw TSV backup of Emu report is missing."
-        with self.assertLogs("QATest") as logged:
+        warn_msg = "Raw TSV backup of Emu report is missing."
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_files = check_results.check_files_present(test_dir)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_files
 
     def test_too_many_emus(self):
         """Alert when there are multiple Emu reports"""
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "multiple_emus"
-        warn_msg = ("WARNING:QATest:Multiple Emu summaries found, need only one. "
+        warn_msg = ("Multiple Emu summaries found, need only one. "
                     "Cannot evaluate Emu results.")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_files = check_results.check_files_present(test_dir)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_files
 
 @mock.patch(f"{check_results.__name__}.__version__")
 class TestCheckEmuResults(unittest.TestCase):
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+    
     def test_fail_version_mismatch(self, mock_version):
         """Fail if a report is being checked with a different version of the pipeline than the
         one that generated it."""
@@ -70,6 +76,14 @@ class TestCheckEmuResults(unittest.TestCase):
         check_report = check_results.check_emu_result_file(test_report)
         assert check_report
 
+    def test_success_en(self, mock_version):
+        """"Handle a translated Emu report."""
+        mock_version.__str__.return_value = "0.4.2"
+        test_report = (pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir_en"
+                       / "RUN0001_emu-combined.xlsx")
+        check_report = check_results.check_emu_result_file(test_report, report_language = "en")
+        assert check_report
+
     def test_success_minor_abundance_diff(self, mock_version):
         """Report success if there is a small difference in abundance in the positive control
         (<0.5 percent points)."""
@@ -84,11 +98,11 @@ class TestCheckEmuResults(unittest.TestCase):
         mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_missing_tab_emu-combined.xlsx")
-        warn_msg = ("WARNING:QATest:Tab(s) ['abundance', 'count'] not found in Emu report. "
+        warn_msg = ("Tab(s) ['abundance', 'count'] not found in Emu report. "
                     "Cannot evaluate results for these tabs.")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_emu_result_file(test_report)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
     def test_warn_wrong_header(self, mock_version):
@@ -101,12 +115,12 @@ class TestCheckEmuResults(unittest.TestCase):
         mismatch_index = pd.Index(["F99123456"], name="prøvenr")
         mismatched = pd.DataFrame(data=[["Svælg/tonsil", "Næse"]], index = mismatch_index,
                                   columns = mismatch_header)
-        warn_msg = ("WARNING:QATest:Sample metadata differ from expected sample metadata in tab"
+        warn_msg = ("Sample metadata differ from expected sample metadata in tab"
                     " overview:\n"
                     f"{mismatched.to_string()}")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_emu_result_file(test_report)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
     def test_warn_broken_header(self, mock_version):
@@ -151,16 +165,15 @@ class TestCheckEmuResults(unittest.TestCase):
                                "total_before_qc",
                                "total_after_qc",
                                "human"])
-        warn_msg = ("WARNING:QATest:Sample metadata labels differ from expected sample metadata"
+        warn_msg = ("Sample metadata labels differ from expected sample metadata"
                     " - could not compare. \n"
                     f"Expected index: {expected_index}\n"
                     f"Found index: {found_index}\n"
                     f"Expected columns: {expected_cols}\n"
                     f"Found columns: {found_cols}")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_emu_result_file(test_report)
-            print(logged.output)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
     def test_warn_wrong_organism_main_tab(self, mock_version):
@@ -176,14 +189,12 @@ class TestCheckEmuResults(unittest.TestCase):
                                      columns=mismatch_header)
         print(expected_data)
         print(expected_data.to_string())
-        warn_msg = ("WARNING:QATest:Incorrect organism for one or more samples."
+        warn_msg = ("Incorrect organism for one or more samples."
                     " Expected organism(s):\n"
                     f"{expected_data.to_string()}")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_emu_result_file(test_report)
-            print(warn_msg)
-            print(logged.output)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
     def test_warn_wrong_positive_control_main(self, mock_version):
@@ -191,7 +202,7 @@ class TestCheckEmuResults(unittest.TestCase):
         mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_positive_control_main_emu-combined.xlsx")
-        warn_msg = ("WARNING:QATest:Positive control should contain "
+        warn_msg = ("Positive control should contain "
                     "['Bacillus subtilis', "
                     "'Enterococcus faecalis', "
                     "'Escherichia coli', "
@@ -210,9 +221,9 @@ class TestCheckEmuResults(unittest.TestCase):
                     "'Staphylococcus aureus']"
                     " (missing: {'Pseudomonas aeruginosa'}, "
                     "extra: {'Placeholderia bielefeldensis'}")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_emu_result_file(test_report)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
     def test_warn_wrong_abundance_main(self, mock_version):
@@ -224,13 +235,13 @@ class TestCheckEmuResults(unittest.TestCase):
         expected_data = pd.DataFrame(data = {"expected": [19.17],
                                              "found": [25.00]},
                                      index = pd.Index(["Salmonella enterica"], name = "organism"))
-        warn_msg = ("WARNING:QATest:Different abundance in positive control for "
+        warn_msg = ("Different abundance in positive control for "
                     "['Salmonella enterica']."
                     " Expected abundance:\n"
                     f"{expected_data.to_string()}")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_emu_result_file(test_report)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
     def test_multiple_mismatches_one_sample(self, mock_version):
@@ -238,7 +249,7 @@ class TestCheckEmuResults(unittest.TestCase):
         mock_version.__str__.return_value = "0.4.2"
         test_report = (pathlib.Path(__file__).parent / "data" / "check_results"
                        / "RUN0001_bad_positive_control_abundance_main_emu-combined.xlsx")
-        wrong_organism = ("WARNING:QATest:Positive control should contain "
+        wrong_organism = ("Positive control should contain "
                           "['Bacillus subtilis', "
                           "'Enterococcus faecalis', "
                           "'Escherichia coli', "
@@ -260,14 +271,14 @@ class TestCheckEmuResults(unittest.TestCase):
         expected_data = pd.DataFrame(data = {"expected": [19.17],
                                              "found": [25.00]},
                                      index = pd.Index(["Salmonella enterica"], name = "organism"))
-        wrong_abundance = ("WARNING:QATest:Different abundance in positive control for "
+        wrong_abundance = ("Different abundance in positive control for "
                            "['Salmonella enterica']."
                            " Expected abundance:\n"
                            f"{expected_data.to_string()}")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_emu_result_file(test_report)
-            assert wrong_organism in logged.output
-            assert wrong_abundance in logged.output
+            assert ("QATest", logging.WARNING, wrong_organism) in self._caplog.record_tuples
+            assert ("QATest", logging.WARNING, wrong_abundance) in self._caplog.record_tuples
         assert not check_report
 
     def test_multi_sample_mismatches(self, mock_version):
@@ -284,25 +295,29 @@ class TestCheckEmuResults(unittest.TestCase):
                                      index = pd.Index(["F99123456", "F99123457"],
                                                       name = "prøvenr"),
                                      columns = mismatch_header)
-        warn_msg = ("WARNING:QATest:Incorrect organism for one or more samples."
+        warn_msg = ("Incorrect organism for one or more samples."
                     " Expected organism(s):\n"
                     f"{expected_data.to_string()}")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_emu_result_file(test_report)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
 
 @mock.patch(f"{check_results.__name__}.__version__")
 class TestCheckAllQC(unittest.TestCase):
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_warn_missing_files(self, mock_version):
         """Warn if there are missing files."""
         mock_version.__str__.return_value = "0.4.2"
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "empty_dir"
-        warn_msg = "WARNING:QATest:Emu report is missing. Cannot evaluate Emu results."
-        with self.assertLogs("QATest") as logged:
+        warn_msg = "Emu report is missing. Cannot evaluate Emu results."
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_files = check_results.check_all_qc(test_dir)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_files
 
     def test_warn_wrong_results(self, mock_version):
@@ -312,29 +327,41 @@ class TestCheckAllQC(unittest.TestCase):
         expected_data = pd.DataFrame(data = {"expected": [19.17],
                                              "found": [25.00]},
                                      index = pd.Index(["Salmonella enterica"], name = "organism"))
-        warn_msg = ("WARNING:QATest:Different abundance in positive control for "
+        warn_msg = ("Different abundance in positive control for "
                     "['Salmonella enterica']."
                     " Expected abundance:\n"
                     f"{expected_data.to_string()}")
-        with self.assertLogs("QATest") as logged:
+        with self._caplog.at_level(logging.WARNING, logger = "QATest"):
             check_report = check_results.check_all_qc(test_dir)
-            assert warn_msg in logged.output
+            assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert not check_report
 
     def test_success(self, mock_version):
         """Report success if all checks pass."""
         mock_version.__str__.return_value = "0.4.2"
         test_dir = pathlib.Path(__file__).parent / "data"/"check_results"/"success_emu_dir"
-        success_msg = "INFO:QATest:All QC checks passed"
-        with self.assertLogs("QATest") as logged:
+        success_msg = "All QC checks passed"
+        with self._caplog.at_level(logging.INFO, logger = "QATest"):
             check_files = check_results.check_all_qc(test_dir)
-            assert success_msg in logged.output
+            assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
+        assert check_files
+
+    def test_success_en(self, mock_version):
+        """Report success if all checks pass for a translated result."""
+        mock_version.__str__.return_value = "0.4.2"
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir_en"
+        success_msg = "All QC checks passed"
+        with self._caplog.at_level(logging.INFO, logger = "QATest"):
+            check_files = check_results.check_all_qc(test_dir, report_language = "en")
+            assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
         assert check_files
 
 @mock.patch(f"{check_results.__name__}.__version__")
 class TestCheckResults(unittest.TestCase):
     log_format = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}"
                             r" - QATest - (INFO|WARNING|ERROR) - [-:a-zA-Z0-9_./# ]+")
+    configfile = str(pathlib.Path(__file__).parent / "data" / "test_config.yaml")
+
     def tearDown(self):
         """Clean up existing logfiles."""
         (pathlib.Path(__file__).parent / "data" / "check_results"
@@ -358,7 +385,7 @@ class TestCheckResults(unittest.TestCase):
         assert not expected_logfile.exists()
         with pytest.raises(SystemExit, match="1"), self._caplog.at_level(logging.INFO,
                                                                          logger="QATest"):
-            check_results.check_results([str(test_dir)])
+            check_results.check_results([str(test_dir), "--workflow_config_file", self.configfile])
         assert ("QATest", logging.ERROR, error_msg) in self._caplog.record_tuples
         assert ("QATest", logging.WARNING, warn_msg) in self._caplog.record_tuples
         assert expected_logfile.exists()
@@ -367,9 +394,25 @@ class TestCheckResults(unittest.TestCase):
         for line in log_data:
             assert re.match(self.log_format, line.strip())
 
-
     def test_success(self, mock_version):
         """Report success if all checks pass, and log this properly."""
+        mock_version.__str__.return_value = "0.4.2"
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir"
+        expected_logfile = test_dir / "logs" / "pipeline_qa.log"
+        success_msg = "All QC checks passed"
+        assert not expected_logfile.exists()
+        with pytest.raises(SystemExit, match = "0"), self._caplog.at_level(logging.INFO,
+                                                                           logger = "QATest"):
+            check_results.check_results([str(test_dir), "--workflow_config_file", self.configfile])
+        assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
+        assert expected_logfile.exists()
+        with open(expected_logfile, "r") as read_log:
+            log_data = read_log.readlines()
+        for line in log_data:
+            assert re.match(self.log_format, line.strip())
+
+    def test_different_logfile(self, mock_version):
+        """Set different logfile."""
         mock_version.__str__.return_value = "0.4.2"
         test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir"
         expected_logfile = (pathlib.Path(__file__).parent / "data" / "check_results"
@@ -378,7 +421,8 @@ class TestCheckResults(unittest.TestCase):
         assert not expected_logfile.exists()
         with pytest.raises(SystemExit, match = "0"), self._caplog.at_level(logging.INFO,
                                                                            logger = "QATest"):
-            check_results.check_results([str(test_dir), "--logfile", str(expected_logfile)])
+            check_results.check_results([str(test_dir), "--logfile", str(expected_logfile),
+                                         "--workflow_config_file", self.configfile])
         assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
         assert expected_logfile.exists()
         with open(expected_logfile, "r") as read_log:
@@ -386,20 +430,24 @@ class TestCheckResults(unittest.TestCase):
         for line in log_data:
             assert re.match(self.log_format, line.strip())
 
-
-    def test_different_logfile(self, mock_version):
-        """Set different logfile."""
+    def test_success_en(self, mock_version):
+        """Report and log success for translated results."""
         mock_version.__str__.return_value = "0.4.2"
-        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir"
-        expected_logfile = test_dir / "logs" / "pipeline_qa.log"
+        test_dir = pathlib.Path(__file__).parent / "data" / "check_results" / "success_emu_dir_en"
+        config = pathlib.Path(__file__).parent / "data" / "test_config_en.yaml"
+        expected_logfile = (pathlib.Path(__file__).parent / "data" / "check_results"
+                            / "custom.log")
         success_msg = "All QC checks passed"
         assert not expected_logfile.exists()
         with pytest.raises(SystemExit, match = "0"), self._caplog.at_level(logging.INFO,
                                                                            logger = "QATest"):
-            check_results.check_results([str(test_dir)])
+            check_results.check_results([str(test_dir), "--logfile", str(expected_logfile),
+                                         "--workflow_config_file", str(config)])
         assert ("QATest", logging.INFO, success_msg) in self._caplog.record_tuples
         assert expected_logfile.exists()
         with open(expected_logfile, "r") as read_log:
             log_data = read_log.readlines()
         for line in log_data:
             assert re.match(self.log_format, line.strip())
+
+

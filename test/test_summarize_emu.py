@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import re
 import unittest
@@ -7,11 +8,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import input_names
 import summarize_emu
 
 
 class TestGetLISData(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format":
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "language": "da",
+                       "sample_number_settings": {"sample_number_format":
                                                       r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                   "format_in_sheet":
                                                       r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -35,6 +40,7 @@ class TestGetLISData(unittest.TestCase):
     lis_data = pd.read_csv(workflow_config["lab_info_system"]["lis_report"],
                            encoding = "latin1", dtype = {"modtaget": str,
                                                          "cprnr.": str})
+    sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
 
     def test_fail_missing_number(self):
         """Fail if the sample number cannot be found in the LIS report."""
@@ -42,7 +48,8 @@ class TestGetLISData(unittest.TestCase):
         error_msg = ("Sample number F99123457 (original number: 1199123457-0)"
                      " not found in LIS report.")
         with pytest.raises(KeyError, match = re.escape(error_msg)):
-            summarize_emu.get_lis_information(sample_number, self.lis_data, self.workflow_config)
+            summarize_emu.get_lis_information(sample_number, self.lis_data, self.lis_names,
+                                              self.workflow_config)
 
     def test_get_data_success(self):
         """Correctly retrieve and convert data from LIS report."""
@@ -55,7 +62,48 @@ class TestGetLISData(unittest.TestCase):
                                                             "der ikke kan være på en linje i MADS"]})
         sample_number = "1199123456-0"
         test_result = summarize_emu.get_lis_information(sample_number, self.lis_data,
-                                                        self.workflow_config)
+                                                        self.lis_names, self.workflow_config)
+        pd.testing.assert_frame_equal(expected_result, test_result)
+
+    def test_get_data_success_en(self):
+        """Correctly retrieve and convert data from LIS report with a non-default language."""
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                          / "input_en.yaml",
+                           "sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "format_output": r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "positive_control": {"PosK": "Placeholderia"},
+                                                      "negative_control": "NegK",
+                                                      "sample_numbers_in": "number",
+                                                      "sample_numbers_out": "letter",
+                                                      "sample_numbers_output": "number",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material_en.csv")}}
+        lis_data = pd.read_csv(workflow_config["lab_info_system"]["lis_report"],
+                               encoding = "latin1", dtype = {"received": str,
+                                                             "patient_id": str})
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
+        expected_result = pd.DataFrame(data = {"patient": ["0000000000"],
+                                               "SAMPLENR": ["F99123456"],
+                                               "date_received": ["2021-01-02"],
+                                               "sample_material": ["Podning"],
+                                               "anatomy": ["Svælg/tonsil"],
+                                             "indication": ["en eller anden lang tekst<Break/>"
+                                                            "der ikke kan være på en linje i MADS"]})
+        sample_number = "1199123456-0"
+        test_result = summarize_emu.get_lis_information(sample_number, lis_data, lis_names,
+                                                        workflow_config, report_language = "en")
         pd.testing.assert_frame_equal(expected_result, test_result)
 
     def test_get_blank_success(self):
@@ -72,7 +120,7 @@ class TestGetLISData(unittest.TestCase):
                                 / "fake_mads_material_blank.csv"),
                                encoding = "latin1", dtype = {"modtaget": str,
                                                              "cprnr.": str})
-        test_result = summarize_emu.get_lis_information(sample_number, lis_data,
+        test_result = summarize_emu.get_lis_information(sample_number, lis_data, self.lis_names,
                                                         self.workflow_config)
         pd.testing.assert_frame_equal(expected_result, test_result)
 
@@ -86,7 +134,7 @@ class TestGetLISData(unittest.TestCase):
                                              "indikation": [""]})
         sample_number = "NegK"
         test_result = summarize_emu.get_lis_information(sample_number, self.lis_data,
-                                                        self.workflow_config)
+                                                        self.lis_names, self.workflow_config)
         pd.testing.assert_frame_equal(expected_result, test_result)
 
         positive_expected = pd.DataFrame(data = {"patient": [""],
@@ -97,7 +145,7 @@ class TestGetLISData(unittest.TestCase):
                                                  "indikation": [""]})
         sample_number = "PosK"
         positive_test = summarize_emu.get_lis_information(sample_number, self.lis_data,
-                                                          self.workflow_config)
+                                                          self.lis_names, self.workflow_config)
         pd.testing.assert_frame_equal(positive_expected, positive_test)
 
     def test_handle_old_format(self):
@@ -113,14 +161,16 @@ class TestGetLISData(unittest.TestCase):
                                                "anatomi": ["Svælg/tonsil"],
                                                "indikation": [""]})
         sample_number = "1199123456-0"
-        test_result = summarize_emu.get_lis_information(sample_number, lis_data,
+        test_result = summarize_emu.get_lis_information(sample_number, lis_data, self.lis_names,
                                                         self.workflow_config)
         pd.testing.assert_frame_equal(expected_result, test_result)
 
 
 
 class TestGetNameComponents(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",
@@ -185,7 +235,7 @@ class TestGetNameComponents(unittest.TestCase):
         assert expected_negk_run == test_components.run_name
         assert expected_negk_name == test_components.sample_name
         assert expected_negk_barcode == test_components.barcode
-        
+
         # and now with one that overlaps with the sample format
         tricky_negk_name_test = "kørsel0001-Y20231009-16S_NegK__barcode01_RB01_rel-abundance.tsv"
         expected_tricky_negk_run = "kørsel0001-Y20231009-16S"
@@ -213,14 +263,21 @@ class TestGetReadQC(unittest.TestCase):
 
 
 class TestExtractCounts(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": False}}
+    sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
     base_dir = pathlib.Path(
         __file__).parent / "data" / "summarize_emu" / "result_base_dir"
     version_text = f"Version_{summarize_emu.__version__}"
+
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
 
     def test_bad_name_format(self):
         """Ensure the function complains if the name doesn't match the expected Emu output format
@@ -232,7 +289,7 @@ class TestExtractCounts(unittest.TestCase):
                     " Sample name components could not be extracted."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                     self.workflow_config)
+                                                     active_config = self.workflow_config)
 
     def test_bad_sample_name(self):
         """Ensure the function complains if the name doesn't match the expected sample name format
@@ -245,7 +302,7 @@ class TestExtractCounts(unittest.TestCase):
                     " Sample name components could not be extracted."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                     self.workflow_config)
+                                                     active_config = self.workflow_config)
 
     def test_fail_wrong_abundance(self):
         """Ensure a relative abundance that does not sum to 100% (suggesting a corrupted file)
@@ -256,7 +313,7 @@ class TestExtractCounts(unittest.TestCase):
                     "This suggests the result file is broken (missing/extra lines)."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                     self.workflow_config)
+                                                     active_config = self.workflow_config)
 
     def test_fail_wrong_abundance_single_taxid(self):
         """Ensure a relative abundance that does not sum to 100% (suggesting a corrupted file)
@@ -267,7 +324,7 @@ class TestExtractCounts(unittest.TestCase):
                     "This suggests the result file is broken (missing/extra lines)."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                     self.workflow_config)
+                                                     active_config = self.workflow_config)
 
     def test_get_counts_success(self):
         sample_path = pathlib.Path(
@@ -311,8 +368,56 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                self.workflow_config)
+                                                                active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_get_counts_success_en(self):
+        """Use non default language for output"""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode01_RB01_rel-abundance.tsv"
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              5.00],
+                                                "counts" : [4, 15, 1],
+                                                "keep": [np.nan, np.nan, np.nan]},
+                                        index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                                                 "Placeholderia fakeorum",
+                                                                 "unassigned"],
+                                                         name = "species"))
+        expected_results = expected_results.astype({"counts": "Int64"})
+        run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
+        name_header = ["barcode01"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
+        note_header = [""] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
+                                                              barcode_header,
+                                                              name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
+                                                              phhv_header,
+                                                              note_header,
+                                                              expected_results.columns],
+                                                             names = ["run",
+                                                                      "pipeline_version",
+                                                                      "barcode",
+                                                                      "sample_number",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
+                                                                      "PhHV",
+                                                                      "notes",
+                                                                      None])
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                active_config = self.workflow_config,
+                                                                report_language = "en")
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
 
     def test_get_counts_success_short_name(self):
         """Handle a run name without zero padding."""
@@ -356,7 +461,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                self.workflow_config)
+                                                                active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_failed_sample_success(self):
@@ -398,11 +503,11 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        log_msg = "INFO:summarize_emu:All reads for sample barcode01 are unassigned."
-        with self.assertLogs("summarize_emu") as logged:
+        log_msg = "All reads for sample barcode01 are unassigned."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                    self.workflow_config)
-            assert log_msg in logged.output
+                                                                    active_config = self.workflow_config)
+            assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_blank_sample_success(self):
@@ -450,11 +555,12 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "PhHV",
                                                                       "notes",
                                                                       None])
-        log_msg = "INFO:summarize_emu:All reads for sample 1199123456-1 are unassigned."
-        with self.assertLogs("summarize_emu") as logged:
+        log_msg = "All reads for sample 1199123456-1 are unassigned."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                    workflow_config)
-            assert log_msg in logged.output
+                                                                    active_config = workflow_config)
+
+        assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results, check_dtype = False)
 
     def test_handle_duplicate_orgs_success(self):
@@ -500,7 +606,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                self.workflow_config)
+                                                                active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_isolate_number(self):
@@ -554,12 +660,14 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_get_data_from_lis(self):
         """Optionally add metadata from LIS"""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -581,6 +689,7 @@ class TestExtractCounts(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = (pathlib.Path(
             __file__).parent / "data" / "summarize_emu"
                        / "RUN0001_F99123456-0_RB01_rel-abundance.tsv")
@@ -640,12 +749,108 @@ class TestExtractCounts(unittest.TestCase):
                                                                       None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                lis_report_names = lis_names,
+                                                                active_config = workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
+    def test_get_data_from_lis_en(self):
+        """Optionally add metadata from LIS using non-default language settings"""
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_en.yaml",
+                           "language": "en",
+                           "sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "format_output":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "positive_control": {},
+                                                      "negative_control": "",
+                                                      "sample_numbers_in": "letter",
+                                                      "sample_numbers_out": "letter",
+                                                      "sample_numbers_output": "letter",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material_en.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
+        sample_path = (pathlib.Path(
+            __file__).parent / "data" / "summarize_emu"
+                       / "RUN0001_F99123456-0_RB01_rel-abundance.tsv")
+        expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
+                                                              5.00],
+                                                "counts": [4, 15, 1],
+                                                "keep": [np.nan, np.nan, np.nan]},
+                                        index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                                                 "Placeholderia fakeorum",
+                                                                 "unassigned"],
+                                                         name = "species"))
+        expected_results = expected_results.astype({"counts": "Int64"})
+        run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
+        name_header = ["F99123456"] * len(expected_results.columns)
+        barcode_header = ["RB01"] * len(expected_results.columns)
+        date_header = ["2021-01-02"] * len(expected_results.columns)
+        patient_header = ["0000000000"] * len(expected_results.columns)
+        material_header = ["Podning"] * len(expected_results.columns)
+        anatomy_header = ["Svælg/tonsil"] * len(expected_results.columns)
+        indication_header = ["en eller anden lang tekst<Break/>"
+                             "der ikke kan være på en linje i MADS"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
+        note_header = [""] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
+                                                              barcode_header,
+                                                              name_header,
+                                                              date_header,
+                                                              patient_header,
+                                                              material_header,
+                                                              anatomy_header,
+                                                              indication_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
+                                                              phhv_header,
+                                                              note_header,
+                                                              expected_results.columns],
+                                                             names = ["run",
+                                                                      "pipeline_version",
+                                                                      "barcode",
+                                                                      "sample_number",
+                                                                      "date_received",
+                                                                      "patient",
+                                                                      "sample_material",
+                                                                      "anatomy",
+                                                                      "indication",
+                                                                      "total_before_qc",
+                                                                      "total_after_qc",
+                                                                      "human",
+                                                                      "PhHV",
+                                                                      "notes",
+                                                                      None]
+                                                             )
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                lis_report_names = lis_names,
+                                                                active_config = workflow_config,
+                                                                report_language = "en")
+        print(test_results)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_translate_number(self):
         """Translate the sample number if needed"""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -667,6 +872,7 @@ class TestExtractCounts(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = (pathlib.Path(
             __file__).parent / "data" / "summarize_emu"
                        / "RUN0001_1199123456-0_RB01_rel-abundance.tsv")
@@ -727,12 +933,15 @@ class TestExtractCounts(unittest.TestCase):
                                                                       None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                lis_report_names = lis_names,
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_control_material(self):
         """Insert blank "material" for controls"""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -754,6 +963,7 @@ class TestExtractCounts(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "RUN0001_NegK_RB02_rel-abundance.tsv"
         expected_results = pd.DataFrame(data = {"abundance": [20.00, 75.00,
@@ -810,7 +1020,8 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                lis_report_names = lis_names,
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_negative_control(self):
@@ -864,7 +1075,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       None]
                                                              )
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_handle_positive_control(self):
@@ -917,7 +1128,7 @@ class TestExtractCounts(unittest.TestCase):
                                                                       "notes",
                                                                       None])
         test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
-                                                                workflow_config)
+                                                                active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
 
@@ -1217,6 +1428,12 @@ class TestSortColumns(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                        "Version_1.2.3"],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1235,6 +1452,7 @@ class TestSortColumns(unittest.TestCase):
                                                        "abundance", "counts",
                                                        "med"]],
                                                      names = ["run",
+                                                              "pipeline_version",
                                                               "barcode",
                                                               "prøvenummer",
                                                               "PhHV",
@@ -1251,6 +1469,12 @@ class TestSortColumns(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
                                                       ["RB02",
                                                        "RB02",
                                                        "RB02",
@@ -1269,6 +1493,7 @@ class TestSortColumns(unittest.TestCase):
                                                        "abundance", "counts",
                                                        "med"]],
                                                      names = ["run",
+                                                              "pipeline_version",
                                                               "barcode",
                                                               "prøvenummer",
                                                               "PhHV",
@@ -1300,6 +1525,15 @@ class TestSortColumns(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
                                                       ["RB02",
                                                        "RB02",
                                                        "RB02",
@@ -1325,7 +1559,7 @@ class TestSortColumns(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run", "pipeline_version", "barcode",
                                                               "prøvenummer", "PhHV", None])
         expected_sorted = pd.DataFrame(data = species_counts, index = self.species_index,
                                        columns = expected_columns)
@@ -1338,6 +1572,15 @@ class TestSortColumns(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1363,7 +1606,7 @@ class TestSortColumns(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run", "pipeline_version", "barcode",
                                                               "prøvenummer", "PhHV", None])
         test_df = pd.DataFrame(data = species_counts, index = self.species_index,
                                columns = unsorted_columns)
@@ -1395,6 +1638,18 @@ class TestSortColumns(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
                                                       ["RB02",
                                                        "RB02",
                                                        "RB02",
@@ -1431,7 +1686,7 @@ class TestSortColumns(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run", "pipeline_version", "barcode",
                                                               "prøvenummer", "PhHV", None])
         expected_sorted = pd.DataFrame(data = species_counts_sorted, index = self.species_index,
                                        columns = expected_columns)
@@ -1447,6 +1702,18 @@ class TestSortColumns(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1483,7 +1750,7 @@ class TestSortColumns(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run", "pipeline_version", "barcode",
                                                               "prøvenummer", "PhHV", None])
         test_df = pd.DataFrame(data = species_counts_sorted, index = self.species_index,
                                columns = unsorted_columns)
@@ -1512,6 +1779,15 @@ class TestSortColumns(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
                                                       ["RB02",
                                                        "RB02",
                                                        "RB02",
@@ -1537,7 +1813,7 @@ class TestSortColumns(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run", "pipeline_version", "barcode",
                                                               "prøvenummer", "PhHV", None])
         expected_sorted = pd.DataFrame(data = species_counts, index = self.species_index,
                                        columns = expected_columns)
@@ -1550,6 +1826,15 @@ class TestSortColumns(unittest.TestCase):
                                                        "RUN0001",
                                                        "RUN0001",
                                                        "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
                                                       ["RB01",
                                                        "RB01",
                                                        "RB01",
@@ -1575,8 +1860,119 @@ class TestSortColumns(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["run", "barcode",
+                                                     names = ["run", "pipeline_version", "barcode",
                                                               "prøvenummer", "PhHV", None])
+        test_df = pd.DataFrame(data = species_counts, index = self.species_index,
+                               columns = unsorted_columns)
+        test_sort = summarize_emu.sort_report_samples(test_df, workflow_config)
+        pd.testing.assert_frame_equal(test_sort, expected_sorted)
+
+    def test_sort_with_controls_en(self):
+        """Sort a report with both positive and negative controls,
+         with column names in non-default language."""
+        workflow_config = {"sample_number_settings":
+                               {"sample_number_format":
+                                    r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                "positive_control": {"PosK": "Placeholderia"},
+                                "negative_control": "NegK"},
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": False}}
+        species_counts = [[20.00, 4, "", 20.00, 4, "", 20.00, 4, ""],
+                          [75.00, 15, "", 75.00, 15, "", 75.00, 15, ""],
+                          [5.00, 1, "", 5.00, 1, "", 5.00, 1, ""],
+                          [0.00, 0, "", 0.00, 0, "", 0.00, 0, ""]]
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
+                                                      ["RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["NegK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "PosK",
+                                                       "PosK",
+                                                       "PosK",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0"],
+                                                      ["", "", "", "", "", "", "", "", ""],
+                                                      ["abundance", "counts",
+                                                       "keep",
+                                                       "abundance", "counts",
+                                                       "keep",
+                                                       "abundance", "counts",
+                                                       "keep"]],
+                                                     names = ["run", "pipeline_version", "barcode",
+                                                              "sample_number", "PhHV", None])
+        expected_sorted = pd.DataFrame(data = species_counts, index = self.species_index,
+                                       columns = expected_columns)
+        unsorted_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB03",
+                                                       "RB03",
+                                                       "RB03"],
+                                                      ["PosK",
+                                                       "PosK",
+                                                       "PosK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "F99123456-0",
+                                                       "F99123456-0",
+                                                       "F99123456-0"],
+                                                      ["", "", "", "", "", "", "", "", ""],
+                                                      ["abundance", "counts",
+                                                       "keep",
+                                                       "abundance", "counts",
+                                                       "keep",
+                                                       "abundance", "counts",
+                                                       "keep"]],
+                                                     names = ["run", "pipeline_version", "barcode",
+                                                              "sample_number", "PhHV", None])
         test_df = pd.DataFrame(data = species_counts, index = self.species_index,
                                columns = unsorted_columns)
         test_sort = summarize_emu.sort_report_samples(test_df, workflow_config)
@@ -1584,13 +1980,19 @@ class TestSortColumns(unittest.TestCase):
 
 
 class TestMergeEmuDir(unittest.TestCase):
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",
                        "lab_info_system": {"use_lis_features": False}}
     base_dir = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "result_base_dir"
     version_text = f"Version_{summarize_emu.__version__}"
+
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
 
     def test_fail_missing_dir(self):
         """Complain informatively when the directory to merge doesn't exist."""
@@ -1771,26 +2173,26 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               "total_before_qc",
                                                               "total_after_qc",
                                                               "human",
-                                                               "PhHV",
+                                                              "PhHV",
                                                               "notes",
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = "ERROR:summarize_emu:Error in " \
-                      f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
-                      "Relative abundance does not sum to 100%. " \
-                      "This suggests the result file is broken (missing/extra lines).\n" \
-                      "Empty results will be added to the merged summary."
-            bad_output_msg = ("ERROR:summarize_emu:Error extracting QC data for barcode03:\n"
-                              "'Kraken report is malformed. "
-                              "Check that you are supplying a --report file.'\n"
-                              "No QC data will be added.")
+        log_msg = "Error in " \
+                  f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
+                  "Relative abundance does not sum to 100%. " \
+                  "This suggests the result file is broken (missing/extra lines).\n" \
+                  "Empty results will be added to the merged summary."
+        bad_output_msg = ("Error extracting QC data for barcode03:\n"
+                          "'Kraken report is malformed. "
+                          "Check that you are supplying a --report file.'\n"
+                          "No QC data will be added.")
+        with self._caplog.at_level(logging.ERROR, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, base_dir,
                                                              active_config = self.workflow_config)
-        print("\n".join(logged.output))
-        assert log_msg in logged.output
-        assert bad_output_msg in logged.output
+            assert ("summarize_emu", logging.ERROR, log_msg) in self._caplog.record_tuples
+            assert ("summarize_emu", logging.ERROR, bad_output_msg) in self._caplog.record_tuples
+
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False,
                                       check_column_type = False)
 
@@ -1851,21 +2253,21 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = "ERROR:summarize_emu:Error in " \
-                      f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
-                      "Relative abundance does not sum to 100%. " \
-                      "This suggests the result file is broken (missing/extra lines).\n" \
-                      "Empty results will be added to the merged summary."
-            missing_data_msg = ("ERROR:summarize_emu:Error extracting QC data for barcode03:\n"
-                                "Kraken report"
-                                f" {base_dir / 'barcode03_RB03' / 'reads' / 'barcode03_RB03.kraken.tsv'}"
-                                " not found.\n"
-                                "No QC data will be added.")
+        log_msg = "Error in " \
+                  f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
+                  "Relative abundance does not sum to 100%. " \
+                  "This suggests the result file is broken (missing/extra lines).\n" \
+                  "Empty results will be added to the merged summary."
+        missing_data_msg = ("Error extracting QC data for barcode03:\n"
+                            "Kraken report"
+                            f" {base_dir / 'barcode03_RB03' / 'reads' / 'barcode03_RB03.kraken.tsv'}"
+                            " not found.\n"
+                            "No QC data will be added.")
+        with self._caplog.at_level(logging.ERROR, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, base_dir,
                                                              active_config = self.workflow_config)
-        assert log_msg in logged.output
-        assert missing_data_msg in logged.output
+            assert ("summarize_emu", logging.ERROR, log_msg) in self._caplog.record_tuples
+            assert ("summarize_emu", logging.ERROR, missing_data_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False,
                                       check_column_type = False)
 
@@ -1924,15 +2326,15 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = "ERROR:summarize_emu:Error in " \
-                      f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
-                      "Relative abundance does not sum to 100%. " \
-                      "This suggests the result file is broken (missing/extra lines).\n" \
-                      "Empty results will be added to the merged summary."
+        log_msg = "Error in " \
+                  f"{sample_path / 'RUN0001_barcode03_RB03_rel-abundance.tsv'}:\n" \
+                  "Relative abundance does not sum to 100%. " \
+                  "This suggests the result file is broken (missing/extra lines).\n" \
+                  "Empty results will be added to the merged summary."
+        with self._caplog.at_level(logging.ERROR, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                              active_config = self.workflow_config)
-        assert log_msg in logged.output
+            assert ("summarize_emu", logging.ERROR, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_warn_different_runs(self):
@@ -1988,18 +2390,20 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = ("WARNING:summarize_emu:Data appear to be from multiple runs "
-                       "(['RUN0001', 'RUN0002']).")
+        log_msg = ("Data appear to be from multiple runs "
+                   "(['RUN0001', 'RUN0002']).")
+        with self._caplog.at_level(logging.WARNING, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
                                                              active_config = self.workflow_config)
-        print("\n".join(logged.output))
-        assert log_msg in logged.output
+            assert ("summarize_emu", logging.WARNING, log_msg) in self._caplog.record_tuples
+
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_handle_broken_with_lis(self):
         """Ensure that an invalid file is handled properly when using LIS data"""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2021,6 +2425,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "one_broken_lis"
         expected_values = [[20.00, 4, np.nan, np.nan, np.nan, np.nan],
@@ -2112,21 +2517,24 @@ class TestMergeEmuDir(unittest.TestCase):
                                                               None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
-        with self.assertLogs("summarize_emu") as logged:
-            log_msg = "ERROR:summarize_emu:Error in " \
-                      f"{sample_path / 'RUN0001_F99654321-0_RB02_rel-abundance.tsv'}:\n" \
-                      "Relative abundance does not sum to 100%. " \
-                      "This suggests the result file is broken (missing/extra lines).\n" \
-                      "Empty results will be added to the merged summary."
+        log_msg = "Error in " \
+                  f"{sample_path / 'RUN0001_F99654321-0_RB02_rel-abundance.tsv'}:\n" \
+                  "Relative abundance does not sum to 100%. " \
+                  "This suggests the result file is broken (missing/extra lines).\n" \
+                  "Empty results will be added to the merged summary."
+        with self._caplog.at_level(logging.ERROR, logger = "summarize_emu"):
             test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                             lis_report_names = lis_names,
                                                              active_config = workflow_config)
-        print("\n".join(logged.output))
-        assert log_msg in logged.output
+            assert ("summarize_emu", logging.ERROR, log_msg) in self._caplog.record_tuples
+
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_merge_different_format_with_controls(self):
         """Ensure samples with different formats and controls are handled properly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "positive_control": {},
                                                       "negative_control": "NegK"},
@@ -2134,7 +2542,7 @@ class TestMergeEmuDir(unittest.TestCase):
                            "lab_info_system": {"use_lis_features": False}}
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "merge_different_format")
-
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
                            [75.00, 15, np.nan, 75.00, 15, np.nan],
                            [5.00, 1, np.nan, 5.00, 1, np.nan]]
@@ -2186,12 +2594,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_multi_sort_with_controls(self):
         """Ensure non-control samples are sorted by barcode."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "positive_control": {},
                                                       "negative_control": "NegK"},
@@ -2277,7 +2688,9 @@ class TestMergeEmuDir(unittest.TestCase):
 
     def test_handle_blank(self):
         """Handle a blank sample file."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2299,6 +2712,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_one_empty"
 
@@ -2430,13 +2844,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
-
     def test_handle_multi_blank(self):
         """Handle multiple blank sample files."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2458,6 +2874,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_two_empty"
 
@@ -2589,12 +3006,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_merge_and_get_material(self):
         """Get sample material for all samples."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2616,6 +3036,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "merge_different_format")
 
@@ -2712,12 +3133,146 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
+        pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
+
+
+    def test_merge_and_get_material_en(self):
+        """Get sample material for all samples, using non-default language settings for output
+        and LIS report."""
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_en.yaml",
+                           "language": "en",
+                           "sample_number_settings": {"sample_number_format":
+                                                          r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
+                                                      "format_in_sheet":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "format_in_lis":
+                                                          r'(?P<sample_type>[BDFT])(?P<sample_year>\d{2})(?P<sample_number>\d{6})',
+                                                      "format_output":
+                                                          r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
+                                                      "positive_control": {},
+                                                      "negative_control": "NegK",
+                                                      "sample_numbers_in": "letter",
+                                                      "sample_numbers_out": "letter",
+                                                      "sample_numbers_output": "letter",
+                                                      "number_to_letter": {"70": "P", "30": "B",
+                                                                           "10": "D", "11": "F",
+                                                                           "50": "T"}
+                                                      },
+                           "barcode_format": "RB[0-9]{2}",
+                           "lab_info_system": {"use_lis_features": True,
+                                               "lis_report": (pathlib.Path(
+                                                   __file__).parent / "data" / "summarize_emu"
+                                                              / "fake_mads_material_en.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
+        sample_path = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
+                       / "merge_different_format")
+
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
+                                                      ["RB02",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB01"],
+                                                      ["NegK",
+                                                       "NegK",
+                                                       "NegK",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99123456"],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       ],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0"],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning"
+                                                       ],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       ],
+                                                      ["",
+                                                       "",
+                                                       "",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
+                                                      [6176, 6176, 6176, 6176, 6176, 6176],
+                                                      [100, 100, 100, 100, 100, 100],
+                                                      [10, 10, 10, 10, 10, 10],
+                                                      ["", "", "", "", "", ""],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance", "counts",
+                                                       "keep",
+                                                       "abundance", "counts",
+                                                       "keep"]],
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "sample_number",
+                                                              "date_received",
+                                                              "patient",
+                                                              "sample_material",
+                                                              "anatomy",
+                                                              "indication",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                              "PhHV",
+                                                              "notes",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
+                                                         active_config = workflow_config,
+                                                         report_language = "en")
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_get_different_patients(self):
         """Ensure samples from different patients are reported correctly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2739,6 +3294,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_patients.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
 
@@ -2837,12 +3393,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_get_different_patients_different_runs(self):
         """Ensure samples from different patients from different runs are reported correctly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2864,6 +3423,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_patients.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "multi_run_patients"
 
@@ -2962,12 +3522,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_get_same_patient(self):
         """Ensure samples from the same patient are reported correctly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -2989,6 +3552,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
 
@@ -3087,12 +3651,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_shorten_run_name(self):
         """Ensure run name is shortened properly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -3114,6 +3681,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_shorten_name"
 
@@ -3212,12 +3780,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_handle_new_format(self):
         """Ensure run names without zero padding are handled properly."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -3239,6 +3810,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_short_run_name"
 
@@ -3337,12 +3909,15 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
     def test_handle_broken_run_name(self):
         """Ensure a run name not matching the expected format is handled."""
-        workflow_config = {"sample_number_settings": {"sample_number_format":
+        workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                           "sample_number_settings": {"sample_number_format":
                                                           r'([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d',
                                                       "format_in_sheet":
                                                           r'(?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)',
@@ -3364,6 +3939,7 @@ class TestMergeEmuDir(unittest.TestCase):
                                                "lis_report": (pathlib.Path(
                                                    __file__).parent / "data" / "summarize_emu"
                                                               / "fake_mads_material.csv")}}
+        sheet_names, lis_names = input_names.load_input_from_config(workflow_config)
         sample_path = pathlib.Path(
             __file__).parent / "data" / "summarize_emu" / "merge_broken_run_name"
 
@@ -3462,6 +4038,7 @@ class TestMergeEmuDir(unittest.TestCase):
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
         test_merged = summarize_emu.merge_all_in_emu_dir(sample_path, self.base_dir,
+                                                         lis_report_names = lis_names,
                                                          active_config = workflow_config)
         pd.testing.assert_frame_equal(expected_merged, test_merged, check_dtype = False)
 
@@ -3486,7 +4063,25 @@ class TestWriteToSheets(unittest.TestCase):
                                       "Placeholderia fakeorum",
                                       "Placeholderia testfacei",
                                       "unassigned"], name = "species")
-    expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
+    expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                  ["barcode01_RB01",
                                                    "barcode01_RB01",
                                                    "barcode01_RB01",
                                                    "barcode02_RB02",
@@ -3496,19 +4091,21 @@ class TestWriteToSheets(unittest.TestCase):
                                                    "med",
                                                    "abundance", "counts",
                                                    "med"]],
-                                                 names = ["prøvenummer", None])
+                                                 names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                          "prøvenummer", None])
     expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                    columns = expected_columns)
+    top_level_slice = [slice(None)] * 2
 
-    @classmethod
-    def tearDownClass(cls) -> None:
-        # remove test sheet
-        (pathlib.Path(__file__).parent / "data" / "summarize_emu"
-         / "test_results_sheet.xlsx").unlink()
-        (pathlib.Path(__file__).parent / "data" / "summarize_emu"
-         / "test_results_mads.xlsx").unlink()
-        (pathlib.Path(__file__).parent / "data" / "summarize_emu"
-         / "test_results_mads_blank.xlsx").unlink()
+    def tearDown(self):
+        # remove test sheets
+        test_sheets = [self.test_sheet, self.test_sheet.parent / "test_results_mads.xlsx",
+                       self.test_sheet.parent / "test_results_mads_blank.xlsx"]
+        for test_sheet in test_sheets:
+            if test_sheet.exists():
+                test_sheet.unlink()
 
     def test_check_all_sheets_present(self):
         """Ensure that all sheets are present."""
@@ -3531,11 +4128,20 @@ class TestWriteToSheets(unittest.TestCase):
                                      [75.00, 80.00],
                                      [np.nan, 20.00],
                                      [5.00, 0.00]]
-        expected_abundance_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
+        expected_abundance_cols = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001"
+                                                       ],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB02"],["barcode01_RB01",
                                                               "barcode02_RB02"],
                                                              ["abundance",
                                                               "abundance"]],
-                                                            names = ["prøvenummer", None])
+                                                            names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                                     "prøvenummer", None])
         expected_abundance = pd.DataFrame(data = expected_abundance_values,
                                           index = self.expected_index,
                                           columns = expected_abundance_cols)
@@ -3543,33 +4149,149 @@ class TestWriteToSheets(unittest.TestCase):
                                  [15, 16],
                                  [np.nan, 4],
                                  [1, 0]]
-        expected_count_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
+        expected_count_cols = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001"
+                                                       ],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB02"],["barcode01_RB01",
                                                           "barcode02_RB02"],
                                                          ["counts",
                                                           "counts"]],
-                                                        names = ["prøvenummer", None])
+                                                        names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode","prøvenummer", None])
         expected_count = pd.DataFrame(data = expected_count_values,
                                       index = self.expected_index,
                                       columns = expected_count_cols)
-
+        assert not self.test_sheet.exists()
         summarize_emu.write_to_sheets(self.expected_merged, self.test_sheet)
         test_merged = pd.read_excel(self.test_sheet, sheet_name = "overview", index_col = 0,
-                                    header = [0, 1])
+                                    header = [0, 1, 2, 3, 4])
         test_merged.loc[["Placeholderia bielefeldensis",
                          "Placeholderia fakeorum",
-                         "unassigned"], pd.IndexSlice[["barcode01_RB01"],
+                         "unassigned"], pd.IndexSlice[:, :, :, ["barcode01_RB01"],
         ["med"]]] = ""
         test_merged.loc[["Placeholderia fakeorum",
                          "Placeholderia testfacei",
-                         "unassigned"], pd.IndexSlice[["barcode02_RB02"],
+                         "unassigned"], pd.IndexSlice[:, :, :, ["barcode02_RB02"],
         ["med"]]] = ""
+        assert self.test_sheet.exists()
         test_abundance = pd.read_excel(self.test_sheet, sheet_name = "abundance", index_col = 0,
-                                       header = [0, 1])
+                                       header = [0, 1, 2, 3, 4])
         test_count = pd.read_excel(self.test_sheet, sheet_name = "count", index_col = 0,
-                                   header = [0, 1])
+                                   header = [0, 1, 2, 3, 4])
         pd.testing.assert_frame_equal(test_merged, self.expected_merged, check_dtype = False)
         pd.testing.assert_frame_equal(test_abundance, expected_abundance, check_dtype = False)
         pd.testing.assert_frame_equal(test_count, expected_count, check_dtype = False)
+
+    def test_write_success_en(self):
+        """Output data in a non-default language."""
+        expected_values = [[20, 4, "", np.nan, np.nan, np.nan],
+                           [75, 15, "", 80, 16, ""],
+                           [np.nan, np.nan, np.nan, 20, 4, ""],
+                           [5, 1, "", 0, 0, ""]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "Placeholderia testfacei",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                       "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["barcode01_RB01",
+                                                       "barcode01_RB01",
+                                                       "barcode01_RB01",
+                                                       "barcode02_RB02",
+                                                       "barcode02_RB02",
+                                                       "barcode02_RB02"],
+                                                      ["abundance", "counts",
+                                                       "keep",
+                                                       "abundance", "counts",
+                                                       "keep"]],
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "sample_number", None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        expected_abundance_values = [[20.00, np.nan],
+                                     [75.00, 80.00],
+                                     [np.nan, 20.00],
+                                     [5.00, 0.00]]
+        expected_abundance_cols = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001"
+                                                       ],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB02"],
+            ["barcode01_RB01",
+                                                              "barcode02_RB02"],
+                                                             ["abundance",
+                                                              "abundance"]],
+                                                            names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode","sample_number", None])
+        expected_abundance = pd.DataFrame(data = expected_abundance_values,
+                                          index = expected_index,
+                                          columns = expected_abundance_cols)
+        expected_count_values = [[4, np.nan],
+                                 [15, 16],
+                                 [np.nan, 4],
+                                 [1, 0]]
+        expected_count_cols = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001"
+                                                       ],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB02"],["barcode01_RB01",
+                                                          "barcode02_RB02"],
+                                                         ["counts",
+                                                          "counts"]],
+                                                        names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode","sample_number", None])
+        expected_count = pd.DataFrame(data = expected_count_values,
+                                      index = expected_index,
+                                      columns = expected_count_cols)
+        assert not self.test_sheet.exists()
+        summarize_emu.write_to_sheets(expected_merged, self.test_sheet)
+        test_merged = pd.read_excel(self.test_sheet, sheet_name = "overview", index_col = 0,
+                                    header = [0, 1, 2, 3, 4])
+        test_merged.loc[["Placeholderia bielefeldensis",
+                         "Placeholderia fakeorum",
+                         "unassigned"], pd.IndexSlice[:, :, :, ["barcode01_RB01"],
+        ["keep"]]] = ""
+        test_merged.loc[["Placeholderia fakeorum",
+                         "Placeholderia testfacei",
+                         "unassigned"], pd.IndexSlice[:, :, :, ["barcode02_RB02"],
+        ["keep"]]] = ""
+        assert self.test_sheet.exists()
+        test_abundance = pd.read_excel(self.test_sheet, sheet_name = "abundance", index_col = 0,
+                                       header = [0, 1, 2, 3, 4])
+        test_count = pd.read_excel(self.test_sheet, sheet_name = "count", index_col = 0,
+                                   header = [0, 1, 2, 3, 4])
+        pd.testing.assert_frame_equal(test_merged, expected_merged, check_dtype = False)
+        pd.testing.assert_frame_equal(test_abundance, expected_abundance, check_dtype = False)
+        pd.testing.assert_frame_equal(test_count, expected_count, check_dtype = False)
+
 
     def test_handle_extra_lines(self):
         """Handle extra lines in the multiindex."""
@@ -3581,7 +4303,25 @@ class TestWriteToSheets(unittest.TestCase):
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["barcode01_RB01",
                                                        "barcode01_RB01",
                                                        "barcode01_RB01",
                                                        "barcode02_RB02",
@@ -3597,7 +4337,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode","prøvenummer",
                                                               "prøvemateriale", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
@@ -3605,12 +4347,20 @@ class TestWriteToSheets(unittest.TestCase):
                                      [75.00, 80.00],
                                      [np.nan, 20.00],
                                      [5.00, 0.00]]
-        expected_abundance_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
+        expected_abundance_cols = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001"
+                                                       ],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB02"],["barcode01_RB01",
                                                               "barcode02_RB02"],
                                                              ["podning", "Væv"],
                                                              ["abundance",
                                                               "abundance"]],
-                                                            names = ["prøvenummer",
+                                                            names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode","prøvenummer",
                                                                      "prøvemateriale", None])
         expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
                                           columns = expected_abundance_cols)
@@ -3618,12 +4368,20 @@ class TestWriteToSheets(unittest.TestCase):
                                  [15, 16],
                                  [np.nan, 4],
                                  [1, 0]]
-        expected_count_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
+        expected_count_cols = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001"
+                                                       ],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB02"],["barcode01_RB01",
                                                           "barcode02_RB02"],
                                                          ["podning", "Væv"],
                                                          ["counts",
                                                           "counts"]],
-                                                        names = ["prøvenummer",
+                                                        names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode","prøvenummer",
                                                                  "prøvemateriale", None])
         expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
                                       columns = expected_count_cols)
@@ -3631,19 +4389,19 @@ class TestWriteToSheets(unittest.TestCase):
                       / "test_results_mads.xlsx")
         summarize_emu.write_to_sheets(expected_merged, test_sheet)
         test_merged = pd.read_excel(test_sheet, sheet_name = "overview", index_col = 0,
-                                    header = [0, 1, 2])
+                                    header = [0, 1, 2, 3, 4, 5])
         test_merged.loc[["Placeholderia bielefeldensis",
                          "Placeholderia fakeorum",
-                         "unassigned"], pd.IndexSlice[["barcode01_RB01"], :,
+                         "unassigned"], pd.IndexSlice[:, :, :, ["barcode01_RB01"], :,
                                         ["med"]]] = ""
         test_merged.loc[["Placeholderia fakeorum",
                          "Placeholderia testfacei",
-                         "unassigned"], pd.IndexSlice[["barcode02_RB02"], :,
+                         "unassigned"], pd.IndexSlice[:, :, :, ["barcode02_RB02"], :,
                                         ["med"]]] = ""
         test_abundance = pd.read_excel(test_sheet, sheet_name = "abundance", index_col = 0,
-                                       header = [0, 1, 2])
+                                       header = [0, 1, 2, 3, 4, 5])
         test_count = pd.read_excel(test_sheet, sheet_name = "count", index_col = 0,
-                                   header = [0, 1, 2])
+                                   header = [0, 1, 2, 3, 4, 5])
         pd.testing.assert_frame_equal(test_merged, expected_merged, check_dtype = False)
         pd.testing.assert_frame_equal(test_abundance, expected_abundance, check_dtype = False)
         pd.testing.assert_frame_equal(test_count, expected_count, check_dtype = False)
@@ -3658,7 +4416,24 @@ class TestWriteToSheets(unittest.TestCase):
                                           "Placeholderia fakeorum",
                                           "Placeholderia testfacei",
                                           "unassigned"], name = "species")
-        expected_columns = pd.MultiIndex.from_arrays([["barcode01_RB01",
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                        "Version_1.2.3",
+                                                       "Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],["barcode01_RB01",
                                                        "barcode01_RB01",
                                                        "barcode01_RB01",
                                                        "barcode02_RB02",
@@ -3674,7 +4449,9 @@ class TestWriteToSheets(unittest.TestCase):
                                                        "med",
                                                        "abundance", "counts",
                                                        "med"]],
-                                                     names = ["prøvenummer",
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode","prøvenummer",
                                                               "prøvemateriale", None])
         expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
                                        columns = expected_columns)
@@ -3682,12 +4459,20 @@ class TestWriteToSheets(unittest.TestCase):
                                      [75.00, 80.00],
                                      [np.nan, 20.00],
                                      [5.00, 0.00]]
-        expected_abundance_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
+        expected_abundance_cols = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001"
+                                                       ],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB02"],["barcode01_RB01",
                                                               "barcode02_RB02"],
                                                              ["podning", ""],
                                                              ["abundance",
                                                               "abundance"]],
-                                                            names = ["prøvenummer",
+                                                            names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode","prøvenummer",
                                                                      "prøvemateriale", None])
         expected_abundance = pd.DataFrame(data = expected_abundance_values, index = expected_index,
                                           columns = expected_abundance_cols)
@@ -3695,12 +4480,20 @@ class TestWriteToSheets(unittest.TestCase):
                                  [15, 16],
                                  [np.nan, 4],
                                  [1, 0]]
-        expected_count_cols = pd.MultiIndex.from_arrays([["barcode01_RB01",
+        expected_count_cols = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001"
+                                                       ],
+                                                      ["Version_1.2.3",
+                                                        "Version_1.2.3"],
+                                                      ["RB01",
+                                                       "RB02"],["barcode01_RB01",
                                                           "barcode02_RB02"],
                                                          ["podning", ""],
                                                          ["counts",
                                                           "counts"]],
-                                                        names = ["prøvenummer",
+                                                        names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode","prøvenummer",
                                                                  "prøvemateriale", None])
         expected_count = pd.DataFrame(data = expected_count_values, index = expected_index,
                                       columns = expected_count_cols)
@@ -3708,24 +4501,24 @@ class TestWriteToSheets(unittest.TestCase):
                       / "test_results_mads_blank.xlsx")
         summarize_emu.write_to_sheets(expected_merged, test_sheet)
         test_merged = pd.read_excel(test_sheet, sheet_name = "overview", index_col = 0,
-                                    header = [0, 1, 2])
+                                    header = [0, 1, 2, 3, 4, 5])
         # if the header was blank then it'll be renamed to "Unnamed [n]" - handle all of these
         test_merged = test_merged.rename(columns = lambda colname: "" if "Unnamed" in colname
                                                                    else colname)
         test_merged.loc[["Placeholderia bielefeldensis",
                          "Placeholderia fakeorum",
-                         "unassigned"], pd.IndexSlice[["barcode01_RB01"], :,
+                         "unassigned"], pd.IndexSlice[:, :, :, ["barcode01_RB01"], :,
                                         ["med"]]] = ""
         test_merged.loc[["Placeholderia fakeorum",
                          "Placeholderia testfacei",
-                         "unassigned"], pd.IndexSlice[["barcode02_RB02"], :,
+                         "unassigned"], pd.IndexSlice[:, :, :, ["barcode02_RB02"], :,
                                         ["med"]]] = ""
         test_abundance = pd.read_excel(test_sheet, sheet_name = "abundance", index_col = 0,
-                                       header = [0, 1, 2])
+                                       header = [0, 1, 2, 3, 4, 5])
         test_abundance = test_abundance.rename(columns = lambda colname: "" if "Unnamed" in colname
                                                                          else colname)
         test_count = pd.read_excel(test_sheet, sheet_name = "count", index_col = 0,
-                                   header = [0, 1, 2])
+                                   header = [0, 1, 2, 3, 4, 5])
         test_count = test_count.rename(columns = lambda colname: "" if "Unnamed" in colname
                                                                  else colname)
         pd.testing.assert_frame_equal(test_merged, expected_merged)
@@ -3759,6 +4552,10 @@ class TestGetNanostatCount(unittest.TestCase):
 
 
 class TestGetKrakenReadCount(unittest.TestCase):
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_fail_file_not_found(self):
         """Fail if the Kraken result file does not exist."""
         kraken_file = pathlib.Path(__file__).parent / "data" / "summarize_emu" / "no_such_file"
@@ -3795,10 +4592,10 @@ class TestGetKrakenReadCount(unittest.TestCase):
         kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "kraken_no_human.tsv")
         expected_results = pd.DataFrame(data = {"human": [0], "remaining": [100], "total": [100]})
-        log_msg = f"INFO:summarize_emu:No human reads reported in {kraken_file}."
-        with self.assertLogs("summarize_emu", level="INFO") as logged:
+        log_msg = f"No human reads reported in {kraken_file}."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.get_kraken_read_stats(kraken_file)
-            assert log_msg in logged.output
+            assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_success_log_no_remaining(self):
@@ -3806,10 +4603,10 @@ class TestGetKrakenReadCount(unittest.TestCase):
         kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "kraken_no_remaining.tsv")
         expected_results = pd.DataFrame(data = {"human": [100], "remaining": [0], "total": [100]})
-        log_msg = f"INFO:summarize_emu:No remaining reads reported in {kraken_file}."
-        with self.assertLogs("summarize_emu", level = "INFO") as logged:
+        log_msg = f"No remaining reads reported in {kraken_file}."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.get_kraken_read_stats(kraken_file)
-            assert log_msg in logged.output
+            assert ("summarize_emu", logging.INFO, log_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results)
 
     def test_success_empty(self):
@@ -3817,13 +4614,13 @@ class TestGetKrakenReadCount(unittest.TestCase):
         kraken_file = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                        / "kraken_empty.tsv")
         expected_results = pd.DataFrame(data = {"human": [0], "remaining": [0], "total": [0]})
-        no_human_msg = f"INFO:summarize_emu:No human reads reported in {kraken_file}."
+        no_human_msg = f"No human reads reported in {kraken_file}."
 
-        no_bact_msg = f"INFO:summarize_emu:No remaining reads reported in {kraken_file}."
-        with self.assertLogs("summarize_emu", level = "INFO") as logged:
+        no_bact_msg = f"No remaining reads reported in {kraken_file}."
+        with self._caplog.at_level(logging.INFO, logger = "summarize_emu"):
             test_results = summarize_emu.get_kraken_read_stats(kraken_file)
-            assert no_human_msg in logged.output
-            assert no_bact_msg in logged.output
+            assert ("summarize_emu", logging.INFO, no_human_msg) in self._caplog.record_tuples
+            assert ("summarize_emu", logging.INFO, no_bact_msg) in self._caplog.record_tuples
         pd.testing.assert_frame_equal(expected_results, test_results)
 
 class TestSummarizeEmu(unittest.TestCase):
@@ -3832,7 +4629,10 @@ class TestSummarizeEmu(unittest.TestCase):
     test_tab = (pathlib.Path(__file__).parent / "data" / "summarize_emu"
                   / "test_results_summary.tsv")
     version_text = f"Version_{summarize_emu.__version__}"
-    workflow_config = {"sample_number_settings": {"sample_number_format": r"barcode\d{2}",
+    workflow_config = {"input_names": pathlib.Path(__file__).parent / "data" / "input_names"
+                                      / "input_da_old_lis.yaml",
+                       "language": "da",
+                       "sample_number_settings": {"sample_number_format": r"barcode\d{2}",
                                                   "positive_control": {},
                                                   "negative_control": ""},
                        "barcode_format": "RB[0-9]{2}",
@@ -4040,6 +4840,159 @@ class TestSummarizeEmu(unittest.TestCase):
                                                               "prøvemateriale",
                                                               "anatomi",
                                                               "indikation",
+                                                              "total_before_qc",
+                                                              "total_after_qc",
+                                                              "human",
+                                                              "PhHV",
+                                                              "notes",
+                                                              None])
+        expected_merged = pd.DataFrame(data = expected_values, index = expected_index,
+                                       columns = expected_columns)
+        assert not self.test_sheet.exists()
+        assert not self.test_tab.exists()
+        test_input = [str(sample_path), "--outfile", str(self.test_sheet),
+                      "--outfile_raw", str(self.test_tab),
+                      "--workflow_config_file", str(workflow_config)]
+        summarize_emu.summarize_emu(test_input)
+        test_from_sheet = pd.read_excel(self.test_sheet, index_col = 0,
+                                        header = [0,  # run name
+                                                 1,  # version
+                                                 2,  # barcode
+                                                 3,  # sample number
+                                                 4,  # "modtagedato",
+                                                 5,  # "patient",
+                                                 6,  # "prøvemateriale",
+                                                 7,  # "anatomi",
+                                                 8,  # "indikation",
+                                                 9,  # "total_before_qc",
+                                                 10,  # "total_after_qc",
+                                                 11,  # "human",
+                                                 12,  # PhHV
+                                                 13,  # notes
+                                                 14])
+        test_from_tab =  pd.read_csv(self.test_tab, index_col = 0,
+                                     header = [0,  # run name
+                                               1,  # version
+                                               2,  # barcode
+                                               3,  # sample number
+                                               4,  # "modtagedato",
+                                               5,  # "patient",
+                                               6,  # "prøvemateriale",
+                                               7,  # "anatomi",
+                                               8,  # "indikation",
+                                               9,  # "total_before_qc",
+                                               10,  # "total_after_qc",
+                                               11,  # "human",
+                                               12,  # PhHV
+                                               13,  # notes
+                                               14],
+                                     sep="\t")
+        test_from_sheet = test_from_sheet.rename(columns = lambda colname: ""
+                                                            if "Unnamed" in str(colname)
+                                                            else str(colname))
+        test_from_tab = test_from_tab.rename(columns = lambda colname: ""
+                                                        if "Unnamed" in str(colname)
+                                                        else str(colname))
+        pd.testing.assert_frame_equal(expected_merged, test_from_sheet, check_dtype = False)
+        pd.testing.assert_frame_equal(expected_merged, test_from_tab, check_dtype = False)
+
+
+    def test_success_change_config_en(self):
+        """Use a non-default config file and non-default language"""
+        workflow_config = (pathlib.Path(__file__).parent / "data"
+                           / "test_config_en.yaml")
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "merge_blank_material"
+
+        expected_values = [[20.00, 4, np.nan, 20.00, 4, np.nan],
+                           [75.00, 15, np.nan, 75.00, 15, np.nan],
+                           [5.00, 1, np.nan, 5.00, 1, np.nan]]
+        expected_index = pd.Index(data = ["Placeholderia bielefeldensis",
+                                          "Placeholderia fakeorum",
+                                          "unassigned"], name = "species")
+        expected_columns = pd.MultiIndex.from_arrays([["RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001",
+                                                       "RUN0001"],
+                                                      [self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text,
+                                                       self.version_text],
+                                                      ["RB01",
+                                                       "RB01",
+                                                       "RB01",
+                                                       "RB02",
+                                                       "RB02",
+                                                       "RB02"],
+                                                      ["F99123456",
+                                                       "F99123456",
+                                                       "F99123456",
+                                                       "F99654321",
+                                                       "F99654321",
+                                                       "F99654321"],
+                                                      ["2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       "2021-01-02",
+                                                       ],
+                                                      ["RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0",
+                                                       "RUN0001_pt_0"],
+                                                      ["Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning",
+                                                       "Podning"
+                                                       ],
+                                                      ["Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil",
+                                                       "Svælg/tonsil"],
+                                                      ["en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS",
+                                                       "en eller anden lang tekst<Break/>"
+                                                       "der ikke kan være på en linje i MADS"],
+                                                      ["6176", "6176", "6176",
+                                                       "6176", "6176", "6176"],
+                                                      ["100", "100", "100",
+                                                       "100", "100", "100"],
+                                                      ["10", "10", "10",
+                                                       "10", "10", "10"],
+                                                      ["", "", "", "", "", ""],
+                                                      ["", "", "", "", "", ""],
+                                                      ["abundance", "counts",
+                                                       "keep",
+                                                       "abundance", "counts",
+                                                       "keep"]],
+                                                     names = ["run",
+                                                              "pipeline_version",
+                                                              "barcode",
+                                                              "sample_number",
+                                                              "date_received",
+                                                              "patient",
+                                                              "sample_material",
+                                                              "anatomy",
+                                                              "indication",
                                                               "total_before_qc",
                                                               "total_after_qc",
                                                               "human",

@@ -1,3 +1,5 @@
+"input_names": "test/data/input_names/input_da_old_lis.yaml"
+language: "da"
 "sample_number_settings":
   "sample_number_format": ([BDFT]|[135]0|11)([0-9]{8}|[0-9]{6})-\d
   "format_in_sheet": (?P<sample_type>[BDFT]|[135]0|11)(?P<sample_year>\d{2})(?P<sample_number>\d{6})(?P<bact_number>-\d)
