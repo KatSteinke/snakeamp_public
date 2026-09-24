@@ -1,7 +1,8 @@
 name: nanopore_qc_env
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
+  - nodefaults
 dependencies:
   - chopper=0.9.1
   - filtlong=0.2.1
