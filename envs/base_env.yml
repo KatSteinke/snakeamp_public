@@ -11,4 +11,4 @@ dependencies:
   - pyarrow  # so pandas won't complain
   - python>=3.9.*
   - pyyaml
-  - snakemake==9.14
+  - snakemake==9.14.5
