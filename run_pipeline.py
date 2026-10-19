@@ -281,15 +281,18 @@ def initialize_commandline_run(start_args: argparse.Namespace,
         raise ValueError("Runsheet not specified.")
     if not start_args.rundir:
         raise ValueError("Nanopore run directory not specified.")
-    # fetch LIS stuff if needed
+    # initialize from config
     seqtime = active_config["seq_run_duration_hours"]
     test_run = active_config["debug"]
+    cores = active_config["cores"]
     run_sheet = pathlib.Path(start_args.runsheet).resolve()
     run_dir = helpers.get_fastq_pass_parent(pathlib.Path(start_args.rundir))
     if start_args.run_time:
         seqtime = start_args.run_time
     if start_args.test_run:
         test_run = True
+    if start_args.cores:
+        cores = int(start_args.cores)
     # if we have anything to pass through to snakemake, get it here
     if start_args.snake_flags:
         snake_flags = start_args.snake_flags[0].split()
@@ -300,6 +303,7 @@ def initialize_commandline_run(start_args: argparse.Namespace,
                                                    configfile = config_file,
                                                    active_config = active_config,
                                                    sequencing_time = seqtime, test_run = test_run,
+                                                   cores = cores,
                                                    snake_flags = snake_flags)
     if start_args.outdir:  # can only be given in commandline mode
         current_amplicon_run.outdir = get_clean_outdir(pathlib.Path(start_args.outdir))
@@ -417,6 +421,10 @@ def run_pipeline(start_args: List[str]) -> subprocess.CompletedProcess:
                             help = "Logfile to store analysis start commands (default: "
                                    f"{WORKFLOW_CONFIG['paths']['output_base_path']}/"
                                    "[experiment_name]/logs/start_pipeline.log",
+                            default = None)
+    arg_parser.add_argument("--cores", action = "store",
+                            help = "Amount of cores to use when running the pipeline in local mode "
+                                   f"(default: {WORKFLOW_CONFIG['cores']})",
                             default = None)
     arg_parser.add_argument("--snake_flags", nargs = "*",
                             help = "Flags to be passed to Snakemake, enclosed in quotes")

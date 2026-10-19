@@ -33,7 +33,8 @@ class TestCreateAmpliconRun(unittest.TestCase):
                      "amplicon_type": "16S",
                      "debug": False,
                      "paths": {"output_base_path": "/path/to/output"},
-                     "seq_run_duration_hours": 1}
+                     "seq_run_duration_hours": 1,
+                     "cores": 8}
 
     def test_create_run(self):
         """Successfully create an AmpliconRun"""
@@ -42,6 +43,7 @@ class TestCreateAmpliconRun(unittest.TestCase):
                     /"test_nanopore_runsheet.xlsx")
         configfile = pathlib.Path("path/to/config")
         expected_outdir = pathlib.Path("/path/to/output/NANO_Amplicon_Y20990101_RUN0001_XYZ-16S")
+        expected_cores = 8
         amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
                                                configfile = configfile,
                                                active_config = self.active_config)
@@ -52,6 +54,7 @@ class TestCreateAmpliconRun(unittest.TestCase):
         assert self.active_config == amplicon_run.active_config
         assert seq_run_duration == amplicon_run.sequencing_time
         assert expected_outdir == amplicon_run.outdir
+        assert expected_cores == amplicon_run.cores
         assert not amplicon_run.test_run
 
     def test_initialize_with_seq_time(self):
@@ -80,6 +83,33 @@ class TestCreateAmpliconRun(unittest.TestCase):
             monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
                                     configfile = configfile, active_config = self.active_config,
                                     sequencing_time = new_seq_time)
+
+    def test_fail_bad_cores(self):
+        """Fail if an invalid amount of cores is given."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        fail_cores = 0
+        error_msg = "Amount of cores must be greater than 0."
+        with pytest.raises(ValueError, match=re.escape(error_msg)):
+            monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                    configfile = configfile, active_config = self.active_config,
+                                    cores = fail_cores)
+
+    def test_set_cores(self):
+        """Set amount of cores."""
+        expected_indir = pathlib.Path("path/to/indir")
+        runsheet = (pathlib.Path(__file__).parent / "data"/"utilities_test"
+                    /"test_nanopore_runsheet.xlsx")
+        configfile = pathlib.Path("path/to/config")
+        new_cores = 16
+        amplicon_run = monitor_run.AmpliconRun(sequence_dir = expected_indir, runsheet = runsheet,
+                                               configfile = configfile,
+                                               active_config = self.active_config,
+                                               cores = new_cores)
+        assert new_cores == amplicon_run.cores
+
 
     def test_override_test_run(self):
         """Initialize the run as a test run."""
@@ -147,8 +177,9 @@ class TestCreateAmpliconRun(unittest.TestCase):
                          f"configfile={configfile}, active_config={self.active_config}, "
                          f"outdir={expected_outdir},"
                          " sequencing_time="
-                         f"{timedelta(hours=self.active_config['seq_run_duration_hours'])},"
-                         f"snake_flags=None)")
+                         f"{timedelta(hours=self.active_config['seq_run_duration_hours'])}, "
+                         "cores=8, "
+                         "snake_flags=None)")
         amplicon_repr = amplicon_run.__repr__()
         assert amplicon_repr == expected_repr
 
@@ -168,7 +199,8 @@ class TestCreateAmpliconRun(unittest.TestCase):
                          f"configfile={configfile}, active_config={self.active_config}, "
                          f"outdir={expected_outdir},"
                          " sequencing_time="
-                         f"{timedelta(hours=self.active_config['seq_run_duration_hours'])},"
+                         f"{timedelta(hours=self.active_config['seq_run_duration_hours'])}, "
+                         "cores=8, "
                          f"snake_flags={snake_flags})")
         amplicon_repr = amplicon_run.__repr__()
         assert amplicon_repr == expected_repr
@@ -255,7 +287,8 @@ class TestGetNomadCommand(unittest.TestCase):
                      "debug": False,
                      "run_on": "nomad",
                      "paths": {"output_base_path": "/path/to/output"},
-                     "seq_run_duration_hours": 1
+                     "seq_run_duration_hours": 1,
+                     "cores": 128
                      }
     config_path = pathlib.Path(__file__).parent / "data"/"monitor_run"/"test_config.yaml"
 
@@ -332,7 +365,7 @@ class TestGetNomadCommand(unittest.TestCase):
                                       / "input_da_old_lis.yaml",
                        "debug": True, "amplicon_type": "16S",
                        "paths": {"output_base_path": "/path/to/output"},
-                       "seq_run_duration_hours": 1}
+                       "seq_run_duration_hours": 1, "cores": 128}
         expected_command = ["nomad", "job", "dispatch",
                             "-meta", "indir=path/to/indir",
                             "-meta", "outdir=path/to/outdir",
@@ -356,7 +389,7 @@ class TestGetNomadCommand(unittest.TestCase):
                                       / "input_da_old_lis.yaml",
                        "debug": True, "amplicon_type": "16S",
                        "paths": {"output_base_path": "/path/to/output"},
-                       "seq_run_duration_hours": 1}
+                       "seq_run_duration_hours": 1, "cores": 128}
         expected_command = ["nomad", "job", "dispatch",
                             "-meta", "indir=path/to/indir",
                             "-meta", "outdir=path/to/outdir",
@@ -403,8 +436,7 @@ class TestGetLocalCommand(unittest.TestCase):
     runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                 / "test_nanopore_runsheet.xlsx")
     seq_run = monitor_run.AmpliconRun(sequence_dir = indir, runsheet = runsheet,
-                                      configfile = config_path,
-                                      active_config = active_config)
+                                      configfile = config_path, active_config = active_config)
     seq_run.outdir = outdir
 
     def test_get_routine_command(self):
@@ -421,11 +453,29 @@ class TestGetLocalCommand(unittest.TestCase):
         test_command = monitor_run.get_local_command(self.seq_run)
         assert expected_command == test_command
 
+    def test_set_cores(self):
+        """Override cores when running the pipeline locally in Snakemake."""
+        seq_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                          configfile = self.config_path,
+                                          active_config = self.active_config, outdir = self.outdir,
+                                          cores = 16)
+        expected_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "16",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={self.outdir}",
+                            f"rundir={self.indir}",
+                            f"runsheet={self.runsheet}",
+                            f"config_path={str(self.config_path)}",
+                            "--configfile", str(self.config_path)]
+        test_command = monitor_run.get_local_command(seq_run)
+        assert expected_command == test_command
+
     def test_set_snake_flags(self):
         """Get the command for running the pipeline locally in Snakemake."""
         seq_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
-                                      configfile = self.config_path,
-                                      active_config = self.active_config, outdir = self.outdir)
+                                          configfile = self.config_path,
+                                          active_config = self.active_config, outdir = self.outdir)
         seq_run.snake_flags = ["-n"]
         expected_command = ["snakemake", "-s", "Snakefile",
                             "--cores", "8",
@@ -468,8 +518,8 @@ class TestGetLocalCommand(unittest.TestCase):
         test_config["conda"]["prefix"] = "/data/conda_prefix"
         test_config["conda"]["use_conda"] = True
         seq_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
-                                      configfile = self.config_path,
-                                      active_config = test_config, outdir = self.outdir)
+                                          configfile = self.config_path,
+                                          active_config = test_config, outdir = self.outdir)
         expected_command = ["snakemake", "-s", "Snakefile",
                             "--cores", "8",
                             "--keep-going",
