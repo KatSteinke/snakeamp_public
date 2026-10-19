@@ -107,7 +107,7 @@ rule concatenate_fastqs:
     conda:
         "envs/nanopore_qc.yml" if IS_LOCAL else "nanopore_qc_env"
     resources:
-        mem_mb = 200,
+        mem_mb = 2000,
         runtime = "10m"
     shell:
         """
@@ -132,7 +132,7 @@ rule get_qc_statistics:
     conda: "envs/nanopore_qc.yml" if IS_LOCAL else "nanopore_qc_env"
     threads: 2
     resources:
-        mem_mb = 200,
+        mem_mb = 2000,
         runtime = "10m"
     shell:
         """
@@ -157,7 +157,7 @@ rule clean_nanopore_reads:
                       if config['quality_params']['min_qscore'] else ''
     conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     resources:
-        mem_mb = 500,
+        mem_mb = 2000,
         runtime = "15m"
     log:
         "logs/filtlong/{sample_number}_{barcode}.log"
@@ -184,7 +184,7 @@ rule filter_contaminants:
         "logs/chopper/{sample_number}_{barcode}.log"
     threads: 4
     resources:
-        mem_mb = 500,
+        mem_mb = 2000,
         runtime = "15m"
     shell:
         """
@@ -227,7 +227,7 @@ rule get_qc_statistics_cleaned:
     conda: "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     threads: 2
     resources:
-        mem_mb = 200,
+        mem_mb = 2000,
         runtime = "10m"
     shell:
         """
@@ -246,7 +246,7 @@ rule compress_nanopore_reads:
         "envs/nanopore_qc.yml" if IS_LOCAL else  "nanopore_qc_env"
     threads: 2
     resources:
-        mem_mb = 100,
+        mem_mb = 1000,
         runtime = "10m"
     shell:
         """
@@ -272,7 +272,7 @@ rule run_emu:
     threads: max(12, (workflow.cores / 4 )) if (workflow.cores / 4 ) <= 32 else 32
     resources:
         mem_mb = 8000,
-        runtime = "4h"
+        runtime = "8h"
     log:
         "logs/emu/{sample_number}_{barcode}.log"
     shell:

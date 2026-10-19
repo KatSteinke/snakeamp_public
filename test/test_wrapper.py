@@ -118,7 +118,6 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                    "10": "D",
                                                                    "11": "F",
                                                                    "50": "T"},
-
                                               "negative_control": 'NegK[a-zA-Z0-9]*',
                                               "positive_control": {}},
                          "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -219,10 +218,7 @@ class TestProcessRunsheet(unittest.TestCase):
                                                                          "10": "D",
                                                                          "11": "F",
                                                                          "50": "T"},
-                                                    "date_settings":
-                                                        {"splice_in_date": False,
-                                                         "length_without_date": 8,
-                                                         "splice_after": 2},
+
                                                     "negative_control": 'NegK[a-zA-Z0-9]*',
                                                     "positive_control": {}},
                          "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -445,12 +441,12 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                                      "30": "B",
                                                                      "10": "D",
                                                                      "50": "T"},
-
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
                      "barcode_prefix": "NB",
                      "amplicon_type": "16S",
+                     "cores": 128,
                      "debug": False,
                      "paths": {"output_base_path": "/path/to/output"},
                      "seq_run_duration_hours": 1}
@@ -510,8 +506,7 @@ class TestInitializeRunFromInput(unittest.TestCase):
                                                active_config = active_config,
                                                outdir = expected_outdir,
                                                sequencing_time = active_config[
-                                                   "seq_run_duration_hours"],
-                                               test_run = True)
+                                                   "seq_run_duration_hours"], test_run = True)
         logo_msg = r"""   oo_               _
   /  _)-<           | |          /\
   \__ `. _ __   __ _| | _____   /  \   _ __ ___  _ __
@@ -615,7 +610,6 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                                                                      "30": "B",
                                                                      "10": "D",
                                                                      "50": "T"},
-
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -624,6 +618,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                      "debug": False,
                      "paths": {"output_base_path": "/path/to/output"},
                      "seq_run_duration_hours": 1,
+                     "cores": 128,
                      "lab_info_system":
                          {"use_lis_features": True,
                           "lis_report": str(pathlib.Path(__file__).parent / "data" / "summarize_emu"
@@ -643,7 +638,6 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                                                                         "30": "B",
                                                                         "10": "D",
                                                                         "50": "T"},
-
                                                    "negative_control": 'NegK[a-zA-Z0-9]*',
                                                    "positive_control": {}},
                         "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -652,6 +646,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
                         "debug": False,
                         "paths": {"output_base_path": "/path/to/output"},
                         "seq_run_duration_hours": 1,
+                        "cores": 128,
                         "lab_info_system":
                             {"use_lis_features": True,
                              "lis_report": str(pathlib.Path(__file__).parent
@@ -687,7 +682,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_missing_runsheet(self):
         """Fail if runsheet was not entered."""
         args = Namespace(runsheet = None, rundir = self.indir, test_run=None, run_time = None,
-                         outdir = None, snake_flags = None)
+                         outdir = None, snake_flags = None, cores = None)
         error_msg = "Runsheet not specified."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             snake_wrapper.initialize_commandline_run(args)
@@ -695,7 +690,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_missing_data(self):
         """Fail if path to sequencing data was not entered."""
         args = Namespace(runsheet = self.runsheet, rundir = None, test_run = False, run_time = None,
-                         outdir = None)
+                         outdir = None, cores = None)
         error_msg = "Nanopore run directory not specified."
         with pytest.raises(ValueError, match = re.escape(error_msg)):
             snake_wrapper.initialize_commandline_run(args)
@@ -706,7 +701,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_default_run(self):
         """Set up a run with default settings."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = None)
+                         run_time = None, outdir = None, snake_flags = None, cores = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = snake_wrapper.DEFAULT_CONFIG_FILE,
                                                active_config = self.active_config,
@@ -722,7 +717,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_config(self):
         """Set up a run with settings set through a different config."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = None)
+                         run_time = None, outdir = None, snake_flags = None, cores = None)
         test_config = self.active_config.copy()
         test_config["seq_run_duration_hours"] = 0.5
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
@@ -732,24 +727,38 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
         test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
         assert expected_run == test_run
 
+    def test_set_cores(self):
+        """Set up a run with a non-default number of cores."""
+        args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
+                         run_time = None, outdir = None, snake_flags = None, cores = 16)
+        test_config = self.active_config.copy()
+        test_config["seq_run_duration_hours"] = 0.5
+        expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
+                                               configfile = self.configfile,
+                                               active_config = test_config,
+                                               outdir = self.expected_outdir, sequencing_time = 0.5,
+                                               cores = 16)
+        test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
+        assert expected_run == test_run
+
     def test_set_flag(self):
         """Initialize a run with a flag to pass through to Snakemake."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = ["-n "])
+                         run_time = None, outdir = None, snake_flags = ["-n "], cores = None)
         test_config = self.active_config.copy()
         test_config["run_on"] = "local"
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = test_config,
-                                               outdir = self.expected_outdir,
-                                               snake_flags = ["-n"])
+                                               outdir = self.expected_outdir, snake_flags = ["-n"])
         test_run = snake_wrapper.initialize_commandline_run(args, test_config, self.configfile)
         assert expected_run == test_run
 
     def test_set_flags(self):
         """Initialize a run with flags to pass through to Snakemake."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = ["-n --rerun-incomplete"])
+                         run_time = None, outdir = None, snake_flags = ["-n --rerun-incomplete"],
+                         cores = None)
         test_config = self.active_config.copy()
         test_config["run_on"] = "local"
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
@@ -763,7 +772,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_no_lis(self):
         """Run correctly even if no LIS is specified."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = None, snake_flags = None)
+                         run_time = None, outdir = None, snake_flags = None, cores = None)
         test_config = self.active_config.copy()
         test_config["lab_info_system"]["use_lis"] = False
         test_config["lab_info_system"]["lis_report"] = ""
@@ -777,7 +786,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_run_time(self):
         """Override run time from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = 0.5, outdir = None, snake_flags = None)
+                         run_time = 0.5, outdir = None, snake_flags = None, cores = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
@@ -789,7 +798,8 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_outdir(self):
         """Override output directory from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = None,
-                         run_time = None, outdir = "path/to/test_outdir", snake_flags = None)
+                         run_time = None, outdir = "path/to/test_outdir", snake_flags = None,
+                         cores = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
@@ -803,7 +813,7 @@ class TestInitializeRunFromCommandline(unittest.TestCase):
     def test_set_test_mode(self):
         """Set debug mode from the commandline."""
         args = Namespace(runsheet = self.runsheet, rundir = self.indir, test_run = True,
-                         run_time = None, outdir = None, snake_flags = None)
+                         run_time = None, outdir = None, snake_flags = None, cores = None)
         expected_run = monitor_run.AmpliconRun(sequence_dir = self.indir, runsheet = self.runsheet,
                                                configfile = self.configfile,
                                                active_config = self.active_config,
@@ -893,7 +903,6 @@ class TestRunPipeline(unittest.TestCase):
                                                                      "10": "D",
                                                                      "11": "F",
                                                                      "50": "T"},
-
                                                 "negative_control": 'NegK[a-zA-Z0-9]*',
                                                 "positive_control": {}},
                      "barcode_format": "NB[0-9]{2}",  # format of barcodes in runsheet
@@ -1076,6 +1085,43 @@ class TestRunPipeline(unittest.TestCase):
         assert expected_command == test_command.args
         assert expected_outdir.exists()
 
+    @mock.patch(f"{snake_wrapper.__name__}.check_if_classic_mode", return_value=True)
+    # mock fork so it doesn't actually fork off anything
+    @mock.patch(f"{snake_wrapper.__name__}.os.fork")
+    # mock input
+    @mock.patch("builtins.input")
+    def test_run_classic_local(self, mock_input, mock_fork, mock_mode):
+        """Start a local run in classic mode."""
+        mock_fork.return_value = False
+        expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
+                          / "test1" / "no_sample" / "test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = str(pathlib.Path(__file__).parent / "data"
+                                                   /"utilities_test"/"test_18s_config_local.yaml")
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
+                          / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
+        mock_input.side_effect = [str(expected_indir),  # sequencing directory
+                                  "y",  # accept sequencing time
+                                  str(runsheet),  # runsheet
+                                  "y"]  # accept default outdir
+        assert not expected_outdir.exists()
+        local_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "8",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={expected_outdir}",
+                            f"rundir={expected_indir}",
+                            f"runsheet={runsheet}",
+                            f"config_path={configfile}",
+                            "--configfile", configfile]
+        expected_command = ["echo", f'"{" ".join(local_command)}"']
+        test_args = ["--workflow_config_file", str(configfile), "--dry_run"]
+        test_command = snake_wrapper.run_pipeline(test_args)
+        assert expected_command == test_command.args
+        assert expected_outdir.exists()
+
     @mock.patch.dict(f"{snake_wrapper.__name__}.WORKFLOW_CONFIG", active_config,
                      clear = True)
     @mock.patch(f"{snake_wrapper.__name__}.DEFAULT_CONFIG_FILE", active_config_file)
@@ -1169,6 +1215,36 @@ class TestRunPipeline(unittest.TestCase):
         """Start a local run in commandline mode."""
         mock_fork.return_value = False
         expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
+                          / "test1" / "rawdata" / "test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = str(pathlib.Path(__file__).parent / "data"
+                         / "utilities_test" / "test_18s_config_local.yaml")
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
+                          / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
+        assert not expected_outdir.exists()
+        local_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "8",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={expected_outdir}",
+                            f"rundir={expected_indir}",
+                            f"runsheet={runsheet}",
+                            f"config_path={configfile}",
+                            "--configfile", configfile]
+        expected_command = ["echo", f'"{" ".join(local_command)}"']
+        test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet),
+                     "--workflow_config_file", str(configfile), "--dry_run"]
+        test_command = snake_wrapper.run_pipeline(test_args)
+        assert expected_command == test_command.args
+        assert expected_outdir.exists()
+
+    @mock.patch(f"{snake_wrapper.__name__}.os.fork")
+    def test_run_commandline_local(self, mock_fork):
+        """Start a local run in commandline mode."""
+        mock_fork.return_value = False
+        expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
                           / "test1" / "no_sample" / "test_subdir")
         runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
                     / "test_nanopore_runsheet.xlsx")
@@ -1189,6 +1265,36 @@ class TestRunPipeline(unittest.TestCase):
                             "--configfile", configfile]
         expected_command = ["echo", f'"{" ".join(local_command)}"']
         test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet),
+                     "--workflow_config_file", str(configfile), "--dry_run"]
+        test_command = snake_wrapper.run_pipeline(test_args)
+        assert expected_command == test_command.args
+        assert expected_outdir.exists()
+
+    @mock.patch(f"{snake_wrapper.__name__}.os.fork")
+    def test_run_commandline_local_set_cores(self, mock_fork):
+        """Start a local run in commandline mode and set amount of cores."""
+        mock_fork.return_value = False
+        expected_indir = (pathlib.Path(__file__).parent / "data" / "monitor_run" / "miniondir"
+                          / "test1" / "no_sample" / "test_subdir")
+        runsheet = (pathlib.Path(__file__).parent / "data" / "utilities_test"
+                    / "test_nanopore_runsheet.xlsx")
+        configfile = str(pathlib.Path(__file__).parent / "data"
+                         / "utilities_test" / "test_18s_config_local.yaml")
+        expected_outdir = (pathlib.Path(self.active_config["paths"]["output_base_path"]).
+                           relative_to(pathlib.Path(__file__).parent.parent)
+                          / "NANO_Amplicon_Y20990101_RUN0001_XYZ-18S")
+        assert not expected_outdir.exists()
+        local_command = ["snakemake", "-s", "Snakefile",
+                            "--cores", "16",
+                            "--keep-going",
+                            "--config",
+                            f"outdir={expected_outdir}",
+                            f"rundir={expected_indir}",
+                            f"runsheet={runsheet}",
+                            f"config_path={configfile}",
+                            "--configfile", configfile]
+        expected_command = ["echo", f'"{" ".join(local_command)}"']
+        test_args = ["--rundir", str(expected_indir), "--runsheet", str(runsheet), "--cores", "16",
                      "--workflow_config_file", str(configfile), "--dry_run"]
         test_command = snake_wrapper.run_pipeline(test_args)
         assert expected_command == test_command.args

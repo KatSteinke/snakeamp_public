@@ -83,10 +83,6 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "30": "B",
                                                                        "10": "D",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -143,7 +139,6 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
-
                                                   "negative_control": 'NegK',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -174,7 +169,6 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
-
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -210,7 +204,6 @@ class TestCheckRunsheetFormat(unittest.TestCase):
                                                                        "11": "F",
                                                                        "10": "D",
                                                                        "50": "T"},
-
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -239,7 +232,6 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                    "10": "D",
                                                                    "11": "F",
                                                                    "50": "T"},
-
                                               "negative_control": '',
                                               "positive_control": {}},
                    "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -285,7 +277,6 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -351,7 +342,6 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -390,7 +380,6 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": '',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -417,7 +406,6 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -434,6 +422,8 @@ class TestCheckSampleNumbers(unittest.TestCase):
         duplicated_warning = "Sample number(s) ['1123456789'] are duplicated." \
                              " If you are sure you want to sequence the same sample twice, " \
                              "you can ignore this warning."
+        with self._caplog.at_level(logging.WARNING, logger = "check_runsheet"):
+            check_runsheet.check_sheet_format(sheet_data, active_config = self.test_config)
         with self._caplog.at_level(logging.WARNING, logger = "check_runsheet"):
             check_runsheet.check_sheet_format(sheet_data, runsheet_names = self.sheet_names,
                                               active_config = self.test_config)
@@ -500,10 +490,6 @@ class TestCheckSampleNumbers(unittest.TestCase):
                                                                        "30": "B",
                                                                        "10": "D",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": False,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "barcode_format": "RB[0-9]{2}",  # format of barcodes in runsheet
@@ -552,6 +538,10 @@ class TestCheckRunsheet(unittest.TestCase):
     def inject_fixtures(self, caplog):
         self._caplog = caplog
 
+    @pytest.fixture(autouse = True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def test_fail_ids(self):
         id_fail_sheet = pathlib.Path(
             __file__).parent / "data" / "utilities_test" / "runsheet-id-fail.xlsx"
@@ -583,7 +573,6 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False},
@@ -616,7 +605,6 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False},
@@ -657,7 +645,6 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": '',
                                                   "positive_control": {"PosK": "Placeholderia"}},
                        "lab_info_system": {"use_lis_features": False},
@@ -686,7 +673,6 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": 'NegK',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False},
@@ -760,7 +746,6 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": 'NegK[a-zA-Z0-9_-]*',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": True,
@@ -794,7 +779,6 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-
                                                   "negative_control": 'NegK[a-zA-Z0-9_-]*',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": False,
@@ -811,8 +795,7 @@ class TestCheckRunsheet(unittest.TestCase):
         with self._caplog.at_level(logging.INFO, logger = "check_runsheet"):
             runsheet_pass = check_runsheet.check_runsheet(runsheet,
                                                           runsheet_names = self.sheet_names,
-                                                          lis_report_names = self.lis_names,
-                                                          active_config = test_config)
+                                                          lis_report_names = self.lis_names, active_config = test_config)
 
         assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
         assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
@@ -856,9 +839,10 @@ class TestCheckRunsheet(unittest.TestCase):
                                                           runsheet_names = self.sheet_names,
                                                           lis_report_names = self.lis_names,
                                                           active_config = test_config)
-            assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
-            assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
-            assert ("check_runsheet", logging.INFO, check_lis_msg) in self._caplog.record_tuples
+
+        assert ("check_runsheet", logging.INFO, loading_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_sheet_msg) in self._caplog.record_tuples
+        assert ("check_runsheet", logging.INFO, check_lis_msg) in self._caplog.record_tuples
         assert runsheet_pass
 
     def test_success_use_lis_en(self):
@@ -878,10 +862,6 @@ class TestCheckRunsheet(unittest.TestCase):
                                                                        "10": "D",
                                                                        "11": "F",
                                                                        "50": "T"},
-                                                  "date_settings":
-                                                      {"splice_in_date": True,
-                                                       "length_without_date": 8,
-                                                       "splice_after": 2},
                                                   "negative_control": '',
                                                   "positive_control": {}},
                        "lab_info_system": {"use_lis_features": True,

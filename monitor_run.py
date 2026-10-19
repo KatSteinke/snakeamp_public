@@ -45,12 +45,13 @@ class AmpliconRun:
         sequencing_time:    the expected duration of the run in hours
                             (taken from config if not given)
         test_run:           whether to run the pipeline in test mode (overrides config setting)
+        cores:              the amount of cores to use (in local mode)
         snake_flags         optional flags to pass on to Snakemake
     """
     def __init__(self, sequence_dir: pathlib.Path, runsheet: pathlib.Path, configfile: pathlib.Path,
                  active_config: Dict[str, Any], outdir: Optional[pathlib.Path] = None,
                  sequencing_time: Optional[float] = None, test_run: Optional[bool] = None,
-                 snake_flags: Optional[List[str]] = None):
+                 cores: Optional[int] = None, snake_flags: Optional[List[str]] = None):
         """Initialize an AmpliconRun with the supplied parameters, setting the output dir to one
         based on the experiment name.
 
@@ -64,6 +65,7 @@ class AmpliconRun:
             sequencing_time:    the expected duration of the run in hours
                                 (taken from config if not given)
             test_run:           whether to run the pipeline in test mode (overrides config setting)
+            cores:              the amount of cores to use (in local mode)
             snake_flags:        flags to pass on to Snakemake
         """
         self.sequence_dir = sequence_dir
@@ -75,6 +77,10 @@ class AmpliconRun:
             self.test_run = active_config["debug"]
         else:
             self.test_run = test_run
+        if cores is None:
+            self.cores = active_config["cores"]
+        else:
+            self.cores = cores
         if outdir:
             self.outdir = outdir
         else:
@@ -85,6 +91,11 @@ class AmpliconRun:
         seq_time = float(active_config['seq_run_duration_hours'])
         if sequencing_time:
             seq_time = float(sequencing_time)
+
+        # sense checks
+        if self.cores <= 0:
+            raise ValueError("Amount of cores must be greater than 0.")
+
         if seq_time < 0:
             raise ValueError("Expected sequencing time must be greater than 0 hours.")
         self.sequencing_time = timedelta(hours=seq_time)
@@ -92,31 +103,33 @@ class AmpliconRun:
     def __repr__(self):
         return (f"AmpliconRun(sequence_dir={self.sequence_dir}, runsheet={self.runsheet}, "
                 f"configfile={self.configfile}, active_config={self.active_config}, "
-                f"outdir={self.outdir}, sequencing_time={self.sequencing_time},"
-                f"snake_flags={self.snake_flags})")
+                f"outdir={self.outdir}, sequencing_time={self.sequencing_time}, "
+                f"cores={self.cores}, snake_flags={self.snake_flags})")
 
     def __eq__(self, other):
         if isinstance(other, AmpliconRun):
             return ((self.sequence_dir == other.sequence_dir
-                    and self.runsheet == other.runsheet
-                    and self.configfile == other.configfile
-                    and self.active_config == other.active_config
-                    and self.outdir == other.outdir
-                    and self.sequencing_time == other.sequencing_time
-                    and self.test_run == other.test_run
+                     and self.runsheet == other.runsheet
+                     and self.configfile == other.configfile
+                     and self.active_config == other.active_config
+                     and self.outdir == other.outdir
+                     and self.sequencing_time == other.sequencing_time
+                     and self.test_run == other.test_run
+                     and self.cores == other.cores
                      and self.snake_flags == other.snake_flags))
         return False
 
     def __ne__(self, other):
         if isinstance(other, AmpliconRun):
-            return (not(self.sequence_dir == other.sequence_dir
-                    and self.runsheet == other.runsheet
-                    and self.configfile == other.configfile
-                    and self.active_config == other.active_config
-                    and self.outdir == other.outdir
-                    and self.sequencing_time == other.sequencing_time
-                    and self.test_run == other.test_run
-                        and self.snake_flags == other.snake_flags))
+            return (not (self.sequence_dir == other.sequence_dir
+                         and self.runsheet == other.runsheet
+                         and self.configfile == other.configfile
+                         and self.active_config == other.active_config
+                         and self.outdir == other.outdir
+                         and self.sequencing_time == other.sequencing_time
+                         and self.test_run == other.test_run
+                         and self.cores == other.cores
+                         and self.snake_flags == other.snake_flags))
         return True
 
 
@@ -159,7 +172,7 @@ def get_local_command(sequencing_run: AmpliconRun) -> List[str]:
         The snakemake command to start the pipeline.
     """
     snakemake_command = ["snakemake", "-s", "Snakefile",
-                        "--cores", str(sequencing_run.active_config["cores"]),
+                        "--cores", str(sequencing_run.cores),
                         "--keep-going",
                         "--config",
                         f"outdir={sequencing_run.outdir}",

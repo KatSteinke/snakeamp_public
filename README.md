@@ -221,8 +221,9 @@ following options can be specified:
 * `--logfile`: the path where to store logs for pipeline start
 * `--dry_run`: instead of running the pipeline, determines the pipeline start command,
 sets up required dirs and exits
-* `--test_run`: only relevant when running on nomad - always dispatches `16s-snake-emu-staging`
+* `--test_run`: only relevant when running on nomad - always dispatches the `staging` version of the job
   regardless of config settings
+* `--cores`: set the amount of cores Snakemake uses
 
 ### Input requirements
 The pipeline requires the following inputs:
