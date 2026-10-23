@@ -18,4 +18,4 @@ dependencies:
   - pytest
   - python>=3.11.*
   - pyyaml
-  - snakemake=9.14
+  - snakemake=9.27.1
