@@ -4,6 +4,9 @@ channels:
   - bioconda
   - nodefaults
 dependencies:
+  - ca-certificates>=2026.10.19
+  - certifi>=2026.10.19
   - emu=3.4.4
   - minimap2>=2.22
+  - pip>=26.2.2
   - python=3.10

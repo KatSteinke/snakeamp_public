@@ -5,10 +5,13 @@ channels:
   - nodefaults
 dependencies:
   - biopython
+  - ca-certificates>=2026.10.19
+  - certifi>=2026.10.19
   - numpy>=1.22.2
   - openpyxl
   - pandas=2.*
+  - pip>=26.2.2
   - pyarrow  # so pandas won't complain
-  - python>=3.9.*
+  - python>=3.11.*
   - pyyaml
   - snakemake==9.14.5
