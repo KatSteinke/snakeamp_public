@@ -4,7 +4,10 @@ channels:
   - bioconda
   - nodefaults
 dependencies:
+  - ca-certificates>=2026.10.19
+  - certifi>=2026.10.19
   - chopper=0.9.1
   - filtlong=0.2.1
   - nanostat=1.6.0
   - pigz
+  - pip>=26.2.2
