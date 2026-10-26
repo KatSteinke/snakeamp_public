@@ -1,4 +1,4 @@
-FROM condaforge/miniforge3:26.7.2-0
+FROM condaforge/miniforge3:26.9.4-0
 
 # TODO: change to use separate container
 
