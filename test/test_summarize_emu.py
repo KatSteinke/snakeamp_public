@@ -371,6 +371,52 @@ class TestExtractCounts(unittest.TestCase):
                                                                 active_config = self.workflow_config)
         pd.testing.assert_frame_equal(expected_results, test_results)
 
+    def test_get_counts_new_emu(self):
+        """Handle Emu >= 3.5 differentiation of unclassified reads (unmapped, mapped_filtered, mapped_unclassified)."""
+        sample_path = pathlib.Path(
+            __file__).parent / "data" / "summarize_emu" / "RUN0001_barcode05_RB05_rel-abundance.tsv"
+        expected_results = pd.DataFrame(data={"abundance": [20.00, 50.00,
+                                                            30.00],
+                                              "counts": [4, 10, 6],
+                                              "med": [np.nan, np.nan, np.nan]},
+                                        index=pd.Index(data=["Placeholderia bielefeldensis",
+                                                             "Placeholderia fakeorum",
+                                                             "unassigned"],
+                                                       name="species"))
+        expected_results = expected_results.astype({"counts": "Int64"})
+        run_header = ["RUN0001"] * len(expected_results.columns)
+        version_header = [self.version_text] * len(expected_results.columns)
+        name_header = ["barcode05"] * len(expected_results.columns)
+        barcode_header = ["RB05"] * len(expected_results.columns)
+        pre_qc_header = [6176] * len(expected_results.columns)
+        post_qc_header = [100] * len(expected_results.columns)
+        human_header = [10] * len(expected_results.columns)
+        phhv_header = [""] * len(expected_results.columns)
+        note_header = [""] * len(expected_results.columns)
+        expected_results.columns = pd.MultiIndex.from_arrays([run_header,
+                                                              version_header,
+                                                              barcode_header,
+                                                              name_header,
+                                                              pre_qc_header,
+                                                              post_qc_header,
+                                                              human_header,
+                                                              phhv_header,
+                                                              note_header,
+                                                              expected_results.columns],
+                                                             names=["run",
+                                                                    "pipeline_version",
+                                                                    "barcode",
+                                                                    "prøvenummer",
+                                                                    "total_before_qc",
+                                                                    "total_after_qc",
+                                                                    "human",
+                                                                    "PhHV",
+                                                                    "notes",
+                                                                    None])
+        test_results = summarize_emu.report_species_per_barcode(sample_path, self.base_dir,
+                                                                active_config=self.workflow_config)
+        pd.testing.assert_frame_equal(expected_results, test_results)
+
     def test_get_counts_success_en(self):
         """Use non default language for output"""
         sample_path = pathlib.Path(

@@ -1,0 +1,6 @@
+tax_id	abundance	species	genus	family	order	class	phylum	clade	superkingdom	subspecies	species subgroup	species group	estimated counts
+42	0.79	Placeholderia fakeorum	Placeholderia	Placeholderiaceae	Placeholderiales	Fakeobacteria	Fake group	Bacteria					10.0
+47	0.21	Placeholderia bielefeldensis	Placeholderia	Placeholderiaceae	Placeholderiales	Fakeobacteria	Fake group	Bacteria					4.0
+unmapped													1.0
+mapped_filtered													2.0
+mapped_unclassified													3.0
